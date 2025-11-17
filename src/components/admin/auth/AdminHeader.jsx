@@ -7,6 +7,8 @@ import { CiDark } from "react-icons/ci";
 import { useAppDispatch, useAppSelector } from '../../../redux/hooks';
 import { logout } from '../../../redux/slices/authSlice';
 import { useTheme } from "../../../context/ThemeContext";
+import generateBreadcrumb from "./generateBreadcrumb";
+
 
 const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
   const location = useLocation();
@@ -42,39 +44,29 @@ const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
   // Get current page title from pathname
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === "/admin" || path === "/dashboard/admin") return "Dashboard";
-    if (path.includes("/admin/products") && !path.includes("/add") && !path.includes("/edit")) return "Products";
-    if (path.includes("/admin/products/add")) return "Add Product";
-    if (path.includes("/admin/products/edit")) return "Edit Product";
-    if (path.includes("/admin/categories")) return "Categories";
-    if (path.includes("/admin/orders")) return "Orders";
-    if (path.includes("/admin/users")) return "Users";
-    if (path.includes("/admin/contact")) return "Contact";
-    if (path.includes("/admin/review")) return "Review";
-    if (path.includes("/admin/coupons")) return "Coupons";
-    if (path.includes("/admin/wholesaler-applications")) return "Wholesaler Applications";
+    if (path === "/dashboard" || path === "/dashboard/admin") return "Dashboard";
+    if (path.includes("/dashboard/products") && !path.includes("/add") && !path.includes("/edit") && !path.includes("/view") ) return "Products"  ;
+    if (path.includes("/dashboard/products/add")) return "Add Product";
+    if (path.includes("/dashboard/products/edit")) return "Edit Product";
+    if (path.includes("/dashboard/products/view")) return "View Product";
+
+    if (path.includes("/dashboard/sliders") && !path.includes("/add") && !path.includes("/edit")) return "Products";
+    if (path.includes("/dashboard/sliders/add")) return "Add sliders";
+    if (path.includes("/dashboard/sliders/edit")) return "Edit sliders";
+    if (path.includes("/dashboard/sliders/view")) return "View sliders";
+
+    if (path.includes("/dashboard/categories")) return "Categories";
+    if (path.includes("/dashboard/orders")) return "Orders";
+    if (path.includes("/dashboard/users")) return "Users";
+    if (path.includes("/dashboard/contact")) return "Contact";
+    if (path.includes("/dashboard/review")) return "Review";
+    if (path.includes("/dashboard/coupons")) return "Coupons";
     return "Dashboard";
   };
 
-  const getBreadcrumb = () => {
-    const path = location.pathname;
-    if (path === "/admin" || path === "/dashboard/admin") return ["Dashboard"];
-    if (path.includes("/admin/products") && !path.includes("/add") && !path.includes("/edit")) return ["Products", "All Products"];
-    if (path.includes("/admin/products/add")) return ["Products", "Add Product"];
-    if (path.includes("/admin/products/edit")) return ["Products", "Edit Product"];
-    if (path.includes("/admin/categories")) return ["Categories"];
-    if (path.includes("/admin/orders")) return ["Orders"];
-    if (path.includes("/admin/users")) return ["Users"];
-    if (path.includes("/admin/contact")) return ["Contact"];
-    if (path.includes("/admin/settings")) return ["Settings"];
-    if (path.includes("/admin/profile")) return ["Profile"];
-    if (path.includes("/admin/review")) return ["Review"];
-    if (path.includes("/admin/coupons")) return ["Coupons"];
-    if (path.includes("/admin/wholesaler-applications")) return ["Wholesaler Applications"];
-    return ["Dashboard"];
-  };
 
-  const breadcrumb = getBreadcrumb();
+
+  const breadcrumb = generateBreadcrumb();
   const currentPageTitle = getPageTitle();
 
   // Get user display data
