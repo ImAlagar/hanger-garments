@@ -4,7 +4,6 @@ import Home from "../pages/general/Home";
 import Shop from "../pages/general/Shop";
 import Contact from "../pages/general/Contact";
 import ProductDetails from "../pages/general/ProductDetails";
-import Cart from "../pages/general/Cart";
 import Checkout from "../pages/general/Checkout";
 import OrderSuccess from "../pages/general/OrderSuccess";
 
@@ -71,9 +70,8 @@ import AddSlider from "../pages/Dashboard/Admin/sliders/AddSlider";
 import ViewSlider from "../pages/Dashboard/Admin/sliders/ViewSlider";
 import Analytics from "../pages/Dashboard/Admin/Analytics";
 import ViewOrder from "../pages/Dashboard/Admin/orders/ViewOrder";
-import Wishlist from "../pages/general/wishlist";
-import CartSidebar from "../components/layout/CartSidebar";
 import ProductDetailsPage from "../pages/general/ProductDetailsPage";
+import WishList from "../pages/general/Wishlist";
 
 export const router = createBrowserRouter([
   {
@@ -112,7 +110,7 @@ export const router = createBrowserRouter([
       },   
       {
         path: "/wishlist",
-        element: <Wishlist />
+        element: <WishList />
       },
       {
         path: "/collections/:productSlug",
