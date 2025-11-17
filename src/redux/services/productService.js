@@ -27,8 +27,9 @@ export const productService = apiSlice.injectEndpoints({
     }),
 
     getProductBySlug: builder.query({
-  query: (productId) => `/products/${productId}`,
-}),
+      query: (productId) => `/products/${productId}`,
+    }),
+    
     createProduct: builder.mutation({
       query: (formData) => ({
         url: '/products/admin',
@@ -211,9 +212,9 @@ export const productService = apiSlice.injectEndpoints({
     }),
 
     getRelatedProducts: builder.query({
-  query: ({ category, excludeProductId }) => 
-    `/products/related?category=${category}&exclude=${excludeProductId}&limit=10`,
-}),
+    query: ({ category, excludeProductId }) => 
+      `/products/related?category=${category}&exclude=${excludeProductId}&limit=10`,
+  }),
   }),
 });
 

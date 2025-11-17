@@ -261,7 +261,7 @@ const ProductDetailsPage = () => {
               <img
                 src={variantImages[activeImageIndex]?.imageUrl || allProductImages[0]?.imageUrl}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-screen object-cover"
               />
             </div>
             

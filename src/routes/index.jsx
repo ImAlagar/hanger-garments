@@ -3,7 +3,6 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import Home from "../pages/general/Home";
 import Shop from "../pages/general/Shop";
 import Contact from "../pages/general/Contact";
-import ProductDetails from "../pages/general/ProductDetails";
 import Checkout from "../pages/general/Checkout";
 import OrderSuccess from "../pages/general/OrderSuccess";
 
@@ -104,10 +103,7 @@ export const router = createBrowserRouter([
         path: "/contact",
         element: <Contact />
       },
-      {
-        path: "/product/:productId",
-        element: <ProductDetails />
-      },   
+
       {
         path: "/wishlist",
         element: <WishList />

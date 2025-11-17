@@ -13,17 +13,17 @@ const ProductInfo = ({ product, hasStock, styles }) => {
         {stockStatus}
       </p>
       
-<h3 className={`
-  text-gray-800 font-italiana tracking-widest font-semibold 
-  text-base lg:text-lg mt-1 leading-tight
-  transition-all duration-200
-  ${isExpanded 
-    ? '' 
-    : 'truncate max-w-[200px]'
-  }
-`}>
-  {product.title}
-</h3>
+      <h3 className={` ${styles.textColor}
+        text-gray-800 font-italiana tracking-widest font-semibold 
+        text-base lg:text-lg mt-1 leading-tight
+        transition-all duration-200
+        ${isExpanded 
+          ? '' 
+          : 'truncate max-w-[200px]'
+        }
+      `}>
+        {product.title}
+      </h3>
     
         
       <div className="flex items-center gap-2 mt-1 flex-wrap">

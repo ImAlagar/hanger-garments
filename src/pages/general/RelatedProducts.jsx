@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useTheme } from '../../context/ThemeContext';
 import { useGetRelatedProductsQuery } from '../../redux/services/productService';
 import ProductCard from '../../components/ProductCard/ProductCard';
+import CartSidebar from '../../components/layout/CartSidebar';
 
 const RelatedProducts = ({ currentProduct, category }) => {
   const { theme } = useTheme();
@@ -14,6 +15,9 @@ const RelatedProducts = ({ currentProduct, category }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   
+  // Add Cart Sidebar state
+  const [showCartSidebar, setShowCartSidebar] = useState(false);
+  
   const isDark = theme === "dark";
   const userRole = user?.role;
   const isWholesaleUser = userRole === 'WHOLESALER';
@@ -24,6 +28,11 @@ const RelatedProducts = ({ currentProduct, category }) => {
   }, {
     skip: !category
   });
+
+  // Cart update handler - Add this function
+  const handleCartUpdate = () => {
+    setShowCartSidebar(true);
+  };
 
   // Handle different response structures
   let relatedProducts = [];
@@ -330,7 +339,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
               >
                 <ProductCard
                   product={product}
-                  onCartUpdate={() => {}}
+                  onCartUpdate={handleCartUpdate} // Updated this line
                 />
               </div>
             ))}
@@ -364,6 +373,12 @@ const RelatedProducts = ({ currentProduct, category }) => {
           </div>
         )}
       </div>
+
+      {/* Add Cart Sidebar at the bottom */}
+      <CartSidebar 
+        isOpen={showCartSidebar} 
+        onClose={() => setShowCartSidebar(false)} 
+      />
     </section>
   );
 };

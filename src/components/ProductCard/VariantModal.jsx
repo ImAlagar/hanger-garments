@@ -31,8 +31,8 @@ const VariantModal = ({
     <div
       className="
         fixed inset-0 bg-black/50 flex justify-center z-50
-        items-end md:items-center
-        p-0 md:p-4
+        items-end md:items-center 
+        p-0 md:p-4 scrollbar-hide
       "
     >
       <div className={`
@@ -42,7 +42,7 @@ const VariantModal = ({
         max-h-[85vh] 
         overflow-y-auto 
         shadow-lg 
-        p-4
+        p-4 scrollbar-hide
       `}>
         {/* Header */}
         <div className={`flex justify-between items-center pb-4 border-b ${styles.isDark ? 'border-gray-700' : 'border-gray-200'}`}>

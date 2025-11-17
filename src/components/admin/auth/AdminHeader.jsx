@@ -39,7 +39,6 @@ const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
   };
 
   // Check if user is admin
-  const isAdmin = user?.role === 'ADMIN'; // Changed to uppercase 'ADMIN'
 
   // Get current page title from pathname
   const getPageTitle = () => {

@@ -1,30 +1,22 @@
 import React from "react";
 
 const ProductActions = ({ 
-  product, 
   hasStock, 
-  availableVariants, 
   addingToCart, 
-  onAddToCart,
-  styles 
+  onAddToCart 
 }) => {
-  const handleAddToCart = async () => {
+
+  const handleAddToCart = () => {
     if (!hasStock) return;
-
-    if (availableVariants.length > 1) {
-      onAddToCart();
-      return;
-    }
-
-    if (availableVariants.length === 1) {
-      onAddToCart();
-      return;
-    }
+    onAddToCart(); 
   };
 
   return (
     <button
-      onClick={handleAddToCart}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleAddToCart();
+      }}
       disabled={!hasStock || addingToCart}
       className={`w-full mt-3 py-2 px-4 rounded-lg font-instrument text-sm font-medium transition-all duration-200 relative overflow-hidden ${
         !hasStock
@@ -34,13 +26,13 @@ const ProductActions = ({
           : "bg-[#e4ce01] text-black hover:bg-[#dfd803] shadow-lg"
       }`}
     >
-      {/* Shine effect overlay */}
+
       {hasStock && !addingToCart && (
         <div className="absolute inset-0 overflow-hidden rounded-lg">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shine"></div>
         </div>
       )}
-      
+
       {!hasStock ? (
         "Out of Stock"
       ) : addingToCart ? (
@@ -54,6 +46,7 @@ const ProductActions = ({
       ) : (
         <span className="relative z-10">Add to Cart</span>
       )}
+
     </button>
   );
 };
