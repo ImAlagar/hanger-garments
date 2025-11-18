@@ -234,7 +234,7 @@ export default function Shop() {
           <CartSidebar 
           isOpen={showCartSidebar} 
           onClose={() => setShowCartSidebar(false)} 
-        />
+        /> 
         </>
       )}
     </section>

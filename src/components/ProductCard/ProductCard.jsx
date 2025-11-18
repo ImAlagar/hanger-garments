@@ -1,14 +1,15 @@
+// ProductCard.js
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { useNavigate } from "react-router-dom";
 import { addToCart } from "../../redux/slices/cartSlice";
-import { addToWishlist, removeFromWishlist } from "../../redux/slices/wishlistSlice";
+import { useWishlist } from "../../hooks/useWishlist";
 import ProductImage from "./ProductImage";
 import ProductInfo from "./ProductInfo";
 import ProductActions from "./ProductActions";
 import { useProductCardStyles } from "./styles";
 import VariantModal from "./VariantModal";
-import { generateProductSlug } from "../../utils/slugify"; // Import the utility
+import { generateProductSlug } from "../../utils/slugify";
 import ModalPortal from "./ModalPortal";
 
 const ProductCard = ({ product, onCartUpdate }) => {
@@ -19,20 +20,27 @@ const ProductCard = ({ product, onCartUpdate }) => {
   const [togglingWishlist, setTogglingWishlist] = useState(false);
 
   const user = useSelector((state) => state.auth.user);
-  const wishlistItems = useSelector((state) => state.wishlist.items);
+  const { 
+    isInWishlist, 
+    addItemToWishlist, 
+    removeItemFromWishlist
+  } = useWishlist();
+  
   const dispatch = useDispatch();
-  const navigate = useNavigate(); // Add navigate hook
+  const navigate = useNavigate();
   
   const styles = useProductCardStyles();
-  const availableVariants = product.variants?.filter(variant => variant.stock > 0) || [];
+  
+  // Safe product data with fallbacks
+  const safeProduct = product || {};
+  const availableVariants = safeProduct.variants?.filter(variant => variant?.stock > 0) || [];
   const hasStock = availableVariants.length > 0;
-  const isInWishlist = wishlistItems.some(item => item.product._id === product.id);
 
-  // Generate product slug for URL
-  const productSlug = generateProductSlug(product);
+  // Generate product slug with error handling
+  const productSlug = generateProductSlug(safeProduct);
 
   const getProductImage = () => {
-    const firstVariant = product.variants?.[0];
+    const firstVariant = safeProduct.variants?.[0];
     if (firstVariant?.variantImages?.length > 0) {
       return firstVariant.variantImages[0].imageUrl;
     }
@@ -41,7 +49,11 @@ const ProductCard = ({ product, onCartUpdate }) => {
 
   // Handle card click to navigate to product details
   const handleCardClick = (e) => {
-    // Prevent navigation if clicking on interactive elements
+    if (!safeProduct.id && !safeProduct._id) {
+      console.error('Product missing ID, cannot navigate');
+      return;
+    }
+
     if (
       e.target.closest('button') || 
       e.target.closest('.wishlist-btn') ||
@@ -54,44 +66,27 @@ const ProductCard = ({ product, onCartUpdate }) => {
     navigate(`/collections/${productSlug}`);
   };
 
-  // Handle wishlist click specifically
-  const handleWishlistClick = (e) => {
-    e.stopPropagation(); // Prevent card click
-    handleWishlistToggle();
-  };
+  // Handle wishlist click
+  const handleWishlistClick = async (e) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      navigate('/auth/login');
+      return;
+    }
 
-  // Handle add to cart click
-const handleAddToCartClick = () => {
-  setShowVariantModal(true);
-};
-
-
-  const handleWishlistToggle = async () => {
-    if (!user) return;
+    if (!safeProduct.id && !safeProduct._id) {
+      console.error('Product missing ID, cannot add to wishlist');
+      return;
+    }
 
     setTogglingWishlist(true);
     try {
-      if (isInWishlist) {
-        dispatch(removeFromWishlist({ productId: product.id }));
+      const productId = safeProduct.id || safeProduct._id;
+      if (isInWishlist(productId)) {
+        removeItemFromWishlist(productId);
       } else {
-        const wishlistItem = {
-          product: {
-            _id: product.id,
-            name: product.name,
-            description: product.description,
-            category: product.category?.name || product.category,
-            images: [getProductImage()],
-            normalPrice: product.normalPrice,
-            offerPrice: product.offerPrice,
-            wholesalePrice: product.wholesalePrice,
-            isBestSeller: product.isBestSeller,
-            isNewArrival: product.isNewArrival,
-            featured: product.featured,
-          },
-          variant: availableVariants[0] || null
-        };
-        
-        dispatch(addToWishlist(wishlistItem));
+        addItemToWishlist(safeProduct, availableVariants[0]);
       }
     } catch (error) {
       console.error("Failed to update wishlist:", error);
@@ -100,25 +95,35 @@ const handleAddToCartClick = () => {
     }
   };
 
+  // Handle add to cart click
+  const handleAddToCartClick = () => {
+    setShowVariantModal(true);
+  };
+
   const addVariantToCart = async (variant, qty = quantity) => {
+    if (!safeProduct.id && !safeProduct._id) {
+      console.error('Product missing ID, cannot add to cart');
+      return;
+    }
+
     setAddingToCart(true);
     try {
       const cartItem = {
         product: {
-          _id: product.id,
-          name: product.name,
-          description: product.description,
-          category: product.category?.name || product.category,
+          _id: safeProduct.id || safeProduct._id,
+          name: safeProduct.name || 'Unknown Product',
+          description: safeProduct.description || '',
+          category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
           images: [getProductImage()],
-          normalPrice: product.normalPrice,
-          offerPrice: product.offerPrice,
-          wholesalePrice: product.wholesalePrice,
+          normalPrice: safeProduct.normalPrice || 0,
+          offerPrice: safeProduct.offerPrice || 0,
+          wholesalePrice: safeProduct.wholesalePrice || 0,
         },
         variant: {
           _id: variant.id,
           color: variant.color,
           size: variant.size,
-          price: product.isWholesaleUser ? product.wholesalePrice : (product.offerPrice || product.normalPrice),
+          price: safeProduct.isWholesaleUser ? safeProduct.wholesalePrice : (safeProduct.offerPrice || safeProduct.normalPrice),
           stock: variant.stock,
           sku: variant.sku,
         },
@@ -144,7 +149,7 @@ const handleAddToCartClick = () => {
   };
 
   const handleVariantSelect = (variant) => {
-    if (variant.stock > 0) {
+    if (variant?.stock > 0) {
       setSelectedVariant(variant);
     }
   };
@@ -161,56 +166,61 @@ const handleAddToCartClick = () => {
     setQuantity(1);
   };
 
+  // Don't render if product is invalid
+  if (!safeProduct || (!safeProduct.id && !safeProduct._id)) {
+    console.warn('ProductCard: Invalid product data', safeProduct);
+    return null;
+  }
+
   return (
     <>
       <div
-        onClick={handleCardClick} // Add click handler to the entire card
+        onClick={handleCardClick}
         className={`flex flex-col shadow-2xl px-5 py-3 rounded-xl ${styles.cardBg} ${
           styles.theme === "dark" ? "shadow-gray-800" : ""
         } items-start text-left group cursor-pointer relative transition-all duration-300 hover:shadow-xl`}
       >
         <ProductImage 
-          product={product}
+          product={safeProduct}
           styles={styles}
-          isInWishlist={isInWishlist}
+          isInWishlist={isInWishlist(safeProduct.id || safeProduct._id)}
           user={user}
           togglingWishlist={togglingWishlist}
-          onWishlistToggle={handleWishlistClick} // Use the new handler
+          onWishlistToggle={handleWishlistClick}
         />
         
         <ProductInfo 
-          product={product}
+          product={safeProduct}
           hasStock={hasStock}
           styles={styles}
         />
 
         <ProductActions
-          product={product}
+          product={safeProduct}
           hasStock={hasStock}
           availableVariants={availableVariants}
           addingToCart={addingToCart}
-          onAddToCart={handleAddToCartClick}   // Correct handler
+          onAddToCart={handleAddToCartClick}
           styles={styles}
         />
       </div>
 
-    {showVariantModal && (
-      <ModalPortal>
-        <VariantModal
-          product={product}
-          availableVariants={availableVariants}
-          selectedVariant={selectedVariant}
-          quantity={quantity}
-          addingToCart={addingToCart}
-          styles={styles}
-          onClose={closeModal}
-          onVariantSelect={handleVariantSelect}
-          onQuantityChange={handleQuantityChange}
-          onAddToCart={() => selectedVariant && addVariantToCart(selectedVariant, quantity)}
-        />
-      </ModalPortal>
-    )}
-
+      {showVariantModal && (
+        <ModalPortal>
+          <VariantModal
+            product={safeProduct}
+            availableVariants={availableVariants}
+            selectedVariant={selectedVariant}
+            quantity={quantity}
+            addingToCart={addingToCart}
+            styles={styles}
+            onClose={closeModal}
+            onVariantSelect={handleVariantSelect}
+            onQuantityChange={handleQuantityChange}
+            onAddToCart={() => selectedVariant && addVariantToCart(selectedVariant, quantity)}
+          />
+        </ModalPortal>
+      )}
     </>
   );
 };

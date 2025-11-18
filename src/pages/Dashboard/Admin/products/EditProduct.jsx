@@ -178,12 +178,21 @@ const EditProduct = () => {
       setSelectedCategoryId(product.categoryId || '');
 
       // Set product details
-      if (product.productDetails && product.productDetails.length > 0) {
-        setProductDetails(product.productDetails.map(detail => ({
-          title: detail.title,
-          description: detail.description
-        })));
-      }
+    if (product.productDetails && product.productDetails.length > 0) {
+      const details = product.productDetails.map(detail => {
+        if (detail && typeof detail === 'object') {
+          return {
+            title: detail.title || detail.Title || detail.name || '',
+            description: detail.description || detail.Description || detail.desc || detail.value || ''
+          };
+        }
+        return { title: '', description: '' };
+      }).filter(detail => detail.title || detail.description);
+      
+      setProductDetails(details.length > 0 ? details : [{ title: '', description: '' }]);
+    } else {
+      setProductDetails([{ title: '', description: '' }]);
+    }
 
       // FIXED: Set variants - No duplicate images
       if (product.variants && product.variants.length > 0) {
@@ -845,6 +854,7 @@ const EditProduct = () => {
                         rows={4}
                       />
                     </motion.div>
+
                     <motion.div
                       variants={itemVariants}
                       className="flex justify-center md:justify-end mt-6"
@@ -869,18 +879,18 @@ const EditProduct = () => {
 
                   </motion.section>
 
-                  {/* Product Details Section */}
-                  <motion.section
-                    variants={containerVariants}
-                    className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
-                  >
-
+                {/* Product Details Section */}
+                <motion.section
+                  variants={containerVariants}
+                  className={`border rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
+                >
+                  {/* Header */}
                   <motion.div
                     variants={itemVariants}
-                    className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6"
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"
                   >
-                    <h2 className="text-xl font-semibold font-instrument flex items-center">
-                      <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                    <h2 className="text-lg sm:text-xl font-semibold font-instrument flex items-center">
+                      <span className="bg-green-100 text-green-800 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center mr-2 sm:mr-3 text-sm sm:text-base">
                         2
                       </span>
                       Product Details
@@ -890,63 +900,63 @@ const EditProduct = () => {
                       type="button"
                       onClick={addProductDetail}
                       variant="success"
-                      className="flex items-center justify-center gap-2 min-w-[50px] md:min-w-[140px]"
+                      className="flex items-center justify-center gap-2 min-w-[50px] sm:min-w-[140px] text-sm sm:text-base"
                     >
                       <Plus size={18} />
-
-                      {/* Text hidden on mobile */}
-                      <span className="hidden md:inline">Add Detail</span>
+                      <span className="hidden sm:inline">Add Detail</span>
                     </Button>
                   </motion.div>
 
+                  {/* Product Detail Items */}
+                  <AnimatePresence>
+                    <motion.div variants={containerVariants} className="space-y-4">
+                                {/* Product Detail Items */}
+                                <div className="space-y-4">
+                                  {productDetails.map((detail, index) => (
+                                    <div
+                                      key={index}
+                                      className={`grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 border rounded-lg ${currentTheme.bg.secondary} ${currentTheme.border}`}
+                                    >
+                                      <div>
+                                        <InputField
+                                          label="Title"
+                                          value={detail.title}
+                                          onChange={(e) => handleDetailChange(index, 'title', e.target.value)}
+                                          placeholder="e.g., Material"
+                                          required
+                                        />
+                                      </div>
 
-                    <AnimatePresence>
-                      <motion.div variants={containerVariants} className="space-y-4">
-                        {productDetails.map((detail, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className={`grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg ${currentTheme.bg.secondary} ${currentTheme.border}`}
-                          >
-                            <div>
-                              <InputField
-                                label="Title"
-                                value={detail.title}
-                                onChange={(e) => handleDetailChange(index, 'title', e.target.value)}
-                                placeholder="e.g., Material"
-                                required
-                              />
-                            </div>
-                            <div className="md:col-span-2">
-                              <InputField
-                                label="Description"
-                                value={detail.description}
-                                onChange={(e) => handleDetailChange(index, 'description', e.target.value)}
-                                placeholder="e.g., 100% Premium Cotton"
-                                required
-                              />
-                            </div>
-                            <div className="flex items-end">
-                              {productDetails.length > 1 && (
-                                <Button
-                                  type="button"
-                                  onClick={() => removeProductDetail(index)}
-                                  variant="danger"
-                                  className="w-full"
-                                >
-                                  <Trash2 size={16} className="mr-2" />
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </AnimatePresence>
-                  </motion.section>
+                                      <div className="sm:col-span-2">
+                                        <InputField
+                                          label="Description"
+                                          value={detail.description}
+                                          onChange={(e) => handleDetailChange(index, 'description', e.target.value)}
+                                          placeholder="e.g., 100% Premium Cotton"
+                                          required
+                                        />
+                                      </div>
+
+                                      <div className="flex items-end">
+                                        {productDetails.length > 1 && (
+                                          <Button
+                                            type="button"
+                                            onClick={() => removeProductDetail(index)}
+                                            variant="danger"
+                                            className="w-full sm:w-auto text-sm sm:text-base flex items-center justify-center gap-1"
+                                          >
+                                            <Trash2 size={16} />
+                                            <span className="hidden sm:inline">Remove</span>
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </motion.section>
+
 
                   {/* Color Variants Section */}
                   <motion.section
