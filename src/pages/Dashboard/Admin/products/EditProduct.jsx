@@ -5,25 +5,40 @@ import { toast } from 'react-toastify';
 
 // Import reusable components
 import { useTheme } from '../../../../context/ThemeContext';
-import { useGetProductByIdQuery, useUpdateProductMutation } from '../../../../redux/services/productService';
+import { 
+  useGetProductByIdQuery, 
+  useUpdateProductMutation,
+  useAddProductVariantMutation,
+  useUpdateProductVariantMutation,
+  useDeleteProductVariantMutation,
+  useUpdateVariantStockMutation
+} from '../../../../redux/services/productService';
 import { useGetSubcategoriesByCategoryQuery } from '../../../../redux/services/subcategoryService';
 import { useGetAllCategoriesQuery } from '../../../../redux/services/categoryService';
 import InputField from '../../../../components/Common/InputField';
 import SelectField from '../../../../components/Common/SelectField';
 import TextArea from '../../../../components/Common/TextArea';
 import Button from '../../../../components/Common/Button';
-import { ArrowLeft, View } from 'lucide-react';
+import { ArrowLeft, View, Save, Plus, Trash2 } from 'lucide-react';
 
 const EditProduct = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [variantLoading, setVariantLoading] = useState({});
   const [showCustomColor, setShowCustomColor] = useState(false);
   const { theme } = useTheme();
 
   // Redux queries and mutations
-  const { data: productData, isLoading: productLoading } = useGetProductByIdQuery(productId);
+  const { data: productData, isLoading: productLoading, refetch: refetchProduct } = useGetProductByIdQuery(productId);
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  
+  // Variant mutations
+  const [addProductVariant] = useAddProductVariantMutation();
+  const [updateProductVariant] = useUpdateProductVariantMutation();
+  const [deleteProductVariant] = useDeleteProductVariantMutation();
+  const [updateVariantStock] = useUpdateVariantStockMutation();
+
   const { data: categoriesData, isLoading: categoriesLoading } = useGetAllCategoriesQuery();
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const { data: subcategoriesData, isLoading: subcategoriesLoading } = 
@@ -86,7 +101,7 @@ const EditProduct = () => {
     { title: '', description: '' },
   ]);
 
-  // Professional variant structure: color -> sizes + images
+  // Enhanced variant structure with variant IDs
   const [variants, setVariants] = useState({});
 
   const commonSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -100,6 +115,7 @@ const EditProduct = () => {
         secondary: 'bg-gray-50',
         gradient: 'from-blue-600 to-blue-800',
         card: 'bg-white',
+        input: 'bg-white'
       },
       text: {
         primary: 'text-gray-900',
@@ -116,6 +132,7 @@ const EditProduct = () => {
         secondary: 'bg-gray-800',
         gradient: 'from-gray-800 to-gray-900',
         card: 'bg-gray-800',
+        input: 'bg-gray-700'
       },
       text: {
         primary: 'text-white',
@@ -129,6 +146,19 @@ const EditProduct = () => {
   };
 
   const currentTheme = themeClasses[theme] || themeClasses.light;
+
+  useEffect(() => {
+    return () => {
+      // Clean up all blob URLs when component unmounts
+      Object.values(variants).forEach(variantData => {
+        variantData.imagePreviews.forEach(url => {
+          if (url?.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+      });
+    };
+  }, []);
 
   // Initialize form with product data
   useEffect(() => {
@@ -155,28 +185,37 @@ const EditProduct = () => {
         })));
       }
 
-      // Set variants
+      // FIXED: Set variants - No duplicate images
       if (product.variants && product.variants.length > 0) {
         const variantsObj = {};
+        
         product.variants.forEach(variant => {
           if (!variantsObj[variant.color]) {
             variantsObj[variant.color] = {
+              variantId: variant.id,
               sizes: [],
-              images: [],
-              imagePreviews: []
+              images: [], // New images to upload
+              imagePreviews: [], // All preview URLs (existing + new)
+              existingImages: [] // Only existing image URLs from backend
             };
           }
           
+          // Add sizes
           variantsObj[variant.color].sizes.push({
             size: variant.size,
             stock: variant.stock,
-            sku: variant.sku
+            sku: variant.sku,
+            variantId: variant.id
           });
 
-          // Add existing variant images
+          // FIXED: Add existing images without duplicates
           if (variant.variantImages && variant.variantImages.length > 0) {
             variant.variantImages.forEach(image => {
-              variantsObj[variant.color].imagePreviews.push(image.imageUrl);
+              // Only add if not already present
+              if (!variantsObj[variant.color].existingImages.includes(image.imageUrl)) {
+                variantsObj[variant.color].existingImages.push(image.imageUrl);
+                variantsObj[variant.color].imagePreviews.push(image.imageUrl);
+              }
             });
           }
         });
@@ -249,13 +288,16 @@ const EditProduct = () => {
     }
 
     const newVariant = {
+      variantId: null, // No ID yet - will be created when saved
       sizes: commonSizes.map(size => ({
         size,
         stock: 0,
-        sku: productForm.productCode ? `${productForm.productCode}-${color}-${size}` : `${color}-${size}`
+        sku: productForm.productCode ? `${productForm.productCode}-${color}-${size}` : `${color}-${size}`,
+        variantId: null
       })),
       images: [],
-      imagePreviews: []
+      imagePreviews: [],
+      existingImages: []
     };
 
     setVariants(prev => ({
@@ -280,9 +322,27 @@ const EditProduct = () => {
   // Handle color image upload
   const handleColorImages = (color, files) => {
     const fileList = Array.from(files);
-
-    if (variants[color].images.length + fileList.length > 10) {
+    
+    // Calculate total images properly (only count unique images)
+    const currentNewImagesCount = variants[color].images.length;
+    const currentExistingImagesCount = variants[color].existingImages.length;
+    const totalCurrentImages = currentNewImagesCount + currentExistingImagesCount;
+    
+    if (totalCurrentImages + fileList.length > 10) {
       toast.error('Maximum 10 images per color allowed');
+      return;
+    }
+
+    // Filter out duplicate files by name and size
+    const uniqueNewFiles = fileList.filter(newFile => {
+      return !variants[color].images.some(existingFile => 
+        existingFile.name === newFile.name && 
+        existingFile.size === newFile.size
+      );
+    });
+
+    if (uniqueNewFiles.length === 0) {
+      toast.info('Some images are already added');
       return;
     }
 
@@ -290,10 +350,10 @@ const EditProduct = () => {
       ...prev,
       [color]: {
         ...prev[color],
-        images: [...prev[color].images, ...fileList],
+        images: [...prev[color].images, ...uniqueNewFiles],
         imagePreviews: [
           ...prev[color].imagePreviews,
-          ...fileList.map(file => URL.createObjectURL(file))
+          ...uniqueNewFiles.map(file => URL.createObjectURL(file))
         ]
       }
     }));
@@ -303,15 +363,27 @@ const EditProduct = () => {
   const removeColorImage = (color, imageIndex) => {
     setVariants(prev => {
       const updatedColor = { ...prev[color] };
-
-      // Revoke object URL to prevent memory leaks
-      if (updatedColor.imagePreviews[imageIndex]?.startsWith('blob:')) {
-        URL.revokeObjectURL(updatedColor.imagePreviews[imageIndex]);
+      
+      // Check if it's an existing image or new image
+      const totalExistingImages = updatedColor.existingImages.length;
+      
+      if (imageIndex < totalExistingImages) {
+        // Removing existing image - just remove from previews
+        updatedColor.existingImages = updatedColor.existingImages.filter((_, i) => i !== imageIndex);
+      } else {
+        // Removing new image - remove from both images and previews
+        const newImageIndex = imageIndex - totalExistingImages;
+        updatedColor.images = updatedColor.images.filter((_, i) => i !== newImageIndex);
+        
+        // Revoke object URL
+        if (updatedColor.imagePreviews[imageIndex]?.startsWith('blob:')) {
+          URL.revokeObjectURL(updatedColor.imagePreviews[imageIndex]);
+        }
       }
-
-      updatedColor.images = updatedColor.images.filter((_, i) => i !== imageIndex);
+      
+      // Remove from previews
       updatedColor.imagePreviews = updatedColor.imagePreviews.filter((_, i) => i !== imageIndex);
-
+      
       return {
         ...prev,
         [color]: updatedColor
@@ -320,7 +392,27 @@ const EditProduct = () => {
   };
 
   // Remove color variant
-  const removeColorVariant = (color) => {
+  const removeColorVariant = async (color) => {
+    const variant = variants[color];
+    
+    // If it's an existing variant, delete from backend
+    if (variant.variantId) {
+      setVariantLoading(prev => ({ ...prev, [color]: true }));
+      try {
+        await deleteProductVariant({
+          productId,
+          variantId: variant.variantId
+        }).unwrap();
+        
+        toast.success(`Variant ${color} deleted successfully!`);
+      } catch (error) {
+        toast.error(`Failed to delete variant ${color}`);
+        console.error('Delete variant error:', error);
+        setVariantLoading(prev => ({ ...prev, [color]: false }));
+        return;
+      }
+    }
+
     // Clean up all image URLs to prevent memory leaks
     variants[color].imagePreviews.forEach(url => {
       if (url?.startsWith('blob:')) {
@@ -333,6 +425,8 @@ const EditProduct = () => {
       delete updated[color];
       return updated;
     });
+
+    setVariantLoading(prev => ({ ...prev, [color]: false }));
   };
 
   // Add custom size to a color
@@ -355,7 +449,8 @@ const EditProduct = () => {
           {
             size,
             stock: 0,
-            sku: productForm.productCode ? `${productForm.productCode}-${color}-${size}` : `${color}-${size}`
+            sku: productForm.productCode ? `${productForm.productCode}-${color}-${size}` : `${color}-${size}`,
+            variantId: prev[color].variantId
           }
         ].sort((a, b) => commonSizes.indexOf(a.size) - commonSizes.indexOf(b.size))
       }
@@ -378,17 +473,132 @@ const EditProduct = () => {
     }));
   };
 
-  // Generate variants data for API
-  const generateVariantsData = () => {
-    return Object.entries(variants)
-      .filter(([color, data]) => data.images.length > 0 || data.imagePreviews.length > 0)
-      .map(([color, data]) => ({
-        color,
-        sizes: data.sizes.filter(size => size.stock >= 0)
-      }));
+  // Save individual variant
+  const saveVariant = async (color) => {
+    setVariantLoading(prev => ({ ...prev, [color]: true }));
+
+    try {
+      const variantData = variants[color];
+      const formData = new FormData();
+
+      // Add variant data
+      formData.append('color', color);
+      formData.append('sizes', JSON.stringify(variantData.sizes));
+
+      // Add new images
+      variantData.images.forEach(image => {
+        formData.append('images', image);
+      });
+
+      if (variantData.variantId) {
+        // Update existing variant
+        await updateProductVariant({
+          productId,
+          variantId: variantData.variantId,
+          variantData: formData
+        }).unwrap();
+        toast.success(`Variant ${color} updated successfully!`);
+      } else {
+        // Create new variant
+        const response = await addProductVariant({
+          productId,
+          variantData: formData
+        }).unwrap();
+        
+        // Update local state with the new variant ID
+        setVariants(prev => ({
+          ...prev,
+          [color]: {
+            ...prev[color],
+            variantId: response.data.id
+          }
+        }));
+        toast.success(`Variant ${color} added successfully!`);
+      }
+
+      // Refetch product to get updated data
+      await refetchProduct();
+      
+    } catch (error) {
+      console.error(`Save variant ${color} error:`, error);
+      toast.error(`Failed to save variant ${color}: ${error?.data?.message || 'Unknown error'}`);
+    } finally {
+      setVariantLoading(prev => ({ ...prev, [color]: false }));
+    }
   };
 
-  // Form validation
+  // Update stock for a specific size
+  const updateSizeStockInBackend = async (color, sizeIndex) => {
+    const variant = variants[color];
+    const size = variant.sizes[sizeIndex];
+    
+    if (!variant.variantId) {
+      toast.error('Please save the variant first before updating stock');
+      return;
+    }
+
+    setVariantLoading(prev => ({ ...prev, [`${color}-${size.size}`]: true }));
+
+    try {
+      await updateVariantStock({
+        productId,
+        variantId: variant.variantId,
+        stockData: {
+          size: size.size,
+          stock: size.stock
+        }
+      }).unwrap();
+
+      toast.success(`Stock updated for ${color} - ${size.size}`);
+    } catch (error) {
+      console.error('Update stock error:', error);
+      toast.error(`Failed to update stock: ${error?.data?.message || 'Unknown error'}`);
+    } finally {
+      setVariantLoading(prev => ({ ...prev, [`${color}-${size.size}`]: false }));
+    }
+  };
+
+  // Save basic product information
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+
+      // Add basic product data
+      Object.entries(productForm).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          formData.append(key, value.toString());
+        }
+      });
+
+      // Add product details
+      formData.append('productDetails', JSON.stringify(productDetails));
+
+      const response = await updateProduct({
+        productId,
+        productData: formData
+      }).unwrap();
+
+      if (response.success) {
+        toast.success('Product information updated successfully!');
+        await refetchProduct();
+      }
+    } catch (error) {
+      console.error('Update product error:', error);
+      toast.error(error?.data?.message || 'Failed to update product');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Form validation (basic only)
   const validateForm = () => {
     if (!productForm.name.trim()) {
       toast.error('Product name is required');
@@ -415,78 +625,7 @@ const EditProduct = () => {
       }
     }
 
-    // Validate variants
-    const variantsData = generateVariantsData();
-    if (variantsData.length === 0) {
-      toast.error('At least one color variant is required');
-      return false;
-    }
-
     return true;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const formData = new FormData();
-
-      // 1. Add basic product data
-      Object.entries(productForm).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          formData.append(key, value.toString());
-        }
-      });
-
-      // 2. Add product details
-      formData.append('productDetails', JSON.stringify(productDetails));
-
-      // 3. Add variants structure
-      const variantsData = generateVariantsData();
-      formData.append('variants', JSON.stringify(variantsData));
-
-      // 4. ✅ FIX: Add new images with proper variantColors
-      const variantColorsArray = [];
-      Object.entries(variants).forEach(([color, data]) => {
-        // Only add images for colors that are being submitted
-        if (variantsData.some(v => v.color === color)) {
-          data.images.forEach((image, index) => {
-            // Use consistent field name format that backend expects
-            formData.append('variantImages', image);
-            // ✅ FIX: Add color to variantColors array
-            variantColorsArray.push(color);
-          });
-        }
-      });
-
-      // ✅ FIX: Add variantColors as a separate field
-      if (variantColorsArray.length > 0) {
-        formData.append('variantColors', JSON.stringify(variantColorsArray));
-      }
-
-
-      // Use Redux mutation to update product
-      const response = await updateProduct({
-        productId,
-        productData: formData
-      }).unwrap();
-
-      if (response.success) {
-        toast.success('Product updated successfully!');
-        navigate(-1); // Go back to previous page
-      }
-    } catch (error) {
-      console.error('Update product error:', error);
-      toast.error(error?.data?.message || 'Failed to update product');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Calculate statistics
@@ -496,10 +635,10 @@ const EditProduct = () => {
       (sum, data) => sum + data.sizes.filter(size => size.stock > 0).length, 0
     );
     const totalImages = Object.values(variants).reduce(
-      (sum, data) => sum + (data.images.length + data.imagePreviews.length), 0
+      (sum, data) => sum + data.imagePreviews.length, 0
     );
     const colorsWithImages = colors.filter(color => 
-      variants[color].images.length > 0 || variants[color].imagePreviews.length > 0
+      variants[color].imagePreviews.length > 0
     );
 
     return {
@@ -550,42 +689,41 @@ const EditProduct = () => {
                 variants={slideInVariants}
                 className={`rounded-lg ${currentTheme.shadow} overflow-hidden ${currentTheme.bg.secondary}`}
               >
-              {/* Header */}
-              <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
-                    
-                    {/* Left Section: Back Button + Product Info */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                      <button
-                        onClick={() => navigate(-1)}
-                        className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
-                      >
-                        <ArrowLeft size={20} />
-                      </button>
-                      <div>
-                        <h1 className="text-xl sm:text-2xl font-bold font-italiana">{product.name}</h1>
-                        <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
-                          Product Code: {product.productCode}
-                        </p>
+                {/* Header */}
+                <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+                      
+                      {/* Left Section: Back Button + Product Info */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                        <button
+                          onClick={() => navigate(-1)}
+                          className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
+                        >
+                          <ArrowLeft size={20} />
+                        </button>
+                        <div>
+                          <h1 className="text-xl sm:text-2xl font-bold font-italiana">{product.name}</h1>
+                          <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
+                            Product Code: {product.productCode}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Right Section: View Button */}
-                    <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
-                      <Link
-                        to={`/dashboard/products/view/${product.id}`}
-                        className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <View size={16} className="mr-2" />
-                        View
-                      </Link>
-                    </div>
+                      {/* Right Section: View Button */}
+                      <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
+                        <Link
+                          to={`/dashboard/products/view/${product.id}`}
+                          className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <View size={16} className="mr-2" />
+                          View
+                        </Link>
+                      </div>
 
+                    </div>
                   </div>
                 </div>
-              </div>
-
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
                   {/* Basic Information Section */}
@@ -707,6 +845,28 @@ const EditProduct = () => {
                         rows={4}
                       />
                     </motion.div>
+                    <motion.div
+                      variants={itemVariants}
+                      className="flex justify-center md:justify-end mt-6"
+                    >
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        variant="primary"
+                        className="min-w-[60px] sm:min-w-[80px] md:min-w-[200px] flex items-center justify-center gap-2"
+                        loading={isLoading}
+                      >
+                        <Save size={18} />
+
+                        {/* Text hidden on small screens */}
+                        <span className="hidden md:inline">
+                          Update Product Info
+                        </span>
+                      </Button>
+                    </motion.div>
+
+
+
                   </motion.section>
 
                   {/* Product Details Section */}
@@ -714,19 +874,31 @@ const EditProduct = () => {
                     variants={containerVariants}
                     className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
                   >
-                    <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
-                      <h2 className="text-xl font-semibold font-instrument flex items-center">
-                        <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">2</span>
-                        Product Details
-                      </h2>
-                      <Button
-                        type="button"
-                        onClick={addProductDetail}
-                        variant="success"
-                      >
-                        + Add Detail
-                      </Button>
-                    </motion.div>
+
+                  <motion.div
+                    variants={itemVariants}
+                    className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6"
+                  >
+                    <h2 className="text-xl font-semibold font-instrument flex items-center">
+                      <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                        2
+                      </span>
+                      Product Details
+                    </h2>
+
+                    <Button
+                      type="button"
+                      onClick={addProductDetail}
+                      variant="success"
+                      className="flex items-center justify-center gap-2 min-w-[50px] md:min-w-[140px]"
+                    >
+                      <Plus size={18} />
+
+                      {/* Text hidden on mobile */}
+                      <span className="hidden md:inline">Add Detail</span>
+                    </Button>
+                  </motion.div>
+
 
                     <AnimatePresence>
                       <motion.div variants={containerVariants} className="space-y-4">
@@ -765,6 +937,7 @@ const EditProduct = () => {
                                   variant="danger"
                                   className="w-full"
                                 >
+                                  <Trash2 size={16} className="mr-2" />
                                   Remove
                                 </Button>
                               )}
@@ -823,7 +996,8 @@ const EditProduct = () => {
                               variant="primary"
                               className="text-xs sm:text-sm px-3 py-2"
                             >
-                              + {color}
+                              <Plus size={14} className="mr-1" />
+                              {color}
                             </Button>
                           ))}
                         </div>
@@ -836,7 +1010,8 @@ const EditProduct = () => {
                             variant="secondary"
                             className="text-xs sm:text-sm px-3 py-2"
                           >
-                            + Custom Color
+                            <Plus size={14} className="mr-1" />
+                            Custom Color
                           </Button>
                         </div>
 
@@ -890,191 +1065,199 @@ const EditProduct = () => {
                     </motion.div>
 
                     {/* Color Variants List */}
-                    <AnimatePresence>
-                      <motion.div variants={containerVariants} className="space-y-6">
-                        {Object.entries(variants).map(([color, data]) => (
-                          <motion.div
-                            key={color}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className={`border-2 rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border}`}
-                          >
-                            {/* Header */}
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
-                              <div>
-                                <h3 className="text-base sm:text-lg font-semibold font-instrument capitalize">{color}</h3>
-                                <p className="text-xs sm:text-sm font-instrument mt-1">
-                                  {data.sizes.filter((size) => size.stock > 0).length} sizes with stock • {data.images.length} images
-                                </p>
-                              </div>
-                              <Button type="button" onClick={() => removeColorVariant(color)} variant="danger" className="text-xs sm:text-sm">
-                                Remove Color
-                              </Button>
-                            </div>
+                      <AnimatePresence>
+                        <motion.div variants={containerVariants} className="space-y-6">
+                          {Object.entries(variants).map(([color, data]) => (
+                            <motion.div
+                              key={color}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -20 }}
+                              className={`border-2 rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border}`}
+                            >
+                              {/* Header */}
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+                                <div>
+                                  <h3 className="text-base sm:text-lg font-semibold font-instrument capitalize">
+                                    {color}
+                                    {data.variantId && (
+                                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                        Saved
+                                      </span>
+                                    )}
+                                  </h3>
+                                  <p className="text-xs sm:text-sm font-instrument mt-1">
+                                    {data.sizes.filter((size) => size.stock > 0).length} sizes with stock • {data.imagePreviews.length} images
+                                  </p>
+                                </div>
 
-                            {/* Sizes */}
-                            <div className="mb-6">
-                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
-                                <h4 className="text-sm sm:text-md font-medium font-instrument">Sizes & Stock</h4>
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                  <input
-                                    type="text"
-                                    placeholder="Custom size (e.g., 28, 30)"
-                                    onKeyPress={(e) => {
-                                      if (e.key === "Enter") {
-                                        addCustomSize(color, e.target.value);
-                                        e.target.value = "";
-                                      }
-                                    }}
-                                    className={`px-3 py-1 border ${currentTheme.border} rounded text-sm ${currentTheme.bg.input} ${currentTheme.text.primary}`}
-                                  />
-                                  <Button
-                                    type="button"
-                                    onClick={() => addCustomSize(color, document.querySelector(`input[placeholder="Custom size (e.g., 28, 30)"]`)?.value)}
+                                {/* ---- RESPONSIVE BUTTONS (ICON ONLY ON MOBILE) ---- */}
+                                <div className="flex gap-2">
+                                  {/* SAVE / UPDATE BUTTON */}
+                                  <Button 
+                                    type="button" 
+                                    onClick={() => saveVariant(color)}
                                     variant="primary"
-                                    className="text-xs sm:text-sm px-3 py-1"
+                                    loading={variantLoading[color]}
+                                    disabled={variantLoading[color]}
+                                    className="flex items-center justify-center gap-1 text-xs sm:text-sm"
                                   >
-                                    Add Size
+                                    <Save size={14} />
+
+                                    {/* Hidden on mobile */}
+                                    <span className="hidden sm:inline">
+                                      {data.variantId ? 'Update' : 'Save'} Variant
+                                    </span>
+                                  </Button>
+
+                                  {/* REMOVE BUTTON */}
+                                  <Button 
+                                    type="button" 
+                                    onClick={() => removeColorVariant(color)}
+                                    variant="danger"
+                                    loading={variantLoading[color]}
+                                    disabled={variantLoading[color]}
+                                    className="flex items-center justify-center gap-1 text-xs sm:text-sm"
+                                  >
+                                    <Trash2 size={14} />
+
+                                    {/* Hidden on mobile */}
+                                    <span className="hidden sm:inline">Remove</span>
                                   </Button>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                                {data.sizes.map((size, index) => (
-                                  <motion.div
-                                    key={size.size}
-                                    whileHover={{ scale: 1.05 }}
-                                    className={`border rounded-lg p-3 ${currentTheme.bg.secondary} ${currentTheme.border}`}
-                                  >
-                                    <div className="text-center mb-2">
-                                      <span className="font-medium text-sm sm:text-base">{size.size}</span>
-                                    </div>
+                              {/* Sizes */}
+                              <div className="mb-6">
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
+                                  <h4 className="text-sm sm:text-md font-medium font-instrument">Sizes & Stock</h4>
+                                  <div className="flex flex-col sm:flex-row gap-2">
                                     <input
-                                      type="number"
-                                      value={size.stock}
-                                      onChange={(e) => updateSizeStock(color, index, e.target.value)}
-                                      min="0"
-                                      className={`w-full px-2 py-1 border ${currentTheme.border} rounded text-center text-xs sm:text-sm mb-2 ${currentTheme.bg.input} ${currentTheme.text.primary}`}
-                                      placeholder="Stock"
+                                      type="text"
+                                      placeholder="Custom size (e.g., 28, 30)"
+                                      onKeyPress={(e) => {
+                                        if (e.key === "Enter") {
+                                          addCustomSize(color, e.target.value);
+                                          e.target.value = "";
+                                        }
+                                      }}
+                                      className={`px-3 py-1 border ${currentTheme.border} rounded text-sm ${currentTheme.bg.input} ${currentTheme.text.primary}`}
                                     />
-                                    <div className="text-[10px] sm:text-xs text-center truncate" title={size.sku}>
-                                      SKU: {size.sku}
-                                    </div>
-                                    {data.sizes.length > 1 && (
-                                      <Button
-                                        type="button"
-                                        onClick={() => removeSize(color, index)}
-                                        variant="danger"
-                                        className="w-full mt-2 text-[10px] sm:text-xs px-2 py-1"
-                                      >
-                                        Remove
-                                      </Button>
-                                    )}
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Images */}
-                            <div>
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
-                                <h4 className="text-sm sm:text-md font-medium font-instrument">
-                                  Color Images ({data.images.length}/10)
-                                </h4>
-                                <span className="text-xs sm:text-sm text-gray-600">
-                                  First image will be set as primary
-                                </span>
-                              </div>
-
-                              <div className="mb-4">
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/*"
-                                  onChange={(e) => handleColorImages(color, e.target.files)}
-                                  className={`w-full px-3 py-2 border ${currentTheme.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTheme.bg.input}`}
-                                />
-                                <p className="text-xs sm:text-sm font-instrument mt-1">
-                                  Upload high-quality images for {color}. These images will be used for all sizes of this color.
-                                </p>
-                              </div>
-
-                              {/* Previews */}
-                              {data.imagePreviews.length > 0 && (
-                                <div>
-                                  <label className="block text-xs sm:text-sm font-medium mb-2">Image Previews</label>
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {data.imagePreviews.map((preview, index) => (
-                                      <motion.div
-                                        key={index}
-                                        whileHover={{ scale: 1.05 }}
-                                        className="relative group"
-                                      >
-                                        <img
-                                          src={preview}
-                                          alt={`${color} ${index + 1}`}
-                                          className="w-full h-20 sm:h-24 object-cover rounded-lg border-2 border-gray-300 group-hover:border-blue-500 transition-colors"
-                                        />
-                                        <Button
-                                          type="button"
-                                          onClick={() => removeColorImage(color, index)}
-                                          variant="danger"
-                                          className="absolute -top-2 -right-2 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] sm:text-xs p-0"
-                                        >
-                                          ×
-                                        </Button>
-                                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-[10px] sm:text-xs p-1 text-center rounded-b-lg">
-                                          {index === 0 ? "Primary" : `Image ${index + 1}`}
-                                        </div>
-                                      </motion.div>
-                                    ))}
+                                    <Button
+                                      type="button"
+                                      onClick={() => {
+                                        const input = document.querySelector(`input[placeholder="Custom size (e.g., 28, 30)"]`);
+                                        addCustomSize(color, input?.value);
+                                        if (input) input.value = "";
+                                      }}
+                                      variant="primary"
+                                      className="text-xs sm:text-sm px-3 py-1"
+                                    >
+                                      Add Size
+                                    </Button>
                                   </div>
                                 </div>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    </AnimatePresence>
-                  </motion.section>
 
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                  {data.sizes.map((size, index) => (
+                                    <motion.div
+                                      key={size.size}
+                                      whileHover={{ scale: 1.05 }}
+                                      className={`border rounded-lg p-3 ${currentTheme.bg.secondary} ${currentTheme.border}`}
+                                    >
+                                      <div className="text-center mb-2">
+                                        <span className="font-medium text-sm sm:text-base">{size.size}</span>
+                                      </div>
+                                      <input
+                                        type="number"
+                                        value={size.stock}
+                                        onChange={(e) => updateSizeStock(color, index, e.target.value)}
+                                        onBlur={() => updateSizeStockInBackend(color, index)}
+                                        min="0"
+                                        className={`w-full px-2 py-1 border ${currentTheme.border} rounded text-center text-xs sm:text-sm mb-2 ${currentTheme.bg.input} ${currentTheme.text.primary}`}
+                                        placeholder="Stock"
+                                      />
+                                      <div className="text-[10px] sm:text-xs text-center truncate" title={size.sku}>
+                                        SKU: {size.sku}
+                                      </div>
 
-                  {/* Submit Section */}
-                  <motion.section
-                    variants={containerVariants}
-                    className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
-                  >
-                    <motion.div variants={itemVariants} className="flex flex-col lg:flex-row gap-5 justify-between items-center">
-                      <div>
-                        <h3 className="text-lg font-semibold font-instrument">Ready to Update Product</h3>
-                        <p className={currentTheme.text.muted}>
-                          {stats.totalVariants > 0
-                            ? `This will update product with ${stats.colorsWithImages} colors and ${stats.totalVariants} variants`
-                            : 'Add color variants to continue'
-                          }
-                        </p>
-                      </div>
+                                      {data.sizes.length > 1 && (
+                                        <Button
+                                          type="button"
+                                          onClick={() => removeSize(color, index)}
+                                          variant="danger"
+                                          className="w-full mt-2 text-[10px] sm:text-xs px-2 py-1"
+                                        >
+                                          Remove
+                                        </Button>
+                                      )}
+                                    </motion.div>
+                                  ))}
+                                </div>
+                              </div>
 
-                      <div className="flex flex-col lg:flex-row gap-4">
-                        <Button
-                          type="button"
-                          onClick={() => navigate(-1)}
-                          variant="ghost"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={isLoading || stats.totalVariants === 0}
-                          variant="primary"
-                          className="min-w-[200px]"
-                          loading={isLoading}
-                        >
-                          {`Update Product (${stats.totalVariants} Variants)`}
-                        </Button>
-                      </div>
-                    </motion.div>
+                              {/* Images */}
+                              <div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                  <h4 className="text-sm sm:text-md font-medium font-instrument">
+                                    Color Images ({data.imagePreviews.length}/10)
+                                  </h4>
+                                  <span className="text-xs sm:text-sm text-gray-600">
+                                    First image will be set as primary
+                                  </span>
+                                </div>
+
+                                <div className="mb-4">
+                                  <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={(e) => handleColorImages(color, e.target.files)}
+                                    className={`w-full px-3 py-2 border ${currentTheme.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTheme.bg.input}`}
+                                  />
+                                  <p className="text-xs sm:text-sm font-instrument mt-1">
+                                    Upload high-quality images for {color}. These images will be used for all sizes of this color.
+                                  </p>
+                                </div>
+
+                                {/* Previews */}
+                                {data.imagePreviews.length > 0 && (
+                                  <div>
+                                    <label className="block text-xs sm:text-sm font-medium mb-2">Image Previews</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                      {data.imagePreviews.map((preview, index) => (
+                                        <motion.div
+                                          key={index}
+                                          whileHover={{ scale: 1.05 }}
+                                          className="relative group"
+                                        >
+                                          <img
+                                            src={preview}
+                                            alt={`${color} ${index + 1}`}
+                                            className="w-full h-20 sm:h-24 object-cover rounded-lg border-2 border-gray-300 group-hover:border-blue-500 transition-colors"
+                                          />
+                                          <Button
+                                            type="button"
+                                            onClick={() => removeColorImage(color, index)}
+                                            variant="danger"
+                                            className="absolute -top-2 -right-2 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] sm:text-xs p-0"
+                                          >
+                                            ×
+                                          </Button>
+                                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-[10px] sm:text-xs p-1 text-center rounded-b-lg">
+                                            {index === 0 ? "Primary" : `Image ${index + 1}`}
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      </AnimatePresence>
+
                   </motion.section>
                 </form>
               </motion.div>

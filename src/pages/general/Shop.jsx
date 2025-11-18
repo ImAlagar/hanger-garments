@@ -188,9 +188,6 @@ export default function Shop() {
           <p className="text-red-500 text-lg">
             Failed to load products. Please try again later.
           </p>
-          <p className="text-gray-500 text-sm mt-2">
-            Error: {error.message || "Unknown error"}
-          </p>
         </div>
       </section>
     );

@@ -187,9 +187,6 @@
             <p className={`${textColor} text-lg`}>
               Failed to load best sellers. Please try again later.
             </p>
-            <p className={`${subText} text-sm mt-2`}>
-              Error: {error.message || "Unknown error"}
-            </p>
           </div>
         </section>
       );

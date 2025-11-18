@@ -29,3 +29,67 @@
 .animate-shine {
   animation: shine 2s infinite;
 }
+
+
+/* Customization Modal Styles */
+.customization-modal {
+  font-family: 'Inter', sans-serif;
+}
+
+.canvas-container {
+  position: relative;
+  display: inline-block;
+}
+
+.canvas-grid {
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.layer-item {
+  transition: all 0.2s ease;
+}
+
+.layer-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.color-swatch {
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.tool-button {
+  transition: all 0.2s ease;
+}
+
+.tool-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Canvas selection styles */
+.canvas-selection {
+  border: 2px dashed #007bff;
+  background-color: rgba(0, 123, 255, 0.1);
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .customization-modal .flex {
+    flex-direction: column;
+  }
+  
+  .customization-modal .w-64 {
+    width: 100%;
+    max-height: 200px;
+  }
+}

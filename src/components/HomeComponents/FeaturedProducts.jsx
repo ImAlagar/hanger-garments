@@ -161,9 +161,6 @@ export default function FeaturedProducts() {
           <p className={`${textColor} text-lg`}>
             Failed to load featured products. Please try again later.
           </p>
-          <p className={`${subText} text-sm mt-2`}>
-            Error: {error.message || "Unknown error"}
-          </p>
         </div>
       </section>
     );

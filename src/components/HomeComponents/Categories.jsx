@@ -6,6 +6,7 @@ import polo from "../../assets/categories/polo.webp";
 import hoodie from "../../assets/categories/hoodie.webp";
 import acidwash from "../../assets/categories/acidwash.webp";
 import { useTheme } from "../../context/ThemeContext";
+import { Link } from "react-router-dom";
 
 export default function Categories() {
     const {theme , toggleTheme} = useTheme();
@@ -78,9 +79,9 @@ export default function Categories() {
                                 <h2 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
                                     {cat.title}
                                 </h2>
-                                <button className="mt-4 w-fit px-6 py-2 border border-white text-white uppercase tracking-wider text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                <Link to={'/shop'} className="mt-4 w-fit px-6 py-2 border border-white text-white uppercase tracking-wider text-sm hover:bg-white hover:text-black transition-all duration-500">
                                     Explore
-                                </button>
+                                </Link>
                             </div>
 
                             {/* Category Name Label (Bottom Overlay) */}
@@ -119,9 +120,9 @@ export default function Categories() {
                         <h2 className="text-white text-3xl font-bold uppercase font-bai-jamjuree italic mt-2 group-hover:text-yellow-300 transition">
                             {categories[2].title}
                         </h2>
-                        <button className="mt-4 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                        <Link to={'/shop'}className="mt-4 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
                             Explore Now
-                        </button>
+                        </Link>
                     </div>
                 </motion.div>
 

@@ -214,7 +214,55 @@ export const productService = apiSlice.injectEndpoints({
     getRelatedProducts: builder.query({
     query: ({ category, excludeProductId }) => 
       `/products/related?category=${category}&exclude=${excludeProductId}&limit=10`,
-  }),
+    }),
+
+    // Variant Management Endpoints
+    addProductVariant: builder.mutation({
+      query: ({ productId, variantData }) => ({
+        url: `/products/admin/${productId}/variants`,
+        method: 'POST',
+        body: variantData,
+      }),
+      invalidatesTags: (result, error, { productId }) => [
+        { type: 'Product', id: productId },
+        'Product'
+      ],
+    }),
+
+    updateProductVariant: builder.mutation({
+      query: ({ productId, variantId, variantData }) => ({
+        url: `/products/admin/${productId}/variants/${variantId}`,
+        method: 'PUT',
+        body: variantData,
+      }),
+      invalidatesTags: (result, error, { productId }) => [
+        { type: 'Product', id: productId },
+        'Product'
+      ],
+    }),
+
+    deleteProductVariant: builder.mutation({
+      query: ({ productId, variantId }) => ({
+        url: `/products/admin/${productId}/variants/${variantId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { productId }) => [
+        { type: 'Product', id: productId },
+        'Product'
+      ],
+    }),
+
+    updateVariantStock: builder.mutation({
+      query: ({ productId, variantId, stockData }) => ({
+        url: `/products/admin/${productId}/variants/${variantId}/stock`,
+        method: 'PATCH',
+        body: stockData,
+      }),
+      invalidatesTags: (result, error, { productId }) => [
+        { type: 'Product', id: productId },
+        'Product'
+      ],
+    }),
   }),
 });
 
@@ -237,4 +285,8 @@ export const {
   useGetNewArrivalsQuery,
   useGetBestSellersQuery,
   useGetRelatedProductsQuery,
+  useAddProductVariantMutation,
+  useUpdateProductVariantMutation,
+  useDeleteProductVariantMutation,
+  useUpdateVariantStockMutation,
 } = productService;

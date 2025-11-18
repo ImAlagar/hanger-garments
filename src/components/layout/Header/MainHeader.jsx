@@ -131,7 +131,7 @@ const MainHeader = () => {
           />
 
           {/* Desktop Right Section */}
-          <div className="hidden lg:flex items-center gap-3 relative z-50">
+          <div className="hidden xl:flex items-center gap-3 relative z-50">
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
 
             <motion.button
@@ -193,7 +193,7 @@ const MainHeader = () => {
           </div>
 
           {/* Mobile Right Section */}
-          <div className="lg:hidden flex items-center gap-3 z-50">
+          <div className="xl:hidden flex items-center gap-3 z-50">
             <motion.button
               onClick={() => setSearchOpen(true)}
               className={`p-3 rounded-xl transition-colors ${
