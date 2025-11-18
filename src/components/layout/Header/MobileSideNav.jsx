@@ -45,7 +45,8 @@ const MobileSideNav = ({
   toggleTheme,
   setSearchOpen,
   setMenuOpen,
-  getUserDisplayName
+  getUserDisplayName,
+  wishlistCount // Add wishlistCount prop
 }) => {
 
   const isActivePath = (path) => {
@@ -54,6 +55,11 @@ const MobileSideNav = ({
 
   const handleNavItemClick = (path) => {
     navigate(path);
+    setMenuOpen(false);
+  };
+
+  const handleWishlistClick = () => {
+    navigate("/wishlist");
     setMenuOpen(false);
   };
 
@@ -207,9 +213,10 @@ const MobileSideNav = ({
                 <div className="flex items-center justify-between px-4 py-4 mt-2 border-y border-gray-200 dark:border-gray-800">
                   <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                   
+                  {/* Wishlist Button with Count */}
                   <motion.button
-                    onClick={() => navigate("/wishlist")}
-                    className={`p-3 rounded-xl transition-all duration-200 ${
+                    onClick={handleWishlistClick}
+                    className={`p-3 rounded-xl transition-all duration-200 relative ${
                       theme === "dark"
                         ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800"
                         : "text-gray-600 hover:text-purple-600 hover:bg-gray-100"
@@ -218,6 +225,15 @@ const MobileSideNav = ({
                     whileTap={{ scale: 0.95 }}
                   >
                     <FiHeart className="size-5" />
+                    {wishlistCount > 0 && (
+                      <span className={`absolute -top-1 -right-1 rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium ${
+                        theme === "dark" 
+                          ? "bg-red-500 text-white" 
+                          : "bg-red-500 text-white"
+                      }`}>
+                        {wishlistCount}
+                      </span>
+                    )}
                   </motion.button>
 
                   <motion.button
@@ -274,6 +290,31 @@ const MobileSideNav = ({
                     </motion.button>
                   ) : (
                     <div className="space-y-2">
+                      {/* Wishlist Link in Menu */}
+                      <motion.button
+                        onClick={handleWishlistClick}
+                        className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-base transition-all duration-200 ${
+                          theme === "dark"
+                            ? "text-gray-200 hover:bg-gray-800/50"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                        whileHover={{ x: 4 }}
+                      >
+                        <div className="flex items-center">
+                          <FiHeart className="size-4 mr-3 text-purple-500" />
+                          My Wishlist
+                        </div>
+                        {wishlistCount > 0 && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-6 text-center ${
+                            theme === "dark" 
+                              ? "bg-red-500 text-white" 
+                              : "bg-red-500 text-white"
+                          }`}>
+                            {wishlistCount}
+                          </span>
+                        )}
+                      </motion.button>
+
                       <motion.button
                         onClick={handleOrdersClick}
                         className={`flex items-center w-full px-4 py-3.5 rounded-xl text-base transition-all duration-200 ${
@@ -286,6 +327,7 @@ const MobileSideNav = ({
                         <FiShoppingBag className="size-4 mr-3 text-purple-500" />
                         My Orders
                       </motion.button>
+                      
                       <motion.button
                         onClick={handleLogout}
                         className={`flex items-center w-full px-4 py-3.5 rounded-xl text-base transition-all duration-200 ${

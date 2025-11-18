@@ -5,6 +5,7 @@ import { logout } from "../../../redux/slices/authSlice";
 import { FiSearch, FiShoppingCart, FiHeart, FiMenu, FiX } from 'react-icons/fi';
 import { useAppDispatch, useAppSelector } from '../../../redux/hooks';
 import { useTheme } from "../../../context/ThemeContext";
+import { useSelector } from 'react-redux';
 
 // Custom hooks
 import { useHeaderState } from '../../../hooks/useHeaderState';
@@ -18,8 +19,10 @@ import MobileSideNav from './MobileSideNav';
 import SearchOverlay from './SearchOverlay';
 import ThemeToggle from '../../Toggle/ThemeToggle';
 import UserDropdown from './UserDropdown';
-import { useSelector } from 'react-redux';
 import CartSidebar from '../CartSidebar';
+
+// Import wishlist selector
+import { selectWishlistCount } from '../../../redux/slices/wishlistSlice';
 
 const MainHeader = () => {
   const navigate = useNavigate();
@@ -29,6 +32,7 @@ const MainHeader = () => {
   // Use the correct property names from your auth slice
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const cartItems = useSelector((state) => state.cart.items);
+  const wishlistCount = useSelector(selectWishlistCount); // Add wishlist count
   const { theme, toggleTheme } = useTheme();
   
   // Cart sidebar state
@@ -84,6 +88,10 @@ const MainHeader = () => {
 
   const handleCartClick = () => {
     setIsCartOpen(true);
+  };
+
+  const handleWishlistClick = () => {
+    navigate("/wishlist");
   };
 
   return (
@@ -147,9 +155,10 @@ const MainHeader = () => {
               <FiSearch className="size-5" />
             </motion.button>
 
+            {/* Wishlist Button with Badge */}
             <motion.button
-              onClick={() => navigate("/wishlist")}
-              className={`p-3 rounded-xl transition-all duration-300 ${
+              onClick={handleWishlistClick}
+              className={`p-3 rounded-xl transition-all duration-300 relative ${
                 theme === "dark"
                   ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800"
                   : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
@@ -158,6 +167,11 @@ const MainHeader = () => {
               whileTap={{ scale: 0.95 }}
             >
               <FiHeart className="size-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium">
+                  {wishlistCount}
+                </span>
+              )}
             </motion.button>
 
             {/* Cart Button with Badge */}
@@ -205,6 +219,25 @@ const MainHeader = () => {
               whileTap={{ scale: 0.9 }}
             >
               <FiSearch className="size-5" />
+            </motion.button>
+
+            {/* Mobile Wishlist Button with Badge */}
+            <motion.button
+              onClick={handleWishlistClick}
+              className={`p-3 rounded-xl transition-colors relative ${
+                theme === "dark"
+                  ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800"
+                  : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+              }`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <FiHeart className="size-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium">
+                  {wishlistCount}
+                </span>
+              )}
             </motion.button>
 
             {/* Mobile Cart Button with Badge */}
@@ -268,6 +301,7 @@ const MainHeader = () => {
           setSearchOpen={setSearchOpen}
           setMenuOpen={setMenuOpen}
           getUserDisplayName={getUserDisplayName}
+          wishlistCount={wishlistCount} // Pass wishlist count to mobile nav
         />
 
         {/* Cart Sidebar */}

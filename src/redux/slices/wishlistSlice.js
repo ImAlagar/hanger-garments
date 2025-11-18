@@ -45,7 +45,6 @@ const wishlistSlice = createSlice({
         localStorage.setItem('userWishlist', JSON.stringify([]));
       }
     },
-    // Add this to sync with localStorage on app start
     syncWishlistFromStorage: (state) => {
       const saved = loadWishlistFromStorage();
       state.items = saved.items;
@@ -54,4 +53,8 @@ const wishlistSlice = createSlice({
 });
 
 export const { addToWishlist, removeFromWishlist, clearWishlist, syncWishlistFromStorage } = wishlistSlice.actions;
+
+// Selector for wishlist count
+export const selectWishlistCount = (state) => state.wishlist.items.length;
+
 export default wishlistSlice.reducer;

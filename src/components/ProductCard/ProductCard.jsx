@@ -111,7 +111,7 @@ const ProductCard = ({ product, onCartUpdate }) => {
       const cartItem = {
         product: {
           _id: safeProduct.id || safeProduct._id,
-          name: safeProduct.name || 'Unknown Product',
+          name: safeProduct.title || 'Unknown Product',
           description: safeProduct.description || '',
           category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
           images: [getProductImage()],
