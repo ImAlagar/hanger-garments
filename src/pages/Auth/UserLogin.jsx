@@ -49,7 +49,7 @@ const UserLogin = () => {
     try {
       const result = await login(formData).unwrap();
       dispatch(setCredentials(result));
-      navigate('/dashboard/user');
+      navigate('/');
     } catch (err) {
       console.error('Login failed:', err);
       // Error is handled in the useEffect above
