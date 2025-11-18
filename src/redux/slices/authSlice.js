@@ -23,7 +23,6 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       let user, token;
       
-      
       // Handle different response structures
       if (action.payload.data && action.payload.data.accessToken) {
         user = action.payload.data.user;
@@ -78,6 +77,8 @@ const authSlice = createSlice({
       localStorage.removeItem('token');
       localStorage.removeItem('userData');
       sessionStorage.clear(); // Clear sessionStorage as well
+      
+      // Note: Cart and wishlist will be cleared by separate actions
     },
     
     clearError: (state) => {
@@ -121,6 +122,14 @@ const authSlice = createSlice({
       }
       state.initialCheckDone = true;
     },
+
+    // NEW: Update user profile
+    updateUserProfile: (state, action) => {
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload };
+        localStorage.setItem('userData', JSON.stringify(state.user));
+      }
+    },
   },
 });
 
@@ -133,6 +142,7 @@ export const {
   authStart,
   authFailure,
   authCheckComplete,
-  refreshAuth // Add the new action
+  refreshAuth,
+  updateUserProfile
 } = authSlice.actions;
 export default authSlice.reducer;

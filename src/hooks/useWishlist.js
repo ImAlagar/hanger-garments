@@ -4,7 +4,8 @@ import {
   addToWishlist, 
   removeFromWishlist, 
   clearWishlist,
-  syncWishlistFromStorage 
+  switchUserWishlist, // Use switchUserWishlist instead of syncWishlistFromStorage
+  clearCurrentWishlist 
 } from '../redux/slices/wishlistSlice';
 
 export const useWishlist = () => {
@@ -47,8 +48,8 @@ export const useWishlist = () => {
     dispatch(clearWishlist());
   };
 
-  const syncWishlist = () => {
-    dispatch(syncWishlistFromStorage());
+  const switchWishlistUser = (userId) => {
+    dispatch(switchUserWishlist(userId)); // Use the correct action
   };
 
   const isInWishlist = (productId) => {
@@ -80,7 +81,7 @@ export const useWishlist = () => {
     clearAllWishlist,
     isInWishlist,
     getWishlistItem,
-    syncWishlist,
+    switchWishlistUser, // Return the correct function
     wishlistCount: wishlistItems.length
   };
 };

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from "../../../redux/slices/authSlice";
+import { clearCurrentCart } from "../../../redux/slices/cartSlice";
+import { clearCurrentWishlist } from "../../../redux/slices/wishlistSlice";
 import { FiSearch, FiShoppingCart, FiHeart, FiMenu, FiX } from 'react-icons/fi';
 import { useAppDispatch, useAppSelector } from '../../../redux/hooks';
 import { useTheme } from "../../../context/ThemeContext";
@@ -32,7 +34,7 @@ const MainHeader = () => {
   // Use the correct property names from your auth slice
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const cartItems = useSelector((state) => state.cart.items);
-  const wishlistCount = useSelector(selectWishlistCount); // Add wishlist count
+  const wishlistCount = useSelector(selectWishlistCount);
   const { theme, toggleTheme } = useTheme();
   
   // Cart sidebar state
@@ -62,9 +64,18 @@ const MainHeader = () => {
   } = useSearch();
 
   const handleLogout = () => {
+    // Clear cart and wishlist first (user-specific data)
+    dispatch(clearCurrentCart());
+    dispatch(clearCurrentWishlist());
+    
+    // Then logout from auth
     dispatch(logout());
+    
+    // Close any open menus/dropdowns
     setDropdownOpen(false);
     setMenuOpen(false);
+    
+    // Navigate to home
     navigate("/");
   };
 
@@ -301,7 +312,7 @@ const MainHeader = () => {
           setSearchOpen={setSearchOpen}
           setMenuOpen={setMenuOpen}
           getUserDisplayName={getUserDisplayName}
-          wishlistCount={wishlistCount} // Pass wishlist count to mobile nav
+          wishlistCount={wishlistCount}
         />
 
         {/* Cart Sidebar */}
