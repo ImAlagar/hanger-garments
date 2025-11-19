@@ -3,7 +3,8 @@ import { useTheme } from "../../context/ThemeContext";
 import ProductCard from "../ProductCard/ProductCard";
 import { useGetNewArrivalsQuery } from "../../redux/services/productService";
 import { useSelector } from "react-redux";
-import CartSidebar from "../layout/CartSidebar"; // Import CartSidebar
+import CartSidebar from "../layout/CartSidebar";
+import { Link } from "react-router-dom";
 
 export default function NewArrivals() {
   const { theme } = useTheme();
@@ -115,7 +116,10 @@ export default function NewArrivals() {
     }
   }
 
-  const transformedProducts = productsArray
+  // Limit to maximum 8 products for display
+  const limitedProducts = productsArray.slice(0, 8);
+
+  const transformedProducts = limitedProducts
     .map(transformProductData)
     .filter(product => product !== null);
 
@@ -167,7 +171,7 @@ export default function NewArrivals() {
   }
 
   return (
-    <section className={`py-12 transition-colors duration-500 ${bgColor}`}>
+    <section className={`py-8 transition-colors duration-500 ${bgColor}`}>
       {/* Title */}
       <div className="text-center mb-10">
         <h2 className={`text-4xl md:text-5xl font-italiana tracking-widest font-bold ${textColor}`}>
@@ -181,19 +185,39 @@ export default function NewArrivals() {
         )}
       </div>
 
-
-
       {/* Product Grid */}
       {transformedProducts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 px-6 md:px-16">
-          {transformedProducts.map((product) => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              onCartUpdate={handleCartUpdate} // Pass the cart update handler
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8 px-6 md:px-16">
+            {transformedProducts.map((product) => (
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onCartUpdate={handleCartUpdate} // Pass the cart update handler
+              />
+            ))}
+          </div>
+
+          {/* View All Products Button - Always show if we have products */}
+          {productsArray.length > 0 && (
+            <div className="flex justify-center mt-12">
+              <Link 
+                to="/shop" 
+                className={`
+                  px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 
+                  transform hover:scale-105 active:scale-95 border-2
+                  ${isDark 
+                    ? 'bg-transparent border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white' 
+                    : 'bg-transparent border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white'
+                  }
+                  shadow-lg hover:shadow-xl
+                `}
+              >
+                View All Products
+              </Link>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center">
           <p className={`${textColor} text-lg`}>
@@ -202,6 +226,26 @@ export default function NewArrivals() {
           <p className={`${subText} text-sm mt-2`}>
             Check back later for new arrivals.
           </p>
+          
+          {/* Show View All Products button even when no new arrivals */}
+          {productsArray.length === 0 && (
+            <div className="flex justify-center mt-8">
+              <Link 
+                to="/shop" 
+                className={`
+                  px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 
+                  transform hover:scale-105 active:scale-95 border-2
+                  ${isDark 
+                    ? 'bg-transparent border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white' 
+                    : 'bg-transparent border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white'
+                  }
+                  shadow-lg hover:shadow-xl
+                `}
+              >
+                Browse All Products
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

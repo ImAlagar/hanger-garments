@@ -12,13 +12,11 @@ export const useUserSession = () => {
     if (isAuthenticated && user) {
       // User logged in - switch to their personal cart and wishlist
       const userId = user._id || user.id;
-      console.log(`Switching to user ${userId}'s cart and wishlist`);
       
       dispatch(switchUserCart(userId));
       dispatch(switchUserWishlist(userId)); // Use the correct action
     } else {
       // User logged out or not authenticated - switch to guest cart and wishlist
-      console.log('Switching to guest cart and wishlist');
       dispatch(switchUserCart('guest'));
       dispatch(switchUserWishlist('guest')); // Use the correct action
     }

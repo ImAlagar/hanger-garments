@@ -1,4 +1,3 @@
-// ProductCard.js
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -40,14 +39,13 @@ const ProductCard = ({ product, onCartUpdate }) => {
   const productSlug = generateProductSlug(safeProduct);
 
   const getProductImage = () => {
-    const firstVariant = safeProduct.variants?.[0];
-    if (firstVariant?.variantImages?.length > 0) {
-      return firstVariant.variantImages[0].imageUrl;
+    if (safeProduct.variantImages?.length > 0) {
+      return safeProduct.variantImages[0].imageUrl;
     }
     return "https://via.placeholder.com/300x300?text=No+Image";
   };
 
-  // Handle card click to navigate to product details
+  // ✅ FIXED: Handle card click to navigate to product details WITH COLOR
   const handleCardClick = (e) => {
     if (!safeProduct.id && !safeProduct._id) {
       console.error('Product missing ID, cannot navigate');
@@ -63,7 +61,15 @@ const ProductCard = ({ product, onCartUpdate }) => {
       return;
     }
     
-    navigate(`/collections/${productSlug}`);
+    // ✅ CORRECT: Pass the specific color in navigation state
+    navigate(`/collections/${productSlug}`, {
+      state: {
+        selectedColor: safeProduct.color, // This is crucial!
+        baseProductId: safeProduct.baseProductId
+      }
+    });
+    
+    console.log('Navigating to product with color:', safeProduct.color);
   };
 
   // Handle wishlist click
@@ -100,53 +106,104 @@ const ProductCard = ({ product, onCartUpdate }) => {
     setShowVariantModal(true);
   };
 
-  const addVariantToCart = async (variant, qty = quantity) => {
-    if (!safeProduct.id && !safeProduct._id) {
-      console.error('Product missing ID, cannot add to cart');
-      return;
-    }
 
-    setAddingToCart(true);
-    try {
-      const cartItem = {
-        product: {
-          _id: safeProduct.id || safeProduct._id,
-          name: safeProduct.title || 'Unknown Product',
-          description: safeProduct.description || '',
-          category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
-          images: [getProductImage()],
-          normalPrice: safeProduct.normalPrice || 0,
-          offerPrice: safeProduct.offerPrice || 0,
-          wholesalePrice: safeProduct.wholesalePrice || 0,
-        },
-        variant: {
-          _id: variant.id,
-          color: variant.color,
-          size: variant.size,
-          price: safeProduct.isWholesaleUser ? safeProduct.wholesalePrice : (safeProduct.offerPrice || safeProduct.normalPrice),
-          stock: variant.stock,
-          sku: variant.sku,
-        },
-        quantity: qty
-      };
-      
-      dispatch(addToCart(cartItem));
-      
-      // Close modal
-      setShowVariantModal(false);
-      setSelectedVariant(null);
-      setQuantity(1);
-      
-      // Trigger cart sidebar opening
-      if (onCartUpdate) {
-        onCartUpdate();
+// In ProductCard.js - FIXED addVariantToCart function
+const addVariantToCart = async (variant, qty = quantity) => {
+  if (!safeProduct.id && !safeProduct._id) {
+    console.error('Product missing ID, cannot add to cart');
+    return;
+  }
+
+  setAddingToCart(true);
+  try {
+    // ✅ FIXED: Better image handling
+    const getProductImages = () => {
+      // Priority 1: Product images array
+      if (safeProduct.images && safeProduct.images.length > 0) {
+        const validImages = safeProduct.images.filter(img => 
+          img && !img.includes('via.placeholder.com') && !img.includes('No+Image')
+        );
+        if (validImages.length > 0) return validImages;
       }
-    } catch (error) {
-      console.error("Failed to add to cart:", error);
-    } finally {
-      setAddingToCart(false);
+      
+      // Priority 2: Variant images
+      if (variant?.image && !variant.image.includes('via.placeholder.com')) {
+        return [variant.image];
+      }
+      
+      // Priority 3: Product image
+      if (safeProduct.image && !safeProduct.image.includes('via.placeholder.com')) {
+        return [safeProduct.image];
+      }
+      
+      // Fallback
+      return ['/images/placeholder-product.jpg'];
+    };
+
+    const productImages = getProductImages();
+    
+    // ✅ FIXED: Ensure price is calculated correctly
+    const calculatePrice = () => {
+      // Priority 1: Variant price
+      if (variant?.price) return Number(variant.price);
+      
+      // Priority 2: Product prices
+      if (safeProduct.isWholesaleUser && safeProduct.wholesalePrice) {
+        return Number(safeProduct.wholesalePrice);
+      }
+      if (safeProduct.offerPrice) {
+        return Number(safeProduct.offerPrice);
+      }
+      if (safeProduct.normalPrice) {
+        return Number(safeProduct.normalPrice);
+      }
+      
+      return 0;
+    };
+
+    const cartItem = {
+      product: {
+        _id: safeProduct.id || safeProduct._id,
+        name: safeProduct.title || safeProduct.name || 'Unknown Product',
+        description: safeProduct.description || '',
+        category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
+        images: productImages,
+        image: productImages[0],
+        normalPrice: Number(safeProduct.normalPrice) || 0,
+        offerPrice: Number(safeProduct.offerPrice) || 0,
+        wholesalePrice: Number(safeProduct.wholesalePrice) || 0,
+      },
+      variant: {
+        _id: variant.id || `variant_${Date.now()}`,
+        color: variant.color || safeProduct.color || 'N/A',
+        size: variant.size || 'N/A',
+        price: calculatePrice(),
+        stock: variant.stock || 0,
+        sku: variant.sku || '',
+        image: variant.image || productImages[0],
+      },
+      quantity: Math.max(1, Number(qty) || 1)
+    };
+    
+
+    
+    dispatch(addToCart(cartItem));
+    
+    // Close modal and reset
+    setShowVariantModal(false);
+    setSelectedVariant(null);
+    setQuantity(1);
+    
+    // Trigger cart update
+    if (onCartUpdate) {
+      onCartUpdate();
     }
-  };
+  } catch (error) {
+    console.error("Failed to add to cart:", error);
+  } finally {
+    setAddingToCart(false);
+  }
+};
 
   const handleVariantSelect = (variant) => {
     if (variant?.stock > 0) {

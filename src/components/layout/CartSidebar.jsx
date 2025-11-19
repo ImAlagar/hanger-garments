@@ -3,8 +3,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { useTheme } from "../../context/ThemeContext";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiX, FiMinus, FiPlus, FiTrash2 } from "react-icons/fi";
-import { removeFromCart, updateQuantity } from "../../redux/slices/cartSlice";
+import { FiX, FiMinus, FiPlus, FiTrash2, FiImage } from "react-icons/fi";
+import { removeCartItem, updateQuantity } from "../../redux/slices/cartSlice";
 
 const CartSidebar = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
@@ -20,47 +20,125 @@ const CartSidebar = ({ isOpen, onClose }) => {
   const borderColor = isDark ? "border-gray-700" : "border-gray-200";
   const hoverBg = isDark ? "hover:bg-gray-800" : "hover:bg-gray-50";
 
-  // Calculate totals
-  const subtotal = cartItems.reduce((total, item) => {
-    return total + (item.variant.price * item.quantity);
-  }, 0);
 
-  const handleQuantityChange = (itemId, newQuantity) => {
-    if (newQuantity < 1) {
-      dispatch(removeFromCart({ itemId }));
+  // Calculate totals safely
+const calculateItemTotal = (item) => {
+  const price = Number(item.variant?.price) || Number(item.price) || 0;
+  const qty = Number(item.quantity) || 0;
+  return price * qty;
+};
+
+const subtotal = cartItems.reduce((total, item) => {
+  return total + calculateItemTotal(item);
+}, 0);
+
+  // Handle remove item
+  const handleRemoveItem = (itemId) => {
+    dispatch(removeCartItem(itemId));
+  };
+
+  // SIMPLIFIED: Get product image - focuses on your actual data structure
+const getProductImage = (item) => {
+  if (!item) return '/images/placeholder-product.jpg';
+
+  // Debug log
+
+  // Priority 1: Variant image
+  if (item.variant?.image && isValidImage(item.variant.image)) {
+    return item.variant.image;
+  }
+
+  // Priority 2: Product main image
+  if (item.product?.image && isValidImage(item.product.image)) {
+    return item.product.image;
+  }
+
+  // Priority 3: Product images array
+  if (item.product?.images && item.product.images.length > 0) {
+    const validImage = item.product.images.find(img => isValidImage(img));
+    if (validImage) return validImage;
+  }
+
+  // Priority 4: Direct images (fallback)
+  if (item.images && item.images.length > 0) {
+    const validImage = item.images.find(img => isValidImage(img));
+    if (validImage) return validImage;
+  }
+
+  return '/images/placeholder-product.jpg';
+};
+
+// Helper function to validate images
+const isValidImage = (imageUrl) => {
+  if (!imageUrl || typeof imageUrl !== 'string') return false;
+  if (imageUrl === 'null' || imageUrl === 'undefined') return false;
+  if (imageUrl.includes('via.placeholder.com')) return false;
+  if (imageUrl.includes('No+Image')) return false;
+  return true;
+};
+
+// ✅ FIXED: Enhanced quantity handler
+const handleQuantityChange = (itemId, newQuantity) => {
+  const numericQuantity = Number(newQuantity);
+  if (isNaN(numericQuantity) || numericQuantity < 0) return;
+  
+  if (numericQuantity === 0) {
+    dispatch(removeCartItem(itemId));
+  } else {
+    dispatch(updateQuantity({ itemId, quantity: numericQuantity }));
+  }
+};
+  // Handle image error
+  const handleImageError = (e, item) => {
+    console.error(`❌ Image failed to load for: ${item.product?.name}`, {
+      attemptedSrc: e.target.src,
+      itemData: item
+    });
+    
+    // Hide broken image and show placeholder
+    e.target.style.display = 'none';
+    
+    // Create placeholder if it doesn't exist
+    const parent = e.target.parentElement;
+    if (parent && !parent.querySelector('.image-placeholder')) {
+      const placeholder = document.createElement('div');
+      placeholder.className = "image-placeholder w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center";
+      placeholder.innerHTML = '<FiImage class="w-6 h-6 text-gray-400" />';
+      parent.appendChild(placeholder);
+    }
+  };
+
+  // Image Placeholder Component
+  const ImagePlaceholder = () => (
+    <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+      <FiImage className="w-6 h-6 text-gray-400" />
+    </div>
+  );
+
+  const handleProceedToBuy = () => {
+    onClose();
+    
+    if (!user || !user.id) {
+      navigate("/login", { 
+        state: { 
+          from: "/checkout",
+          message: "Please login to proceed with checkout"
+        } 
+      });
       return;
     }
-    dispatch(updateQuantity({ itemId, quantity: newQuantity }));
+    
+    if (cartItems.length === 0) {
+      alert("Your cart is empty!");
+      return;
+    }
+    
+    navigate("/checkout");
   };
 
-  const handleRemoveItem = (itemId) => {
-    dispatch(removeFromCart({ itemId }));
-  };
-
-const handleProceedToBuy = () => {
-  onClose();
-  
-  // More robust user check
-  if (!user || !user.id) {
-    navigate("/login", { 
-      state: { 
-        from: "/checkout",
-        message: "Please login to proceed with checkout"
-      } 
-    });
-    return;
-  }
-  
-  if (cartItems.length === 0) {
-    alert("Your cart is empty!");
-    return;
-  }
-  
-  navigate("/checkout");
-};
   const handleViewCart = () => {
     onClose();
-    navigate("/");
+    navigate("/cart");
   };
 
   const sidebarVariants = {
@@ -159,10 +237,7 @@ const handleProceedToBuy = () => {
             <div className="flex-1 overflow-y-auto">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  {/* SVG Icon */}
                   <ShoppingCartSVG />
-                  
-                  {/* Text Content */}
                   <p className="text-gray-500 dark:text-gray-400 text-lg mb-2 font-medium">
                     Your cart is empty
                   </p>
@@ -172,9 +247,8 @@ const handleProceedToBuy = () => {
                   <p className="text-gray-400 dark:text-gray-500 text-sm mb-8">
                     Let's add some items
                   </p>
-                  
-                  {/* Continue Shopping Button */}
-                  <Link to={'/shop'}
+                  <Link 
+                    to={'/shop'}
                     onClick={onClose}
                     className={`px-8 py-3 rounded-lg font-semibold transition-colors duration-200 ${
                       isDark 
@@ -187,51 +261,77 @@ const handleProceedToBuy = () => {
                 </div>
               ) : (
                 <div className="p-4 space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className={`border ${borderColor} rounded-lg p-4 ${hoverBg} transition-colors`}>
-                      <div className="flex gap-4">
-                        <img
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                        
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{item.product.name}</h4>
-                          <p className="text-xs opacity-75 mt-1">
-                            Color: {item.variant.color} | Size: {item.variant.size}
-                          </p>
-                          <p className="font-semibold text-sm mt-2">₹{item.variant.price}</p>
+                  {cartItems.map((item) => {
+                    const imageUrl = getProductImage(item);
+                    const hasValidImage = imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined';
+                    
+                    return (
+                      <div key={item.id} className={`border ${borderColor} rounded-lg p-4 ${hoverBg} transition-colors`}>
+                        <div className="flex gap-4">
+                          {/* Image Container */}
+                          <div className="flex-shrink-0">
+                            {hasValidImage ? (
+                              <div className="relative">
+                                <img
+                                  src={imageUrl}
+                                  alt={item.product?.name || 'Product image'}
+                                  className="w-20 h-20 object-cover rounded-lg bg-gray-100"
+                                  onError={(e) => handleImageError(e, item)}
+                                  loading="lazy"
+                                />
+                              </div>
+                            ) : (
+                              <ImagePlaceholder />
+                            )}
+                          </div>
                           
-                          <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm truncate">{item.product?.name || 'Unnamed Product'}</h4>
+                            <p className="text-xs opacity-75 mt-1">
+                              Color: {item.variant?.color || item.color || 'N/A'} | Size: {item.variant?.size || item.size || 'N/A'}
+                            </p>
+                            <p className="font-semibold text-sm mt-2">
+                              ₹{((item.variant?.price || item.price || 0)).toFixed(2)}
+                            </p>
+                            
+                            <div className="flex items-center justify-between mt-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                  className={`w-8 h-8 rounded-lg border ${borderColor} flex items-center justify-center text-sm ${hoverBg} transition-colors`}
+                                >
+                                  <FiMinus className="w-3 h-3" />
+                                </button>
+                                <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                <button
+                                  onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                  className={`w-8 h-8 rounded-lg border ${borderColor} flex items-center justify-center text-sm ${hoverBg} transition-colors`}
+                                >
+                                  <FiPlus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              
                               <button
-                                onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                                className={`w-8 h-8 rounded-lg border ${borderColor} flex items-center justify-center text-sm ${hoverBg} transition-colors`}
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="text-red-500 hover:text-red-700 transition-colors p-2"
+                                title="Remove item"
                               >
-                                <FiMinus className="w-3 h-3" />
-                              </button>
-                              <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                              <button
-                                onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                                className={`w-8 h-8 rounded-lg border ${borderColor} flex items-center justify-center text-sm ${hoverBg} transition-colors`}
-                              >
-                                <FiPlus className="w-3 h-3" />
+                                <FiTrash2 className="w-4 h-4" />
                               </button>
                             </div>
                             
-                            <button
-                              onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 transition-colors p-2"
-                              title="Remove item"
-                            >
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
+                            {/* Item Total */}
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                              <span className="text-xs text-gray-500">Item Total:</span>
+                              <span className="font-semibold text-sm">
+                                ₹{(((item.variant?.price || item.price || 0)) * item.quantity).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -242,6 +342,17 @@ const handleProceedToBuy = () => {
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">Subtotal:</span>
                   <span className="font-semibold text-lg">₹{subtotal.toFixed(2)}</span>
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Shipping:</span>
+                    <span className="text-green-600 dark:text-green-400">FREE</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 dark:border-gray-600 pt-2">
+                    <span className="font-semibold">Total:</span>
+                    <span className="font-semibold text-lg">₹{subtotal.toFixed(2)}</span>
+                  </div>
                 </div>
                 
                 <div className="space-y-3">
@@ -265,7 +376,7 @@ const handleProceedToBuy = () => {
                 </div>
                 
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                  Free shipping
+                  Free shipping & Returns
                 </p>
               </div>
             )}

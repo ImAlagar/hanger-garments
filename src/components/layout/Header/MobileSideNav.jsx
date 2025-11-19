@@ -143,8 +143,97 @@ const MobileSideNav = ({
                 initial="hidden"
                 animate="visible"
               >
-                {/* Navigation Links */}
-                {navItems.map((item) => (
+                {/* Home Link */}
+                <motion.li key="/" variants={motionVariants.item} className="mb-1">
+                  <motion.div
+                    onClick={() => handleNavItemClick("/")}
+                    className={`flex items-center px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
+                      isActivePath("/")
+                        ? theme === "dark"
+                          ? "text-purple-400 font-semibold"
+                          : "text-purple-600 font-semibold"
+                        : theme === "dark"
+                        ? "text-gray-300 hover:text-purple-300"
+                        : "text-gray-700 hover:text-purple-600"
+                    }`}
+                    whileHover={{ x: 4 }}
+                  >
+                    Home
+                  </motion.div>
+                </motion.li>
+
+                {/* Shop Link with Dropdown */}
+                <motion.li variants={motionVariants.item} className="mb-1">
+                  <motion.div
+                    onClick={toggleShop}
+                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
+                      isActivePath("/shop") || shopOpen
+                        ? theme === "dark"
+                          ? "text-purple-400 font-semibold"
+                          : "text-purple-600 font-semibold"
+                        : theme === "dark"
+                        ? "text-gray-300 hover:text-purple-300"
+                        : "text-gray-700 hover:text-purple-600"
+                    }`}
+                  >
+                    Shop
+                    <FiChevronDown className={`size-4 transition-transform ${shopOpen ? 'rotate-180' : ''}`} />
+                  </motion.div>
+                  
+                  <AnimatePresence>
+                    {shopOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="ml-4 mt-1 space-y-1 border-l-2 border-purple-500/20"
+                      >
+                        {/* Shop All Link */}
+                        <motion.div
+                          onClick={() => {
+                            navigate("/shop");
+                            setMenuOpen(false);
+                          }}
+                          className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                            isActivePath("/shop")
+                              ? theme === "dark"
+                                ? "text-purple-400 font-semibold bg-gray-800/50"
+                                : "text-purple-600 font-semibold bg-gray-50"
+                              : theme === "dark"
+                              ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                              : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                          }`}
+                          whileHover={{ x: 4 }}
+                        >
+                          All Products
+                        </motion.div>
+
+                        {/* T-Shirt Categories */}
+                        {tshirtCategories.map((category) => (
+                          <motion.div
+                            key={category}
+                            onClick={() => {
+                              navigate(`/shop/${category.toLowerCase().replace(/\s+/g, '-')}`);
+                              setMenuOpen(false);
+                            }}
+                            className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                              theme === "dark"
+                                ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                            }`}
+                            whileHover={{ x: 4 }}
+                          >
+                            {category} T-Shirts
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.li>
+
+                {/* Other Navigation Links */}
+                {navItems.filter(item => item.name !== "Home" && item.name !== "Shop").map((item) => (
                   <motion.li key={item.path} variants={motionVariants.item} className="mb-1">
                     <motion.div
                       onClick={() => handleNavItemClick(item.path)}
@@ -163,51 +252,6 @@ const MobileSideNav = ({
                     </motion.div>
                   </motion.li>
                 ))}
-
-                {/* T-Shirts Dropdown */}
-                <motion.li variants={motionVariants.item} className="mb-1">
-                  <motion.div
-                    onClick={toggleShop}
-                    className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
-                      theme === "dark"
-                        ? "text-gray-300 hover:text-purple-300"
-                        : "text-gray-700 hover:text-purple-600"
-                    }`}
-                  >
-                    T-Shirts
-                    <FiChevronDown className={`size-4 transition-transform ${shopOpen ? 'rotate-180' : ''}`} />
-                  </motion.div>
-                  
-                  <AnimatePresence>
-                    {shopOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="ml-4 mt-1 space-y-1 border-l-2 border-purple-500/20"
-                      >
-                        {tshirtCategories.map((category) => (
-                          <motion.div
-                            key={category}
-                            onClick={() => {
-                              navigate(`/collections/${category.toLowerCase().replace(/\s+/g, '-')}`);
-                              setMenuOpen(false);
-                            }}
-                            className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
-                              theme === "dark"
-                                ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
-                                : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
-                            }`}
-                            whileHover={{ x: 4 }}
-                          >
-                            {category}
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.li>
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between px-4 py-4 mt-2 border-y border-gray-200 dark:border-gray-800">

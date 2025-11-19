@@ -361,7 +361,7 @@ export default function Home() {
         </section>
 
         {/* Categories Section */}
-        <section className="py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+        <section className="px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -373,7 +373,7 @@ export default function Home() {
         </section>
 
                 {/* Featured Products Section */}
-        <section className=" px-4 sm:px-6 lg:px-8">
+        <section className="px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -385,7 +385,7 @@ export default function Home() {
         </section>
 
         {/* Featured Products Section */}
-        <section className="py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+        <section className="px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -397,7 +397,7 @@ export default function Home() {
         </section>
 
         {/* Best Seller Section */}
-        <section className="py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+        <section className="px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -409,7 +409,7 @@ export default function Home() {
         </section>
 
         {/* New Arrivals Section */}
-        <section className="py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+        <section className=" px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}

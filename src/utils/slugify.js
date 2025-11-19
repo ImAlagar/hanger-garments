@@ -1,7 +1,8 @@
+// utils/slugify.js
 export const slugify = (text) => {
   if (!text) {
     console.warn('slugify: text is undefined or null');
-    return 'unknown-product';
+    return 'unknown';
   }
   
   try {
@@ -16,7 +17,7 @@ export const slugify = (text) => {
       .replace(/-+$/, '');            // Trim - from end of text
   } catch (error) {
     console.error('Error in slugify:', error);
-    return 'unknown-product';
+    return 'unknown';
   }
 };
 
@@ -27,22 +28,21 @@ export const generateProductSlug = (product) => {
   }
 
   try {
-    // Use product name or fallback to ID
+    // Handle both original products and color-split products
     const name = product.name || product.title || `product-${product.id}`;
-    const id = product.id || product._id || 'unknown';
+    const id = product.baseProductId || product.id || product._id || 'unknown';
+    const color = product.color ? `-${slugify(product.color)}` : '';
     
     // Create slug from name and append ID for uniqueness
     const nameSlug = slugify(name);
     const idSlug = slugify(id.toString());
     
-    return `${nameSlug}-${idSlug}`;
+    return `${nameSlug}${color}-${idSlug}`;
   } catch (error) {
     console.error('Error generating product slug:', error);
     return 'unknown-product';
   }
 };
-
-
 
 // Alternative simpler version for just names
 export const generateSlugFromName = (name) => {

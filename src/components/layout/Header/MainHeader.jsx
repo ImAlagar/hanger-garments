@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { logout } from "../../../redux/slices/authSlice";
-import { clearCurrentCart } from "../../../redux/slices/cartSlice";
+import { clearCart } from "../../../redux/slices/cartSlice";
 import { clearCurrentWishlist } from "../../../redux/slices/wishlistSlice";
 import { FiSearch, FiShoppingCart, FiHeart, FiMenu, FiX } from 'react-icons/fi';
 import { useAppDispatch, useAppSelector } from '../../../redux/hooks';
@@ -65,7 +65,7 @@ const MainHeader = () => {
 
   const handleLogout = () => {
     // Clear cart and wishlist first (user-specific data)
-    dispatch(clearCurrentCart());
+    dispatch(clearCart());
     dispatch(clearCurrentWishlist());
     
     // Then logout from auth

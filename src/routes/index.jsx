@@ -70,7 +70,10 @@ import ViewSlider from "../pages/Dashboard/Admin/sliders/ViewSlider";
 import Analytics from "../pages/Dashboard/Admin/Analytics";
 import ViewOrder from "../pages/Dashboard/Admin/orders/ViewOrder";
 import ProductDetailsPage from "../pages/general/ProductDetailsPage";
-import WishList from "../pages/general/Wishlist";
+import PrivacyPolicy from "../pages/general/PrivacyPolicy";
+import TermsAndPolicy from "../pages/general/TermsAndPolicy";
+import ShippingPolicy from "../pages/general/ShippingPolicy";
+import ReturnsAndRefunds from "../pages/general/ReturnsAndRefunds";
 
 export const router = createBrowserRouter([
   {
@@ -106,20 +109,36 @@ export const router = createBrowserRouter([
 
       {
         path: "/wishlist",
-        element: <WishList />
+        element: <UserWishlist />
       },
       {
         path: "/collections/:productSlug",
         element: <ProductDetailsPage />
       },
+      {
+        path: "/privacy-policy",
+        element: <PrivacyPolicy />
+      },
+      {
+        path: "/terms",
+        element: <TermsAndPolicy />
+      },
+      {
+        path: "/shipping",
+        element: <ShippingPolicy />
+      },
+      {
+        path: "/cancellation",
+        element: <ReturnsAndRefunds />
+      },
         {
-    path: "/checkout",
-    element: (
-      <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
-        <Checkout />
-      </ProtectedRoute>
-    )
-  },
+      path: "/checkout",
+      element: (
+        <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
+          <Checkout />
+        </ProtectedRoute>
+      )
+    },
       // Authentication Routes
       {
         path: "/login",

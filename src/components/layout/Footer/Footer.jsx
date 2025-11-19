@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useTheme } from "../../../context/ThemeContext";
 import { useGetAllCategoriesQuery } from "../../../redux/services/categoryService";
@@ -337,22 +337,22 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-sm font-bai-jamjuree">
-            <button className={`${textColor} hover:text-amber-500 transition-colors`}>
+            <Link to={'/privacy-policy'} className={`${textColor} hover:text-amber-500 transition-colors`}>
               Privacy Policy
-            </button>
-            <button className={`${textColor} hover:text-amber-500 transition-colors`}>
+            </Link>
+            <Link to={'/terms'} className={`${textColor} hover:text-amber-500 transition-colors`}>
              Terms and Policy
-            </button>
-            <button className={`${textColor} hover:text-amber-500 transition-colors`}>
+            </Link>
+            <Link to={'/shipping'} className={`${textColor} hover:text-amber-500 transition-colors`}>
              Shipping Policy
-            </button>
-              <button className={`${textColor} hover:text-amber-500 transition-colors`}>
+            </Link>
+              <Link to={'/cancellation'} className={`${textColor} hover:text-amber-500 transition-colors`}>
               Returns & Refunds
-            </button>
+            </Link>
           </div>
         </div>
       </div>
 
-    </motion.footer>
+    </motion.footer> 
   );
 }

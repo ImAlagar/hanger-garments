@@ -13,7 +13,6 @@ export const useWishlist = () => {
   const wishlistItems = useSelector((state) => state.wishlist.items);
 
   const addItemToWishlist = (product, variant = null) => {
-    console.log('Adding to wishlist - original product:', product);
     
     // Ensure we have the correct product structure
     const wishlistItem = {
@@ -36,7 +35,6 @@ export const useWishlist = () => {
       addedAt: new Date().toISOString()
     };
     
-    console.log('Final wishlist item to add:', wishlistItem);
     dispatch(addToWishlist(wishlistItem));
   };
 
