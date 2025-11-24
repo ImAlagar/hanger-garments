@@ -107,6 +107,13 @@ export const couponService = apiSlice.injectEndpoints({
       providesTags: ['Coupon'],
     }),
 
+    getAvailableCoupons: builder.query({
+      query: (subtotal = 0) => ({
+        url: '/coupons/available',
+        params: { subtotal }
+      }),
+      providesTags: ['Coupon'],
+    }),
     // Public endpoints for coupon validation
     validateCoupon: builder.mutation({
       query: (couponData) => ({
@@ -116,10 +123,7 @@ export const couponService = apiSlice.injectEndpoints({
       }),
     }),
 
-    getAvailableCoupons: builder.query({
-      query: () => '/coupons/available',
-      providesTags: ['Coupon'],
-    }),
+
   }),
 });
 

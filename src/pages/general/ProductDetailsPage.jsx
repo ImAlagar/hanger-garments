@@ -1,4 +1,3 @@
-// components/ProductDetailsPage.js - UPDATED WITH COLOR-BASED URL
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,7 +10,6 @@ import { setDesignMode, setCustomizationOptions, resetDesign } from '../../redux
 import CartSidebar from '../../components/layout/CartSidebar';
 import RelatedProducts from './RelatedProducts';
 import CustomizationModal from '../../components/Common/CustomizationModal';
-
 
 const ProductDetailsPage = () => {
   const { productSlug } = useParams();
@@ -44,8 +42,6 @@ const ProductDetailsPage = () => {
   const initialColorFromState = location.state?.selectedColor;
   const initialColorFromURL = searchParams.get('color');
   const initialColor = initialColorFromURL || initialColorFromState;
-
-
 
   // Theme-based color variables
   const themeColors = {
@@ -123,16 +119,13 @@ const ProductDetailsPage = () => {
 
   const availableColors = getAvailableColors();
 
-  // Set initial selected variant when product loads - UPDATED LOGIC
+  // ✅ FIXED: Set initial selected variant when product loads - NO URL UPDATE HERE
   useEffect(() => {
     if (product?.variants?.length > 0) {
-
-      
       let firstVariant;
       
       // If we have an initial color from URL or navigation state, use that
       if (initialColor) {
-        
         // First try to find an in-stock variant of this color
         const colorVariant = product.variants.find(variant => 
           variant.color === initialColor && variant.stock > 0
@@ -154,19 +147,22 @@ const ProductDetailsPage = () => {
       
       setSelectedVariant(firstVariant);
       setSelectedSize(firstVariant?.size);
-      
     }
-  }, [product, initialColor]);
+  }, [product, initialColor]); // ✅ Removed searchParams and setSearchParams from dependencies
 
-  // Update URL when selectedColor changes
-  useEffect(() => {
-    if (selectedColor && product) {
-      // Update URL search params without page reload
+  // ✅ FIXED: Update URL only when color changes via user interaction, not on initial load
+  const updateURLWithColor = (color) => {
+    const currentColor = searchParams.get('color');
+    
+    // Only update if the color actually changed and we're not on initial load
+    if (color && currentColor !== color) {
       const newSearchParams = new URLSearchParams(searchParams);
-      newSearchParams.set('color', selectedColor);
-      setSearchParams(newSearchParams);
+      newSearchParams.set('color', color);
+      
+      // Use replace instead of set to avoid adding to history stack
+      setSearchParams(newSearchParams, { replace: true });
     }
-  }, [selectedColor, product]);
+  };
 
   // Set customization options when available
   useEffect(() => {
@@ -294,12 +290,13 @@ const ProductDetailsPage = () => {
     savePercentage 
   } = getProductPricing();
 
-  // Handle color selection with URL update
+  // ✅ FIXED: Handle color selection with proper URL update
   const handleColorSelect = (color) => {
-    setSelectedColor(color.name);
+    const newColor = color.name;
+    setSelectedColor(newColor);
     
     // Find the best variant for this color (prefer in-stock)
-    const variantsForColor = product.variants.filter(v => v.color === color.name);
+    const variantsForColor = product.variants.filter(v => v.color === newColor);
     const variantForColor = variantsForColor.find(v => v.stock > 0) || variantsForColor[0];
     
     if (variantForColor) {
@@ -309,10 +306,8 @@ const ProductDetailsPage = () => {
     
     setActiveImageIndex(0); // Reset to first image when color changes
     
-    // Update URL to reflect color selection
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('color', color.name);
-    setSearchParams(newSearchParams);
+    // ✅ FIXED: Update URL after state is set
+    updateURLWithColor(newColor);
   };
 
   const handleSizeSelect = (size) => {
@@ -387,11 +382,100 @@ const ProductDetailsPage = () => {
     }
   };
 
+  const handleBuyNow = async () => {
+    if (!selectedVariant) return;
+
+    try {
+      setAddingToCart(true);
+
+      // Use the same image structure as handleAddToCart
+      const productImages = variantImages.map(img => img.imageUrl).filter(url => 
+        url && !url.includes('via.placeholder.com') && !url.includes('No+Image')
+      );
+      
+      const finalImages = productImages.length > 0 ? productImages : ['/images/placeholder-product.jpg'];
+
+      if (isDesignMode && hasCustomization) {
+        const customProduct = {
+          id: `custom-${product.id}-${Date.now()}`,
+          product: {
+            _id: product.id,
+            name: `${product.name} (Custom)`,
+            description: product.description,
+            category: product.category?.name || product.category,
+            images: finalImages,
+            image: finalImages[0],
+            normalPrice: product.normalPrice,
+            offerPrice: product.offerPrice,
+            wholesalePrice: product.wholesalePrice,
+            isCustomizable: product.isCustomizable,
+          },
+          variant: {
+            _id: selectedVariant.id,
+            color: selectedVariant.color,
+            size: selectedVariant.size,
+            price: finalPrice,
+            stock: selectedVariant.stock,
+            sku: selectedVariant.sku,
+            image: selectedVariant.image || finalImages[0],
+          },
+          quantity: quantity,
+          customization: {
+            designData: designData,
+            customizationId: customizationData.data.id,
+            customizationPrice: customizationPrice,
+            previewImage: null
+          },
+          isCustom: true
+        };
+
+        dispatch(addToCart(customProduct));
+      } else {
+        const cartItem = {
+          id: `${product.id}-${selectedVariant.id}`,
+          product: {
+            _id: product.id,
+            name: product.name,
+            description: product.description,
+            category: product.category?.name || product.category,
+            images: finalImages,
+            image: finalImages[0],
+            normalPrice: product.normalPrice,
+            offerPrice: product.offerPrice,
+            wholesalePrice: product.wholesalePrice,
+            isCustomizable: product.isCustomizable,
+          },
+          variant: {
+            _id: selectedVariant.id,
+            color: selectedVariant.color,
+            size: selectedVariant.size,
+            price: finalPrice,
+            stock: selectedVariant.stock,
+            sku: selectedVariant.sku,
+            image: selectedVariant.image || finalImages[0],
+          },
+          quantity: quantity,
+          price: finalPrice
+        };
+
+        dispatch(addToCart(cartItem));
+      }
+
+      // Navigate to checkout immediately
+      navigate('/checkout');
+      
+    } catch (error) {
+      console.error('Error in Buy Now:', error);
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
   // Handle customization
   const handleCustomize = () => {
     if (!user) {
       navigate('/login', { state: { returnUrl: window.location.pathname } });
-      return;
+      return;  
     }
     
     if (!hasCustomization) {
@@ -788,67 +872,95 @@ const ProductDetailsPage = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                {/* Customize Button for customizable products */}
-                {isCustomizable && !isDesignMode && (
-                  <button
-                    onClick={handleCustomize}
-                    className="flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center space-x-2 text-sm sm:text-base"
-                  >
-                    <span>🎨</span>
-                    <span className="whitespace-nowrap">Customize Design</span>
-                  </button>
-                )}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              {/* Customize Button for customizable products */}
+              {isCustomizable && !isDesignMode && (
+                <button
+                  onClick={handleCustomize}
+                  className="flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center space-x-2 text-sm sm:text-base"
+                >
+                  <span>🎨</span>
+                  <span className="whitespace-nowrap">Customize Design</span>
+                </button>
+              )}
 
-                {/* Add to Cart Button */}
-                <button
-                  onClick={isDesignMode ? handleAddToCart : handleQuickAddToCart}
-                  disabled={isOutOfStock || addingToCart || !selectedVariant}
-                  className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base ${
-                    isOutOfStock || addingToCart || !selectedVariant
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : isDesignMode
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : themeColors.btnPrimary
-                  }`}
-                >
-                  {addingToCart ? (
-                    <>
-                      <span>⏳</span>
-                      <span>Adding...</span>
-                    </>
-                  ) : isOutOfStock ? (
-                    <>
-                      <span>❌</span>
-                      <span>Out of Stock</span>
-                    </>
-                  ) : isDesignMode ? (
-                    <>
-                      <span>🛒</span>
-                      <span className="whitespace-nowrap">Add Custom to Cart</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🛒</span>
-                      <span>Add to Cart</span>
-                    </>
-                  )}
-                </button>
-                
-                {/* Wishlist Button */}
-                <button
-                  onClick={handleWishlistToggle}
-                  disabled={!user}
-                  className={`p-2 sm:p-3 rounded-lg border flex items-center justify-center transition-all duration-200 ${
-                    isInWishlist
-                      ? 'bg-red-50 border-red-200 text-red-600'
-                      : `${themeColors.bgCard} ${themeColors.borderPrimary} ${themeColors.textSecondary} hover:${themeColors.borderHover}`
-                  } ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  title={!user ? "Login to add to wishlist" : isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-                >
-                  {isInWishlist ? '❤️' : '🤍'}
-                </button>
-              </div>
+              {/* Add to Cart Button */}
+              <button
+                onClick={isDesignMode ? handleAddToCart : handleQuickAddToCart}
+                disabled={isOutOfStock || addingToCart || !selectedVariant}
+                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                  isOutOfStock || addingToCart || !selectedVariant
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : isDesignMode
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : themeColors.btnPrimary
+                }`}
+              >
+                {addingToCart ? (
+                  <>
+                    <span>⏳</span>
+                    <span>Adding...</span>
+                  </>
+                ) : isOutOfStock ? (
+                  <>
+                    <span>❌</span>
+                    <span>Out of Stock</span>
+                  </>
+                ) : isDesignMode ? (
+                  <>
+                    <span>🛒</span>
+                    <span className="whitespace-nowrap">Add Custom to Cart</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🛒</span>
+                    <span>Add to Cart</span>
+                  </>
+                )}
+              </button>
+              
+              {/* Buy Now Button */}
+              <button
+                onClick={handleBuyNow}
+                disabled={isOutOfStock || addingToCart || !selectedVariant}
+                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base ${
+                  isOutOfStock || addingToCart || !selectedVariant
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                }`}
+              >
+                {addingToCart ? (
+                  <>
+                    <span>⏳</span>
+                    <span>Processing...</span>
+                  </>
+                ) : isOutOfStock ? (
+                  <>
+                    <span>❌</span>
+                    <span>Out of Stock</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span>Buy Now</span>
+                  </>
+                )}
+              </button>
+              
+              {/* Wishlist Button */}
+              <button
+                onClick={handleWishlistToggle}
+                disabled={!user}
+                className={`p-2 sm:p-3 rounded-lg border flex items-center justify-center transition-all duration-200 ${
+                  isInWishlist
+                    ? 'bg-red-50 border-red-200 text-red-600'
+                    : `${themeColors.bgCard} ${themeColors.borderPrimary} ${themeColors.textSecondary} hover:${themeColors.borderHover}`
+                } ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={!user ? "Login to add to wishlist" : isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+              >
+                {isInWishlist ? '❤️' : '🤍'}
+              </button>
+            </div>
             </div>
 
             {/* Product Specifications */}

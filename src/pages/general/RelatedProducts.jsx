@@ -29,77 +29,133 @@ const RelatedProducts = ({ currentProduct, category }) => {
     skip: !category
   });
 
-  // Cart update handler - Add this function
+  // Cart update handler
   const handleCartUpdate = () => {
     setShowCartSidebar(true);
   };
 
-  // Handle different response structures
-  let relatedProducts = [];
-  if (relatedProductsData) {
-    if (Array.isArray(relatedProductsData)) {
-      relatedProducts = relatedProductsData;
-    } else if (relatedProductsData.data && Array.isArray(relatedProductsData.data.products)) {
-      relatedProducts = relatedProductsData.data.products;
-    } else if (relatedProductsData.products && Array.isArray(relatedProductsData.products)) {
-      relatedProducts = relatedProductsData.products;
-    } else if (Array.isArray(relatedProductsData.data)) {
-      relatedProducts = relatedProductsData.data;
-    }
-  }
-
-  // Transform products for ProductCard
-  const transformProductData = (apiProduct) => {
-    if (!apiProduct) return null;
-
-    const primaryVariant = apiProduct.variants?.[0];
-    const primaryImage = primaryVariant?.variantImages?.find(img => img.isPrimary)?.imageUrl || 
-                        primaryVariant?.variantImages?.[0]?.imageUrl;
+  // Function to split products by color (same as in Shop page)
+  const splitProductsByColor = (apiProduct) => {
+    if (!apiProduct || !apiProduct.variants) return [];
     
-    const hasStock = apiProduct.variants?.some(variant => variant.stock > 0) || false;
+    const colorGroups = {};
+    
+    // Group variants by color
+    apiProduct.variants.forEach(variant => {
+      const color = variant.color || 'Default';
+      if (!colorGroups[color]) {
+        colorGroups[color] = {
+          variants: [],
+          variantImages: []
+        };
+      }
+      colorGroups[color].variants.push(variant);
+      
+      // Collect unique images for this color
+      if (variant.variantImages) {
+        variant.variantImages.forEach(img => {
+          if (!colorGroups[color].variantImages.some(existing => existing.imageUrl === img.imageUrl)) {
+            colorGroups[color].variantImages.push(img);
+          }
+        });
+      }
+    });
+    
+    // Create separate product objects for each color
+    return Object.entries(colorGroups).map(([color, colorData]) => {
+      const primaryImage = colorData.variantImages.find(img => img.isPrimary)?.imageUrl || 
+                          colorData.variantImages[0]?.imageUrl;
+      
+      // Calculate if this color has any stock
+      const hasStock = colorData.variants.some(variant => variant.stock > 0);
+      
+      // Get available sizes for this color
+      const availableSizes = colorData.variants
+        .filter(variant => variant.stock > 0)
+        .map(variant => variant.size);
+      
+      // Format price with currency symbol
+      const formatPrice = (price) => {
+        if (price === undefined || price === null) return "₹0";
+        return `₹${price}`;
+      };
 
-    // Auth-based pricing
-    let displayPrice;
-    let originalPrice;
-    let priceLabel = "";
+      // Determine which price to show based on user role
+      let displayPrice;
+      let originalPrice;
+      let priceLabel = "";
 
-    if (isWholesaleUser && apiProduct.wholesalePrice) {
-      displayPrice = apiProduct.wholesalePrice;
-      originalPrice = apiProduct.offerPrice || apiProduct.normalPrice;
-      priceLabel = "Wholesale";
-    } else if (apiProduct.offerPrice && apiProduct.offerPrice < apiProduct.normalPrice) {
-      displayPrice = apiProduct.offerPrice;
-      originalPrice = apiProduct.normalPrice;
-      priceLabel = "Offer";
-    } else {
-      displayPrice = apiProduct.normalPrice;
-      originalPrice = null;
-      priceLabel = "";
-    }
+      if (isWholesaleUser && apiProduct.wholesalePrice) {
+        displayPrice = formatPrice(apiProduct.wholesalePrice);
+        originalPrice = apiProduct.offerPrice || apiProduct.normalPrice;
+        priceLabel = "Wholesale";
+      } else if (apiProduct.offerPrice && apiProduct.offerPrice < apiProduct.normalPrice) {
+        displayPrice = formatPrice(apiProduct.offerPrice);
+        originalPrice = apiProduct.normalPrice;
+        priceLabel = "Offer";
+      } else {
+        displayPrice = formatPrice(apiProduct.normalPrice);
+        originalPrice = null;
+        priceLabel = "";
+      }
 
-    return {
-      id: apiProduct.id,
-      title: apiProduct.name,
-      category: apiProduct.category?.name || apiProduct.category,
-      price: displayPrice,
-      originalPrice: originalPrice,
-      priceLabel: priceLabel,
-      image: primaryImage,
-      variants: apiProduct.variants || [],
-      inStock: hasStock,
-      normalPrice: apiProduct.normalPrice,
-      offerPrice: apiProduct.offerPrice,
-      wholesalePrice: apiProduct.wholesalePrice,
-      isWholesaleUser: isWholesaleUser,
-      avgRating: apiProduct.avgRating || 0,
-      totalRatings: apiProduct.totalRatings || 0
-    };
+      return {
+        id: `${apiProduct.id || apiProduct._id}-${color}`,
+        baseProductId: apiProduct.id || apiProduct._id,
+        title: apiProduct.name || apiProduct.title || "Unnamed Product",
+        displayTitle: `${apiProduct.name || apiProduct.title || "Unnamed Product"} (${color})`,
+        color: color,
+        category: apiProduct.category?.name || apiProduct.category || "Uncategorized",
+        price: displayPrice,
+        originalPrice: originalPrice,
+        priceLabel: priceLabel,
+        image: primaryImage,
+        variants: colorData.variants,
+        variantImages: colorData.variantImages,
+        inStock: hasStock,
+        availableSizes: availableSizes,
+        normalPrice: apiProduct.normalPrice,
+        offerPrice: apiProduct.offerPrice,
+        wholesalePrice: apiProduct.wholesalePrice,
+        avgRating: apiProduct.avgRating || 0,
+        totalRatings: apiProduct.totalRatings || 0,
+        isWholesaleUser: isWholesaleUser,
+        isFeatured: apiProduct.featured || false,
+        isNewArrival: apiProduct.isNewArrival || false,
+        isBestSeller: apiProduct.isBestSeller || false,
+        productDetails: apiProduct.productDetails || [],
+        description: apiProduct.description,
+        subcategory: apiProduct.subcategory,
+        ratings: apiProduct.ratings || [],
+        selectedColor: color // Crucial for passing to details page
+      };
+    });
   };
 
-  const transformedProducts = relatedProducts
-    .map(transformProductData)
-    .filter(product => product !== null && product.id !== currentProduct?.id)
-    .slice(0, 8);
+  // Handle different response structures and split by color
+  let relatedProducts = [];
+  if (relatedProductsData) {
+    let productsArray = [];
+    
+    if (Array.isArray(relatedProductsData)) {
+      productsArray = relatedProductsData;
+    } else if (relatedProductsData.data && Array.isArray(relatedProductsData.data.products)) {
+      productsArray = relatedProductsData.data.products;
+    } else if (relatedProductsData.products && Array.isArray(relatedProductsData.products)) {
+      productsArray = relatedProductsData.products;
+    } else if (Array.isArray(relatedProductsData.data)) {
+      productsArray = relatedProductsData.data;
+    } else if (relatedProductsData.success && Array.isArray(relatedProductsData.data)) {
+      productsArray = relatedProductsData.data;
+    }
+    
+    // Split each product by color and filter out current product
+    const colorBasedProducts = productsArray
+      .filter(product => product.id !== currentProduct?.id && product._id !== currentProduct?.id)
+      .flatMap(product => splitProductsByColor(product));
+    
+    relatedProducts = colorBasedProducts;
+  }
 
   // Calculate visible items based on container width
   const getVisibleItemsCount = useCallback(() => {
@@ -113,13 +169,13 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   // Scroll to specific slide
   const scrollToSlide = useCallback((slideIndex) => {
-    if (!scrollContainerRef.current || transformedProducts.length === 0) return;
+    if (!scrollContainerRef.current || relatedProducts.length === 0) return;
 
     const container = scrollContainerRef.current;
     const cardWidth = 256; // w-64 = 256px
     const gap = 24; // space-x-6 = 24px
     const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, transformedProducts.length - visibleItems);
+    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
     
     const targetSlide = Math.min(slideIndex, maxSlide);
     const scrollPosition = targetSlide * (cardWidth + gap);
@@ -131,19 +187,19 @@ const RelatedProducts = ({ currentProduct, category }) => {
     
     setCurrentSlide(targetSlide);
     updateScrollButtons();
-  }, [transformedProducts.length, getVisibleItemsCount]);
+  }, [relatedProducts.length, getVisibleItemsCount]);
 
   // Update scroll button states
   const updateScrollButtons = useCallback(() => {
-    if (!scrollContainerRef.current || transformedProducts.length === 0) return;
+    if (!scrollContainerRef.current || relatedProducts.length === 0) return;
     
     const container = scrollContainerRef.current;
     const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, transformedProducts.length - visibleItems);
+    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
     
     setCanScrollLeft(currentSlide > 0);
     setCanScrollRight(currentSlide < maxSlide);
-  }, [currentSlide, transformedProducts.length, getVisibleItemsCount]);
+  }, [currentSlide, relatedProducts.length, getVisibleItemsCount]);
 
   // Scroll functions
   const scrollPrev = useCallback(() => {
@@ -156,10 +212,10 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   // Auto-scroll function
   const startAutoScroll = useCallback(() => {
-    if (isPaused || transformedProducts.length === 0) return;
+    if (isPaused || relatedProducts.length === 0) return;
     
     const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, transformedProducts.length - visibleItems);
+    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
     
     if (currentSlide >= maxSlide) {
       // Go back to first slide
@@ -168,7 +224,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
       // Go to next slide
       scrollToSlide(currentSlide + 1);
     }
-  }, [currentSlide, isPaused, transformedProducts.length, scrollToSlide, getVisibleItemsCount]);
+  }, [currentSlide, isPaused, relatedProducts.length, scrollToSlide, getVisibleItemsCount]);
 
   // Initialize and cleanup
   useEffect(() => {
@@ -181,7 +237,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
     window.addEventListener('resize', handleResize);
     
     // Start auto-scroll
-    if (transformedProducts.length > 0) {
+    if (relatedProducts.length > 0) {
       autoScrollRef.current = setInterval(startAutoScroll, 4000);
     }
 
@@ -191,7 +247,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
         clearInterval(autoScrollRef.current);
       }
     };
-  }, [transformedProducts.length, startAutoScroll, updateScrollButtons]);
+  }, [relatedProducts.length, startAutoScroll, updateScrollButtons]);
 
   // Handle scroll events for button visibility
   const handleScroll = useCallback(() => {
@@ -216,7 +272,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   const handleMouseLeave = () => {
     setIsPaused(false);
-    if (transformedProducts.length > 0) {
+    if (relatedProducts.length > 0) {
       autoScrollRef.current = setInterval(startAutoScroll, 4000);
     }
   };
@@ -233,7 +289,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
     // Restart auto-scroll after a delay
     setTimeout(() => {
       setIsPaused(false);
-      if (transformedProducts.length > 0) {
+      if (relatedProducts.length > 0) {
         autoScrollRef.current = setInterval(startAutoScroll, 4000);
       }
     }, 3000);
@@ -262,7 +318,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
     );
   }
 
-  if (error || transformedProducts.length === 0) {
+  if (error || relatedProducts.length === 0) {
     return null;
   }
 
@@ -332,14 +388,16 @@ const RelatedProducts = ({ currentProduct, category }) => {
               scrollBehavior: 'smooth'
             }}
           >
-            {transformedProducts.map((product) => (
+            {relatedProducts.map((product) => (
               <div
                 key={product.id}
                 className="flex-shrink-0 w-64 transition-transform duration-300 hover:scale-105"
               >
                 <ProductCard
                   product={product}
-                  onCartUpdate={handleCartUpdate} // Updated this line
+                  onCartUpdate={handleCartUpdate}
+                  // ✅ FIX: Pass the color information explicitly
+                  selectedColor={product.selectedColor}
                 />
               </div>
             ))}
@@ -356,9 +414,9 @@ const RelatedProducts = ({ currentProduct, category }) => {
         </div>
 
         {/* Progress Dots */}
-        {transformedProducts.length > 4 && (
+        {relatedProducts.length > 4 && (
           <div className="flex justify-center mt-8 space-x-2">
-            {Array.from({ length: Math.ceil(transformedProducts.length / getVisibleItemsCount()) }).map((_, index) => (
+            {Array.from({ length: Math.ceil(relatedProducts.length / getVisibleItemsCount()) }).map((_, index) => (
               <button
                 key={index}
                 onClick={() => scrollToSlide(index * getVisibleItemsCount())}
@@ -370,6 +428,15 @@ const RelatedProducts = ({ currentProduct, category }) => {
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}
+          </div>
+        )}
+
+        {/* Wholesale User Badge */}
+        {isWholesaleUser && (
+          <div className="text-center mt-4">
+            <p className={`${isDark ? 'text-blue-400' : 'text-blue-600'} text-sm bg-blue-100 dark:bg-blue-900 inline-block px-4 py-2 rounded-full`}>
+              🏷️ Special wholesale prices for you!
+            </p>
           </div>
         )}
       </div>

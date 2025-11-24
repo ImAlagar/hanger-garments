@@ -42,7 +42,7 @@ const AdminLogin = () => {
   // Redirect if user is already authenticated as admin
   useEffect(() => {
     if (isAuthenticated && user?.role === 'ADMIN') {
-      const from = location.state?.from?.pathname || '/dashboard/admin';
+      const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, user, navigate, location]);

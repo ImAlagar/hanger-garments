@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   FiHome,
   FiShoppingBag,
@@ -18,16 +18,19 @@ import {
   FiInstagram,
   FiFacebook,
   FiTwitter,
-  FiYoutube
+  FiYoutube,
+  FiAward,
+  FiStar
 } from 'react-icons/fi';
 
 // Import constants
 import { 
   navItems, 
-  tshirtCategories, 
   motionVariants 
 } from '../../../constants/headerConstants';
 import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
+import { useGetAllCategoriesQuery } from '../../../redux/services/categoryService';
+import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
 
 const MobileSideNav = ({
   theme,
@@ -46,8 +49,40 @@ const MobileSideNav = ({
   setSearchOpen,
   setMenuOpen,
   getUserDisplayName,
-  wishlistCount // Add wishlistCount prop
+  wishlistCount
 }) => {
+
+  const { category } = useParams();
+  const [categoryDropdowns, setCategoryDropdowns] = useState({});
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+
+  // Fetch categories and subcategories
+  const { 
+    data: categoriesData, 
+    isLoading: categoriesLoading, 
+    error: categoriesError 
+  } = useGetAllCategoriesQuery();
+  
+  const { 
+    data: subcategoriesData, 
+    isLoading: subcategoriesLoading,
+    error: subcategoriesError
+  } = useGetAllSubcategoriesQuery();
+
+  const categories = categoriesData?.data || categoriesData || [];
+  const subcategories = subcategoriesData?.data || subcategoriesData || [];
+
+  // Group subcategories by category
+  const subcategoriesByCategory = subcategories.reduce((acc, subcat) => {
+    const categoryName = subcat.category?.name || subcat.category;
+    if (categoryName) {
+      if (!acc[categoryName]) {
+        acc[categoryName] = [];
+      }
+      acc[categoryName].push(subcat);
+    }
+    return acc;
+  }, {});
 
   const isActivePath = (path) => {
     return location.pathname === path;
@@ -60,6 +95,41 @@ const MobileSideNav = ({
 
   const handleWishlistClick = () => {
     navigate("/wishlist");
+    setMenuOpen(false);
+  };
+
+  // Create URL-safe category name
+  const createCategorySlug = (categoryName) => {
+    return categoryName.toLowerCase().replace(/\s+/g, '-');
+  };
+
+  // Check if category is active
+  const isCategoryActive = (categoryName) => {
+    if (!category) return false;
+    return createCategorySlug(categoryName) === category.toLowerCase();
+  };
+
+  const toggleCategoryDropdown = (categoryName) => {
+    setCategoryDropdowns(prev => ({
+      ...prev,
+      [categoryName]: !prev[categoryName]
+    }));
+  };
+
+  const handleCategoryClick = (categoryName) => {
+    const categorySlug = createCategorySlug(categoryName);
+    navigate(`/shop/${categorySlug}`);
+    setMenuOpen(false);
+  };
+
+  const handleSubcategoryClick = (categoryName, subcategoryName) => {
+    const categorySlug = createCategorySlug(categoryName);
+    navigate(`/shop/${categorySlug}?subcategories=${encodeURIComponent(subcategoryName)}`);
+    setMenuOpen(false);
+  };
+
+  const handleCollectionClick = (url) => {
+    navigate(url);
     setMenuOpen(false);
   };
 
@@ -87,6 +157,30 @@ const MobileSideNav = ({
     { icon: FiFacebook, href: "https://facebook.com" },
     { icon: FiTwitter, href: "https://twitter.com" },
     { icon: FiYoutube, href: "https://youtube.com" }
+  ];
+
+  // Collections data
+  const collections = [
+    { 
+      name: "Featured Products", 
+      url: "/shop?featured=true",
+      icon: FiStar
+    },
+    { 
+      name: "New Arrivals", 
+      url: "/shop?newArrival=true",
+      icon: FiAward
+    },
+    { 
+      name: "Best Sellers", 
+      url: "/shop?bestSeller=true",
+      icon: FiTrendingUp
+    },
+    { 
+      name: "In Stock", 
+      url: "/shop?inStock=true",
+      icon: FiShoppingBag
+    }
   ];
 
   return (
@@ -158,16 +252,142 @@ const MobileSideNav = ({
                     }`}
                     whileHover={{ x: 4 }}
                   >
+                    <FiHome className="mr-3 size-4" />
                     Home
                   </motion.div>
                 </motion.li>
 
-                {/* Shop Link with Dropdown */}
+                {/* All Products Link */}
+                <motion.li key="all-products" variants={motionVariants.item} className="mb-1">
+                  <motion.div
+                    onClick={() => handleNavItemClick("/shop")}
+                    className={`flex items-center px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
+                      isActivePath("/shop")
+                        ? theme === "dark"
+                          ? "text-purple-400 font-semibold"
+                          : "text-purple-600 font-semibold"
+                        : theme === "dark"
+                        ? "text-gray-300 hover:text-purple-300"
+                        : "text-gray-700 hover:text-purple-600"
+                    }`}
+                    whileHover={{ x: 4 }}
+                  >
+                    <FiShoppingBag className="mr-3 size-4" />
+                    All Products
+                  </motion.div>
+                </motion.li>
+
+                {/* Categories with Dropdowns */}
+                {categories.map((cat) => {
+                  const categoryName = cat.name;
+                  const categorySubcategories = subcategoriesByCategory[categoryName] || [];
+                  const isActive = isCategoryActive(categoryName);
+                  const isDropdownOpen = categoryDropdowns[categoryName];
+
+                  return (
+                    <motion.li key={cat.id || cat._id} variants={motionVariants.item} className="mb-1">
+                      <motion.div
+                        onClick={() => toggleCategoryDropdown(categoryName)}
+                        className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
+                          isActive
+                            ? theme === "dark"
+                              ? "text-purple-400 font-semibold"
+                              : "text-purple-600 font-semibold"
+                            : theme === "dark"
+                            ? "text-gray-300 hover:text-purple-300"
+                            : "text-gray-700 hover:text-purple-600"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <span>{categoryName}</span>
+                        </div>
+                        {categorySubcategories.length > 0 && (
+                          <FiChevronDown className={`size-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                        )}
+                      </motion.div>
+                      
+                      <AnimatePresence>
+                        {isDropdownOpen && categorySubcategories.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="ml-4 mt-1 space-y-1 border-l-2 border-purple-500/20"
+                          >
+                            {/* View All Category Link */}
+                            <motion.div
+                              onClick={() => handleCategoryClick(categoryName)}
+                              className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                                isActive
+                                  ? theme === "dark"
+                                    ? "text-purple-400 font-semibold bg-gray-800/50"
+                                    : "text-purple-600 font-semibold bg-gray-50"
+                                  : theme === "dark"
+                                  ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                  : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                              }`}
+                              whileHover={{ x: 4 }}
+                            >
+                              👀 View All {categoryName}
+                            </motion.div>
+
+                            {/* Subcategories List */}
+                            <div className="space-y-1 mb-3">
+                              <div className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                Subcategories
+                              </div>
+                              {categorySubcategories.map((subcat) => (
+                                <motion.div
+                                  key={subcat.id || subcat._id}
+                                  onClick={() => handleSubcategoryClick(categoryName, subcat.name)}
+                                  className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                                    theme === "dark"
+                                      ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                      : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                  }`}
+                                  whileHover={{ x: 4 }}
+                                >
+                                  {subcat.name}
+                                </motion.div>
+                              ))}
+                            </div>
+
+                            {/* Featured Links */}
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                              <div className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                Featured
+                              </div>
+                              <motion.div
+                                onClick={() => handleCollectionClick(`/shop/${createCategorySlug(categoryName)}?newArrival=true`)}
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md transition-colors duration-200 mb-1 cursor-pointer"
+                                whileHover={{ x: 4 }}
+                              >
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                New Arrivals
+                              </motion.div>
+                              <motion.div
+                                onClick={() => handleCollectionClick(`/shop/${createCategorySlug(categoryName)}?bestSeller=true`)}
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md transition-colors duration-200 cursor-pointer"
+                                whileHover={{ x: 4 }}
+                              >
+                                <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                                Best Sellers
+                              </motion.div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.li>
+                  );
+                })}
+
+                {/* Collections Dropdown */}
                 <motion.li variants={motionVariants.item} className="mb-1">
                   <motion.div
-                    onClick={toggleShop}
+                    onClick={() => setCollectionsOpen(!collectionsOpen)}
                     className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
-                      isActivePath("/shop") || shopOpen
+                      collectionsOpen
                         ? theme === "dark"
                           ? "text-purple-400 font-semibold"
                           : "text-purple-600 font-semibold"
@@ -176,12 +396,15 @@ const MobileSideNav = ({
                         : "text-gray-700 hover:text-purple-600"
                     }`}
                   >
-                    Shop
-                    <FiChevronDown className={`size-4 transition-transform ${shopOpen ? 'rotate-180' : ''}`} />
+                    <div className="flex items-center">
+                      <FiStar className="mr-3 size-4" />
+                      Collections
+                    </div>
+                    <FiChevronDown className={`size-4 transition-transform ${collectionsOpen ? 'rotate-180' : ''}`} />
                   </motion.div>
                   
                   <AnimatePresence>
-                    {shopOpen && (
+                    {collectionsOpen && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -189,69 +412,25 @@ const MobileSideNav = ({
                         transition={{ duration: 0.3 }}
                         className="ml-4 mt-1 space-y-1 border-l-2 border-purple-500/20"
                       >
-                        {/* Shop All Link */}
-                        <motion.div
-                          onClick={() => {
-                            navigate("/shop");
-                            setMenuOpen(false);
-                          }}
-                          className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
-                            isActivePath("/shop")
-                              ? theme === "dark"
-                                ? "text-purple-400 font-semibold bg-gray-800/50"
-                                : "text-purple-600 font-semibold bg-gray-50"
-                              : theme === "dark"
-                              ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
-                              : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
-                          }`}
-                          whileHover={{ x: 4 }}
-                        >
-                          All Products
-                        </motion.div>
-
-                        {/* T-Shirt Categories */}
-                        {tshirtCategories.map((category) => (
+                        {collections.map((collection, index) => (
                           <motion.div
-                            key={category}
-                            onClick={() => {
-                              navigate(`/shop/${category.toLowerCase().replace(/\s+/g, '-')}`);
-                              setMenuOpen(false);
-                            }}
-                            className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                            key={index}
+                            onClick={() => handleCollectionClick(collection.url)}
+                            className={`flex items-center px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
                               theme === "dark"
                                 ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
                                 : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
                             }`}
                             whileHover={{ x: 4 }}
                           >
-                            {category} T-Shirts
+                            <collection.icon className="mr-3 size-4" />
+                            {collection.name}
                           </motion.div>
                         ))}
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </motion.li>
-
-                {/* Other Navigation Links */}
-                {navItems.filter(item => item.name !== "Home" && item.name !== "Shop").map((item) => (
-                  <motion.li key={item.path} variants={motionVariants.item} className="mb-1">
-                    <motion.div
-                      onClick={() => handleNavItemClick(item.path)}
-                      className={`flex items-center px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
-                        isActivePath(item.path)
-                          ? theme === "dark"
-                            ? "text-purple-400 font-semibold"
-                            : "text-purple-600 font-semibold"
-                          : theme === "dark"
-                          ? "text-gray-300 hover:text-purple-300"
-                          : "text-gray-700 hover:text-purple-600"
-                      }`}
-                      whileHover={{ x: 4 }}
-                    >
-                      {item.name}
-                    </motion.div>
-                  </motion.li>
-                ))}
 
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between px-4 py-4 mt-2 border-y border-gray-200 dark:border-gray-800">

@@ -1,4 +1,4 @@
-// components/CustomizationModal.js - UPDATED WITH PROXY SUPPORT
+// components/CustomizationModal.js - UPDATED WITH EXPORT FUNCTIONALITY
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
@@ -39,10 +39,21 @@ const CustomizationModal = ({
   const [canvasReady, setCanvasReady] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState(0);
   const [totalImages, setTotalImages] = useState(0);
+  const [exportFormat, setExportFormat] = useState('png'); // png, jpeg, svg
+  const [exportQuality, setExportQuality] = useState(1.0); // 0.1 to 1.0
+  const [exportSize, setExportSize] = useState('original'); // original, high, medium, low
 
   // Available fonts and colors from customization
   const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
   const availableColors = customization?.allowedColors || ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+
+  // Export size options
+  const exportSizes = {
+    original: { label: 'Original', scale: 1.0 },
+    high: { label: 'High (2x)', scale: 2.0 },
+    medium: { label: 'Medium (1.5x)', scale: 1.5 },
+    low: { label: 'Low (0.75x)', scale: 0.75 }
+  };
 
   // Convert S3 URL to proxy URL
   const getProxiedImageUrl = (url) => {
@@ -229,78 +240,75 @@ const CustomizationModal = ({
     }
   };
 
+  // Draw text layer
+  const drawTextLayer = (ctx, layer) => {
+    ctx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize}px ${layer.fontFamily}`;
+    ctx.fillStyle = layer.color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    
+    // Measure text for selection
+    const metrics = ctx.measureText(layer.text);
+    const width = metrics.width;
+    const height = layer.fontSize;
+    
+    ctx.fillText(layer.text, layer.x, layer.y);
+    
+    return { width, height };
+  };
 
+  const drawImageLayer = async (ctx, layer) => {
+    try {
+      const img = await loadImage(layer.src);
+      ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
+    } catch (error) {
+      // Draw placeholder for failed image
+      ctx.fillStyle = '#e0e0e0';
+      ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+      ctx.fillStyle = '#999';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2);
+    }
+  };
 
-// Draw text layer - FIXED VERSION
-const drawTextLayer = (ctx, layer) => {
-  ctx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize}px ${layer.fontFamily}`;
-  ctx.fillStyle = layer.color;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  
-  // Measure text for selection - DON'T modify the original layer
-  const metrics = ctx.measureText(layer.text);
-  const width = metrics.width;
-  const height = layer.fontSize;
-  
-  ctx.fillText(layer.text, layer.x, layer.y);
-  
-  // Return dimensions for selection purposes
-  return { width, height };
-};
-
-const drawImageLayer = async (ctx, layer) => {
-  try {
-    const img = await loadImage(layer.src);
-    ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
-  } catch (error) {
-    // Draw placeholder for failed image
-    ctx.fillStyle = '#e0e0e0';
-    ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
-    ctx.fillStyle = '#999';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2);
-  }
-};
-
-// Update drawLayer function
-const drawLayer = async (ctx, layer) => {
-  ctx.save();
-  
-  try {
-    let dimensions;
-    switch (layer.type) {
-      case 'text':
-        dimensions = drawTextLayer(ctx, layer);
-        break;
-      case 'image':
-        await drawImageLayer(ctx, layer);
-        break;
-      case 'shape':
-        drawShapeLayer(ctx, layer);
-        break;
+  // Update drawLayer function
+  const drawLayer = async (ctx, layer) => {
+    ctx.save();
+    
+    try {
+      let dimensions;
+      switch (layer.type) {
+        case 'text':
+          dimensions = drawTextLayer(ctx, layer);
+          break;
+        case 'image':
+          await drawImageLayer(ctx, layer);
+          break;
+        case 'shape':
+          drawShapeLayer(ctx, layer);
+          break;
+      }
+      
+      // Draw selection border if layer is selected
+      if (selectedLayer === layer.id) {
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        
+        // Use actual dimensions or fallback to layer properties
+        const width = dimensions?.width || layer.width || 100;
+        const height = dimensions?.height || layer.height || 50;
+        
+        ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
+        ctx.setLineDash([]);
+      }
+    } catch (error) {
+      console.error('Error drawing layer:', layer, error);
     }
     
-    // Draw selection border if layer is selected
-    if (selectedLayer === layer.id) {
-      ctx.strokeStyle = '#007bff';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      
-      // Use actual dimensions or fallback to layer properties
-      const width = dimensions?.width || layer.width || 100;
-      const height = dimensions?.height || layer.height || 50;
-      
-      ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
-      ctx.setLineDash([]);
-    }
-  } catch (error) {
-    console.error('Error drawing layer:', layer, error);
-  }
-  
-  ctx.restore();
-};
+    ctx.restore();
+  };
 
   // Draw shape layer
   const drawShapeLayer = (ctx, layer) => {
@@ -396,75 +404,313 @@ const drawLayer = async (ctx, layer) => {
     return cleanCanvas.toDataURL('image/png');
   };
 
-  // Save design
-const handleSaveDesign = async () => {
-  if (!canvasReady) {
-    alert('Canvas is still loading. Please wait a moment and try again.');
-    return;
-  }
+  // EXPORT DESIGN FUNCTIONALITY
 
-  if (designData.layers.length === 0) {
-    alert('Please add at least one design element before saving.');
-    return;
-  }
-
-  try {
-    const previewImage = generatePreview();
-    
-    if (!previewImage) {
-      throw new Error('Failed to generate preview image');
+  // Export design as image file
+  const exportDesign = async () => {
+    if (!canvasReady) {
+      alert('Canvas is still loading. Please wait a moment and try again.');
+      return;
     }
 
-    // Clean design data for storage
-    const cleanDesignData = {
-      layers: designData.layers.map(layer => ({
-        ...layer,
-        // Remove any temporary properties and handle external images
-        src: layer.type === 'image' && layer.src.startsWith('http') ? 
-             `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
-      })),
-      canvasSize: designData.canvasSize,
-      backgroundColor: designData.backgroundColor,
-      version: '1.0',
-      createdAt: new Date().toISOString()
-    };
+    if (designData.layers.length === 0) {
+      alert('Please add at least one design element before exporting.');
+      return;
+    }
 
-    const designDataToSave = {
-      customizationId: customization.id,
-      designData: cleanDesignData,
-      previewImage: previewImage,
-      thumbnailImage: previewImage
-    };
+    try {
+      // Create a high-quality canvas for export
+      const exportCanvas = document.createElement('canvas');
+      const scale = exportSizes[exportSize].scale;
+      
+      exportCanvas.width = designData.canvasSize.width * scale;
+      exportCanvas.height = designData.canvasSize.height * scale;
+      
+      const exportCtx = exportCanvas.getContext('2d');
+      
+      // Set higher quality for export
+      exportCtx.imageSmoothingEnabled = true;
+      exportCtx.imageSmoothingQuality = 'high';
+      
+      // Draw white background for export
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      
+      // Draw product base image
+      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      if (baseImageUrl) {
+        try {
+          const baseImage = await loadImage(baseImageUrl);
+          exportCtx.drawImage(baseImage, 0, 0, exportCanvas.width, exportCanvas.height);
+        } catch (error) {
+          console.warn('Could not load base image for export:', error);
+          // Continue without base image
+        }
+      }
+      
+      // Draw all visible layers
+      for (const layer of designData.layers) {
+        if (layer.visible !== false) {
+          await drawLayerForExport(exportCtx, layer, scale);
+        }
+      }
+      
+      // Generate export data URL
+      let dataUrl;
+      const mimeType = exportFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const quality = exportFormat === 'jpeg' ? exportQuality : undefined;
+      
+      dataUrl = exportCanvas.toDataURL(mimeType, quality);
+      
+      // Download the file
+      downloadImage(dataUrl, mimeType);
+      
+      return dataUrl;
+      
+    } catch (error) {
+      console.error('❌ Export failed:', error);
+      alert('Export failed. Please try again or use a different format.');
+      throw error;
+    }
+  };
 
-
-
-    const result = await createDesign(designDataToSave).unwrap();
+  // Draw layer for export (scaled version)
+  const drawLayerForExport = async (ctx, layer, scale) => {
+    ctx.save();
     
-    // Set preview image in Redux state
-    dispatch(setPreviewImage(previewImage));
+    try {
+      switch (layer.type) {
+        case 'text':
+          ctx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize * scale}px ${layer.fontFamily}`;
+          ctx.fillStyle = layer.color;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(layer.text, layer.x * scale, layer.y * scale);
+          break;
+          
+        case 'image':
+          try {
+            const img = await loadImage(layer.src);
+            ctx.drawImage(
+              img, 
+              layer.x * scale, 
+              layer.y * scale, 
+              layer.width * scale, 
+              layer.height * scale
+            );
+          } catch (error) {
+            // Skip failed images in export
+            console.warn('Skipping image in export:', layer.src);
+          }
+          break;
+          
+        case 'shape':
+          ctx.fillStyle = layer.fillColor || '#000000';
+          if (layer.shape === 'rectangle') {
+            ctx.fillRect(
+              layer.x * scale, 
+              layer.y * scale, 
+              layer.width * scale, 
+              layer.height * scale
+            );
+          } else if (layer.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(
+              (layer.x + layer.width / 2) * scale,
+              (layer.y + layer.height / 2) * scale,
+              (layer.width / 2) * scale,
+              0, 2 * Math.PI
+            );
+            ctx.fill();
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Error drawing layer for export:', layer, error);
+    }
+    
+    ctx.restore();
+  };
+
+  // Download image helper
+  const downloadImage = (dataUrl, mimeType) => {
+    const link = document.createElement('a');
+    const extension = mimeType.split('/')[1];
+    const fileName = `design-${product?.name || 'custom'}-${Date.now()}.${extension}`;
+    
+    link.download = fileName;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     // Show success message
-    alert('🎉 Design saved successfully! You can now add it to your cart.');
-    
-    return result;
-    
-  } catch (error) {
-    console.error('❌ Failed to save design:', error);
-    
-    let errorMessage = 'Failed to save design. Please try again.';
-    
-    if (error.status === 500) {
-      errorMessage = 'Server error occurred. Please check the console for details.';
-    } else if (error.data?.message) {
-      errorMessage = error.data.message;
-    } else if (error.message?.includes('Tainted canvases') || error.message?.includes('security')) {
-      errorMessage = 'Some images could not be included due to security restrictions. The design has been saved with available elements.';
+    alert(`✅ Design exported successfully as ${fileName}`);
+  };
+
+  // Export as SVG (alternative format)
+  const exportAsSVG = () => {
+    if (designData.layers.length === 0) {
+      alert('Please add at least one design element before exporting.');
+      return;
     }
-    
-    alert(`❌ ${errorMessage}`);
-    throw error;
-  }
-};
+
+    try {
+      // Create SVG content
+      let svgContent = `
+        <svg width="${designData.canvasSize.width}" height="${designData.canvasSize.height}" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100%" height="100%" fill="#ffffff"/>
+      `;
+      
+      // Add design layers as SVG elements
+      designData.layers.forEach(layer => {
+        if (layer.visible !== false) {
+          switch (layer.type) {
+            case 'text':
+              svgContent += `
+                <text x="${layer.x}" y="${layer.y + layer.fontSize}" 
+                      font-family="${layer.fontFamily}" font-size="${layer.fontSize}" 
+                      fill="${layer.color}">
+                  ${layer.text}
+                </text>
+              `;
+              break;
+              
+            case 'shape':
+              if (layer.shape === 'rectangle') {
+                svgContent += `
+                  <rect x="${layer.x}" y="${layer.y}" 
+                        width="${layer.width}" height="${layer.height}" 
+                        fill="${layer.fillColor}"/>
+                `;
+              } else if (layer.shape === 'circle') {
+                svgContent += `
+                  <circle cx="${layer.x + layer.width / 2}" cy="${layer.y + layer.height / 2}" 
+                          r="${layer.width / 2}" fill="${layer.fillColor}"/>
+                `;
+              }
+              break;
+              
+            // Note: Images in SVG are complex due to data URL conversion
+            // For simplicity, we're skipping images in SVG export
+          }
+        }
+      });
+      
+      svgContent += '</svg>';
+      
+      // Create and download SVG file
+      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `design-${product?.name || 'custom'}-${Date.now()}.svg`;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert('✅ SVG design exported successfully!');
+      
+    } catch (error) {
+      console.error('SVG export failed:', error);
+      alert('SVG export failed. Please try image export instead.');
+    }
+  };
+
+  // Save design to server
+  const handleSaveDesign = async () => {
+    if (!canvasReady) {
+      alert('Canvas is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    if (designData.layers.length === 0) {
+      alert('Please add at least one design element before saving.');
+      return;
+    }
+
+    try {
+      const previewImage = generatePreview();
+      
+      if (!previewImage) {
+        throw new Error('Failed to generate preview image');
+      }
+
+      // Clean design data for storage
+      const cleanDesignData = {
+        layers: designData.layers.map(layer => ({
+          ...layer,
+          // Remove any temporary properties and handle external images
+          src: layer.type === 'image' && layer.src.startsWith('http') ? 
+               `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
+        })),
+        canvasSize: designData.canvasSize,
+        backgroundColor: designData.backgroundColor,
+        version: '1.0',
+        createdAt: new Date().toISOString()
+      };
+
+      const designDataToSave = {
+        customizationId: customization.id,
+        designData: cleanDesignData,
+        previewImage: previewImage,
+        thumbnailImage: previewImage
+      };
+
+      const result = await createDesign(designDataToSave).unwrap();
+      
+      // Set preview image in Redux state
+      dispatch(setPreviewImage(previewImage));
+      
+      // Show success message
+      alert('🎉 Design saved successfully! You can now add it to your cart.');
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Failed to save design:', error);
+      
+      let errorMessage = 'Failed to save design. Please try again.';
+      
+      if (error.status === 500) {
+        errorMessage = 'Server error occurred. Please check the console for details.';
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error.message?.includes('Tainted canvases') || error.message?.includes('security')) {
+        errorMessage = 'Some images could not be included due to security restrictions. The design has been saved with available elements.';
+      }
+      
+      alert(`❌ ${errorMessage}`);
+      throw error;
+    }
+  };
+
+  // Handle save and export
+  const handleSaveAndExport = async () => {
+    try {
+      // First save the design
+      await handleSaveDesign();
+      
+      // Then export it
+      await exportDesign();
+      
+    } catch (error) {
+      console.error('Save and export failed:', error);
+    }
+  };
+
+  // Handle export only
+  const handleExportOnly = async () => {
+    try {
+      await exportDesign();
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
+  // Rest of your existing functions (addText, addImage, etc.) remain the same...
+  // [Keep all your existing functions like handleAddText, handleAddImage, etc.]
 
   // Add text layer
   const handleAddText = () => {
@@ -750,6 +996,71 @@ const handleSaveDesign = async () => {
                 </div>
               </div>
             )}
+
+            {/* Export Settings */}
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
+              <h4 className="font-semibold text-sm mb-2">Export Settings</h4>
+              
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs mb-1">Format</label>
+                  <select
+                    value={exportFormat}
+                    onChange={(e) => setExportFormat(e.target.value)}
+                    className="w-full p-1 border border-gray-300 rounded text-xs"
+                  >
+                    <option value="png">PNG (High Quality)</option>
+                    <option value="jpeg">JPEG (Smaller Size)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs mb-1">Size</label>
+                  <select
+                    value={exportSize}
+                    onChange={(e) => setExportSize(e.target.value)}
+                    className="w-full p-1 border border-gray-300 rounded text-xs"
+                  >
+                    <option value="original">Original Size</option>
+                    <option value="high">High Resolution (2x)</option>
+                    <option value="medium">Medium Resolution (1.5x)</option>
+                    <option value="low">Low Resolution (0.75x)</option>
+                  </select>
+                </div>
+                
+                {exportFormat === 'jpeg' && (
+                  <div>
+                    <label className="block text-xs mb-1">Quality: {Math.round(exportQuality * 100)}%</label>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1"
+                      step="0.1"
+                      value={exportQuality}
+                      onChange={(e) => setExportQuality(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    onClick={handleExportOnly}
+                    disabled={!canvasReady || designData.layers.length === 0}
+                    className="text-xs bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Export
+                  </button>
+                  <button
+                    onClick={handleSaveAndExport}
+                    disabled={!canvasReady || designData.layers.length === 0}
+                    className="text-xs bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Save & Export
+                  </button>
+                </div>
+              </div>
+            </div>
 
             {/* CORS Warning */}
             <div className="mb-4 p-2 bg-orange-100 text-orange-800 text-xs rounded">

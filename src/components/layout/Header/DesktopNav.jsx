@@ -1,212 +1,336 @@
-import React, { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiChevronDown } from 'react-icons/fi';
-import { navItems, tshirtCategories, motionVariants } from '../../../constants/headerConstants';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useParams, useLocation } from 'react-router-dom';
+import { useGetAllCategoriesQuery } from '../../../redux/services/categoryService';
+import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
+import { useTheme } from '../../../context/ThemeContext'; // Adjust import path as needed
 
-const DesktopNav = ({
-  theme,
-  location,
-  navigate,
-  shopOpen,
-  toggleShop,
-  handleLinkClick
-}) => {
-  const dropdownRef = useRef(null);
+const DesktopNav = () => {
+  const { category } = useParams();
+  const location = useLocation();
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  const dropdownRefs = useRef({});
+  const { theme } = useTheme();
+  
+  // Fetch categories and subcategories
+  const { 
+    data: categoriesData, 
+    isLoading: categoriesLoading, 
+    error: categoriesError 
+  } = useGetAllCategoriesQuery();
+  
+  const { 
+    data: subcategoriesData, 
+    isLoading: subcategoriesLoading,
+    error: subcategoriesError
+  } = useGetAllSubcategoriesQuery();
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        if (shopOpen) {
-          toggleShop();
+    setMounted(true);
+  }, []);
+
+  const categories = categoriesData?.data || categoriesData || [];
+  const subcategories = subcategoriesData?.data || subcategoriesData || [];
+
+  // Group subcategories by category
+  const subcategoriesByCategory = subcategories.reduce((acc, subcat) => {
+    const categoryName = subcat.category?.name || subcat.category;
+    if (categoryName) {
+      if (!acc[categoryName]) {
+        acc[categoryName] = [];
+      }
+      acc[categoryName].push(subcat);
+    }
+    return acc;
+  }, {});
+
+  const handleMouseEnter = (categoryName) => {
+    if (mounted) {
+      setActiveDropdown(categoryName);
+    }
+  };
+
+  const handleMouseLeave = (categoryName, e) => {
+    const dropdownElement = dropdownRefs.current[categoryName];
+    if (dropdownElement && dropdownElement.contains(e.relatedTarget)) {
+      return;
+    }
+    
+    if (mounted) {
+      setActiveDropdown(null);
+    }
+  };
+
+  const handleDropdownMouseLeave = (e) => {
+    if (e.relatedTarget && e.relatedTarget.closest('.category-link')) {
+      return;
+    }
+    
+    if (mounted) {
+      setActiveDropdown(null);
+    }
+  };
+
+  // Create URL-safe category name
+  const createCategorySlug = (categoryName) => {
+    return categoryName.toLowerCase().replace(/\s+/g, '-');
+  };
+
+  // Check if category is active
+  const isCategoryActive = (categoryName) => {
+    if (!category) return false;
+    return createCategorySlug(categoryName) === category.toLowerCase();
+  };
+
+  // Theme-based styles
+  const getNavStyles = () => {
+    if (theme === 'dark') {
+      return {
+        nav: 'bg-gray-900 text-white',
+        dropdown: 'bg-gray-800 border-gray-700 text-white',
+        category: {
+          active: 'text-blue-400 border-blue-400',
+          inactive: 'text-gray-300 hover:text-blue-400',
+        },
+        dropdownItem: 'text-gray-300 hover:bg-gray-700 hover:text-white',
+        dropdownSection: 'border-gray-700',
+        featured: {
+          new: 'text-green-400 hover:bg-green-900',
+          bestseller: 'text-orange-400 hover:bg-orange-900',
+          featured: 'text-yellow-400 hover:bg-yellow-900',
+          instock: 'text-blue-400 hover:bg-blue-900'
         }
+      };
+    }
+    
+    // Light theme (default)
+    return {
+      nav: 'bg-white text-gray-900',
+      dropdown: 'bg-white border-gray-200 text-gray-900',
+      category: {
+        active: 'text-blue-600 border-blue-600',
+        inactive: 'text-gray-700 hover:text-blue-600',
+      },
+      dropdownItem: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+      dropdownSection: 'border-gray-100',
+      featured: {
+        new: 'text-green-700 hover:bg-green-50',
+        bestseller: 'text-orange-700 hover:bg-orange-50',
+        featured: 'text-yellow-700 hover:bg-yellow-50',
+        instock: 'text-blue-700 hover:bg-blue-50'
       }
     };
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [shopOpen, toggleShop]);
+  const styles = getNavStyles();
+
+  // Loading state
+  if (categoriesLoading || subcategoriesLoading) {
+    return (
+      <nav className={`hidden lg:flex items-center space-x-8 ${styles.nav}`}>
+        {[...Array(5)].map((_, index) => (
+          <div
+            key={index}
+            className={`h-4 rounded w-20 animate-pulse ${
+              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+            }`}
+          />
+        ))}
+      </nav>
+    );
+  }
+
+  // Error state - show basic navigation
+  if (categoriesError || subcategoriesError) {
+    return (
+      <nav className={`hidden lg:flex items-center space-x-8 ${styles.nav}`}>
+        <Link
+          to="/shop/men"
+          className={`px-3 py-2 text-sm font-medium transition-colors ${styles.category.inactive}`}
+        >
+          Men
+        </Link>
+        <Link
+          to="/shop/women"
+          className={`px-3 py-2 text-sm font-medium transition-colors ${styles.category.inactive}`}
+        >
+          Women
+        </Link>
+      </nav>
+    );
+  }
 
   return (
-    <motion.ul
-      className="hidden xl:flex items-center gap-6 font-bai-jamjuree tracking-wider font-semibold relative"
-      variants={motionVariants.container}
-      initial="hidden"
-      animate="visible"
-    >
-      {navItems.map((item) => {
-        // Check if this is the Shop item to add dropdown
-        const isShopItem = item.name === "SHOP" || item.path === "/shop";
-        
+    <nav className={`hidden lg:flex items-center space-x-8 ${styles.nav}`}>
+
+      {/* Category Links with Dropdowns */}
+      {categories.map((cat) => {
+        const categoryName = cat.name;
+        const categorySlug = createCategorySlug(categoryName);
+        const categorySubcategories = subcategoriesByCategory[categoryName] || [];
+        const isActive = isCategoryActive(categoryName);
+        const isDropdownOpen = activeDropdown === categoryName;
+
         return (
-          <motion.li 
-            key={item.path} 
-            variants={motionVariants.item} 
-            ref={isShopItem ? dropdownRef : null}
+          <div
+            key={cat.id || cat._id}
             className="relative"
+            onMouseEnter={() => handleMouseEnter(categoryName)}
+            onMouseLeave={(e) => handleMouseLeave(categoryName, e)}
           >
-            {isShopItem ? (
-              // Shop item with dropdown
-              <motion.div
-                onClick={toggleShop}
-                className={`relative flex items-center gap-2 px-5 py-3 rounded-lg text-sm uppercase tracking-widest cursor-pointer transition-colors duration-200 group font-bai-jamjuree ${
-                  location.pathname.startsWith("/shop") || location.pathname.startsWith("/collections")
-                    ? theme === "dark"
-                      ? "text-amber-300 bg-gray-800 border border-gray-600"
-                      : "text-amber-600 bg-gray-100 border border-gray-300"
-                    : theme === "dark"
-                    ? "text-gray-300 hover:text-amber-300 hover:bg-gray-800"
-                    : "text-gray-700 hover:text-amber-600 hover:bg-gray-50"
-                }`}
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <span className="relative z-10 font-bai-jamjuree">{item.name}</span>
-                <motion.span
-                  animate={{ rotate: shopOpen ? 180 : 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="relative z-10"
+            {/* Category Link */}
+            <Link
+              to={`/shop/${categorySlug}`}
+              className={`category-link px-3 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-1 ${
+                isActive
+                  ? styles.category.active + ' border-b-2'
+                  : styles.category.inactive
+              }`}
+            >
+              {categoryName}
+              {categorySubcategories.length > 0 && (
+                <svg
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    isDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <FiChevronDown className="size-4" />
-                </motion.span>
-              </motion.div>
-            ) : (
-              // Regular navigation item
-              <motion.div
-                onClick={() => {
-                  navigate(item.path);
-                  handleLinkClick();
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+            </Link>
+
+            {/* Dropdown for Subcategories */}
+            {categorySubcategories.length > 0 && isDropdownOpen && (
+              <div 
+                ref={el => dropdownRefs.current[categoryName] = el}
+                className={`absolute top-full left-0 mt-2 w-64 border rounded-lg shadow-lg z-50 ${styles.dropdown}`}
+                onMouseLeave={handleDropdownMouseLeave}
+                style={{ 
+                  marginTop: '2px',
+                  pointerEvents: 'auto'
                 }}
-                className={`relative px-5 py-3 rounded-lg text-sm uppercase tracking-widest cursor-pointer transition-colors duration-200 font-bai-jamjuree ${
-                  location.pathname === item.path
-                    ? theme === "dark"
-                      ? "text-amber-300 bg-gray-800 border border-gray-600"
-                      : "text-amber-600 bg-gray-100 border border-gray-300"
-                    : theme === "dark"
-                    ? "text-gray-300 hover:text-amber-300 hover:bg-gray-800"
-                    : "text-gray-700 hover:text-amber-600 hover:bg-gray-50"
-                }`}
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
               >
-                <span className="flex items-center gap-2">
-                  {item.name}
-                  {location.pathname === item.path && (
-                    <motion.span
-                      className={`w-1 h-1 rounded-full ${
-                        theme === "dark" ? "bg-amber-400" : "bg-amber-500"
-                      }`}
-                      animate={{ scale: [1, 1.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  )}
-                </span>
-              </motion.div>
-            )}
+                <div className="p-3">
+                  {/* View All Category Link */}
+                  <Link
+                    to={`/shop/${categorySlug}`}
+                    className={`block px-3 py-2 text-sm hover:bg-opacity-20 rounded-md font-semibold mb-2 border-b ${styles.dropdownSection} transition-colors ${
+                      theme === 'dark' ? 'hover:bg-blue-900 text-white' : 'hover:bg-blue-50 text-gray-900'
+                    }`}
+                    onClick={() => setActiveDropdown(null)}
+                  >
+                    View All {categoryName}
+                  </Link>
+                  
+                  {/* Subcategories List */}
+                  <div className="space-y-1 mb-3">
+                    <h4 className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Subcategories
+                    </h4>
+                    {categorySubcategories.map((subcat) => (
+                      <Link
+                        key={subcat.id || subcat._id}
+                        to={`/shop/${categorySlug}?subcategories=${encodeURIComponent(subcat.name)}`}
+                        className={`block px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.dropdownItem}`}
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        {subcat.name}
+                      </Link>
+                    ))}
+                  </div>
 
-            {/* Dropdown for Shop item */}
-            {isShopItem && (
-              <AnimatePresence>
-                {shopOpen && (
-                  <>
-                    {/* Backdrop for outside clicks */}
-                    <motion.div
-                      className="fixed inset-0 z-40"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={toggleShop}
-                    />
-                    
-                    {/* Dropdown Content - Fixed positioning */}
-                    <motion.div
-                      variants={motionVariants.dropdown}
-                      initial="hidden"
-                      animate="visible"
-                      exit="hidden"
-                      className={`fixed transform -translate-x-1/2 w-64 rounded-lg shadow-xl overflow-hidden z-50 border ${
-                        theme === "dark"
-                          ? "bg-gray-900 border-gray-700"
-                          : "bg-white border-gray-200"
-                      }`}
-                   
+                  {/* Featured Links */}
+                  <div className={`pt-2 border-t ${styles.dropdownSection}`}>
+                    <h4 className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide mb-2 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      Featured
+                    </h4>
+                    <Link
+                      to={`/shop/${categorySlug}?newArrival=true`}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 mb-1 ${styles.featured.new}`}
+                      onClick={() => setActiveDropdown(null)}
                     >
-                      {/* Dropdown Header */}
-                      <div className={`p-3 border-b ${
-                        theme === "dark" 
-                          ? "border-gray-700 bg-gray-800" 
-                          : "border-gray-200 bg-gray-50"
-                      }`}>
-                        <h3 className={`font-semibold text-sm uppercase tracking-wider mb-1 ${
-                          theme === "dark" ? "text-amber-300" : "text-amber-600"
-                        }`}>
-                          Categories
-                        </h3>
-                      </div>
-
-                      {/* Dropdown Items */}
-                      <div className="p-2">
-                        {tshirtCategories.map((category, index) => (
-                          <motion.div
-                            key={category}
-                            onClick={() => {
-                              navigate(`/shop/${category.toLowerCase().replace(/\s+/g, '-')}`);
-                              toggleShop();
-                              handleLinkClick();
-                            }}
-                            className={`p-3 cursor-pointer transition-colors duration-200 rounded-md mb-1 ${
-                              theme === "dark"
-                                ? "text-gray-300 hover:bg-gray-800 hover:text-amber-300"
-                                : "text-gray-700 hover:bg-gray-100 hover:text-amber-600"
-                            }`}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">{category}</span>
-                              <div className={`w-1 h-3 rounded-full ${
-                                theme === "dark" ? "bg-amber-400" : "bg-amber-500"
-                              }`} />
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      {/* Dropdown Footer */}
-                      <div className={`p-3 border-t ${
-                        theme === "dark" 
-                          ? "border-gray-700 bg-gray-800" 
-                          : "border-gray-200 bg-gray-50"
-                      }`}>
-                        <motion.div
-                          onClick={() => {
-                            navigate('/shop');
-                            toggleShop();
-                            handleLinkClick();
-                          }}
-                          className={`text-center p-2 rounded-md cursor-pointer font-semibold text-sm uppercase tracking-wide transition-colors duration-200 ${
-                            theme === "dark"
-                              ? "bg-amber-600 text-white hover:bg-amber-700"
-                              : "bg-amber-500 text-white hover:bg-amber-600"
-                          }`}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          View All
-                        </motion.div>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+                      <span className={`w-2 h-2 rounded-full ${
+                        theme === 'dark' ? 'bg-green-400' : 'bg-green-500'
+                      }`}></span>
+                      New Arrivals
+                    </Link>
+                    <Link
+                      to={`/shop/${categorySlug}?bestSeller=true`}
+                      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.featured.bestseller}`}
+                      onClick={() => setActiveDropdown(null)}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${
+                        theme === 'dark' ? 'bg-orange-400' : 'bg-orange-500'
+                      }`}></span>
+                      Best Sellers
+                    </Link>
+                  </div>
+                </div>
+              </div>
             )}
-          </motion.li>
+          </div>
         );
       })}
-    </motion.ul>
+
+      {/* Special Collections Dropdown */}
+      <div className="relative group">
+        <button className={`px-3 py-2 text-sm font-medium transition-colors duration-200 flex items-center gap-1 ${styles.category.inactive}`}>
+          Collections
+          <svg
+            className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        <div 
+          className={`absolute top-full left-0 mt-2 w-56 border rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ${styles.dropdown}`}
+          style={{ marginTop: '2px' }}
+        >
+          <div className="p-3 space-y-2">
+            <h4 className={`px-2 text-xs font-semibold uppercase tracking-wide ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              Shop By
+            </h4>
+            <Link
+              to="/shop?featured=true"
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.featured.featured}`}
+            >
+              Featured Products
+            </Link>
+            <Link
+              to="/shop?newArrival=true"
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.featured.new}`}
+            >
+              New Arrivals
+            </Link>
+            <Link
+              to="/shop?bestSeller=true"
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.featured.bestseller}`}
+            >
+              Best Sellers
+            </Link>
+            <Link
+              to="/shop?inStock=true"
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors duration-200 ${styles.featured.instock}`}
+            >
+              In Stock
+            </Link>
+          </div>
+        </div>
+      </div>
+    </nav>
   );
 };
 

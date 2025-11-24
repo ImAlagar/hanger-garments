@@ -51,7 +51,7 @@ const TermsAndPolicy = () => {
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">7. Contact Information</h2>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p><strong>Email:</strong> info@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@hangergarments.com</p>
                 <p><strong>Phone:</strong> +91 81227 47148</p>
                 <p><strong>Address:</strong> No.12, ABC Street, Tiruppur, Tamil Nadu, India</p>
                 <p><strong>Business Hours:</strong> Mon–Sun: 9AM – 9PM</p>

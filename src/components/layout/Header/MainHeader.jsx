@@ -82,7 +82,7 @@ const MainHeader = () => {
   const handleOrdersClick = () => {
     setDropdownOpen(false);
     setMenuOpen(false);
-    navigate("/my-orders");
+    navigate("/user/orders");
   };
 
   const handleLoginClick = () => {
@@ -230,25 +230,6 @@ const MainHeader = () => {
               whileTap={{ scale: 0.9 }}
             >
               <FiSearch className="size-5" />
-            </motion.button>
-
-            {/* Mobile Wishlist Button with Badge */}
-            <motion.button
-              onClick={handleWishlistClick}
-              className={`p-3 rounded-xl transition-colors relative ${
-                theme === "dark"
-                  ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800"
-                  : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
-              }`}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <FiHeart className="size-5" />
-              {wishlistCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium">
-                  {wishlistCount}
-                </span>
-              )}
             </motion.button>
 
             {/* Mobile Cart Button with Badge */}

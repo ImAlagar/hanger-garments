@@ -78,7 +78,7 @@ const ShippingPolicy = () => {
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">7. Contact Us</h2>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <p>For any shipping-related queries, please contact our customer support:</p>
-                <p><strong>Email:</strong> info@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@hangergarments.com</p>
                 <p><strong>Phone:</strong> +91 81227 47148</p>
                 <p><strong>Business Hours:</strong> Mon–Sun: 9AM – 9PM</p>
               </div>

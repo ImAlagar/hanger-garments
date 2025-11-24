@@ -320,6 +320,18 @@ const handleSubmit = async (e) => {
             </motion.button>
           </motion.form>
 
+      <div className="text-right mt-2">
+        <Link
+          to="/wholesaler/forgot-password"
+          className={`text-sm ${
+            theme === "dark" 
+              ? "text-purple-400 hover:text-purple-300" 
+              : "text-purple-600 hover:text-purple-800"
+          } transition-colors duration-200`}
+        >
+          Forgot Password?
+        </Link>
+      </div>
           {/* Links Section */}
           <motion.div
             initial={{ opacity: 0 }}

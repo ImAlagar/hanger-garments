@@ -16,7 +16,7 @@ const EditSubCategory = () => {
   const [loading, setLoading] = useState(false);
   const { theme } = useTheme();
 
-  const { data: subcategoryData, isLoading: subcategoryLoading } = useGetSubcategoryByIdQuery(subcategoryId);
+  const { data: subcategoryData, isLoading: subcategoryLoading, error: subcategoryError } = useGetSubcategoryByIdQuery(subcategoryId);
   const { data: categoriesResponse } = useGetAllCategoriesQuery();
   const [updateSubcategory] = useUpdateSubcategoryMutation();
 
@@ -27,7 +27,8 @@ const EditSubCategory = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
+    categoryId: '',
+    isActive: true
   });
 
   const [image, setImage] = useState(null);
@@ -48,6 +49,7 @@ const EditSubCategory = () => {
       },
       border: 'border-gray-200',
       shadow: 'shadow-lg',
+      input: 'bg-white border-gray-300 text-gray-900'
     },
     dark: {
       bg: {
@@ -62,6 +64,7 @@ const EditSubCategory = () => {
       },
       border: 'border-gray-700',
       shadow: 'shadow-lg shadow-gray-900',
+      input: 'bg-gray-700 border-gray-600 text-white'
     }
   };
 
@@ -96,7 +99,8 @@ const EditSubCategory = () => {
       setFormData({
         name: subcategory.name || '',
         description: subcategory.description || '',
-        category: subcategory.categoryId || '',
+        categoryId: subcategory.categoryId || '',
+        isActive: subcategory.isActive ?? true
       });
 
       if (subcategory.image) {
@@ -105,12 +109,21 @@ const EditSubCategory = () => {
     }
   }, [subcategory]);
 
+  // Clean up image preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, []);
+
   // Handle input changes
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -131,6 +144,11 @@ const EditSubCategory = () => {
       }
 
       setImage(file);
+      
+      // Create preview URL and clean up previous one
+      if (imagePreview && imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
       setImagePreview(URL.createObjectURL(file));
     }
   };
@@ -154,7 +172,7 @@ const EditSubCategory = () => {
       toast.error('Subcategory description is required');
       return false;
     }
-    if (!formData.category) {
+    if (!formData.categoryId) {
       toast.error('Please select a category');
       return false;
     }
@@ -172,24 +190,34 @@ const EditSubCategory = () => {
     setLoading(true);
 
     try {
-      const subcategoryData = {
-        ...formData
-      };
-
-      // Only include image if it's a new one
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      
+      // Append form fields
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('categoryId', formData.categoryId);
+      formDataToSend.append('isActive', formData.isActive.toString());
+      
+      // Append image if a new one was selected
       if (image) {
-        subcategoryData.image = image;
+        formDataToSend.append('image', image);
       }
 
-      await updateSubcategory({
+      // Call the update mutation
+      const result = await updateSubcategory({
         subcategoryId,
-        subcategoryData
+        updateData: formDataToSend // Send as FormData for file upload
       }).unwrap();
+
+      toast.success('Subcategory updated successfully!');
       
       // Navigate back to subcategories list
       navigate('/dashboard/subcategories');
     } catch (error) {
       console.error('Update subcategory error:', error);
+      const errorMessage = error?.data?.message || error?.message || 'Failed to update subcategory';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -199,6 +227,20 @@ const EditSubCategory = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (subcategoryError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Subcategory</h2>
+          <p className="text-gray-600 mb-4">Please try again later</p>
+          <Button onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }
@@ -233,40 +275,37 @@ const EditSubCategory = () => {
               >
                 {/* Header */}
                 <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+                  <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-
-                    {/* Left: Back Button + Title */}
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                      {/* Left: Back Button + Title */}
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                         <button
-                        onClick={() => navigate(-1)}
-                        className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
+                          onClick={() => navigate(-1)}
+                          className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
                         >
-                        <ArrowLeft size={20} />
+                          <ArrowLeft size={20} />
                         </button>
                         <div>
-                        <h1 className="text-xl sm:text-2xl font-bold font-italiana">{subcategory.name}</h1>
-                        <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
+                          <h1 className="text-xl sm:text-2xl font-bold font-italiana">{subcategory.name}</h1>
+                          <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
                             Edit subcategory details
-                        </p>
+                          </p>
                         </div>
-                    </div>
+                      </div>
 
-                    {/* Right: View Button */}
-                    <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
+                      {/* Right: View Button */}
+                      <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
                         <Link
-                        to={`/dashboard/subcategories/view/${subcategory.id}`}
-                        className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          to={`/dashboard/subcategories/view/${subcategory.id}`}
+                          className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                        <View size={16} className="mr-2" />
-                        View
+                          <View size={16} className="mr-2" />
+                          View
                         </Link>
+                      </div>
                     </div>
-
-                    </div>
+                  </div>
                 </div>
-                </div>
-
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                   {/* Basic Information */}
@@ -311,8 +350,8 @@ const EditSubCategory = () => {
                           Category *
                         </label>
                         <select
-                          name="category"
-                          value={formData.category}
+                          name="categoryId"
+                          value={formData.categoryId}
                           onChange={handleInputChange}
                           required
                           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTheme.input}`}
@@ -324,6 +363,19 @@ const EditSubCategory = () => {
                             </option>
                           ))}
                         </select>
+                      </motion.div>
+
+                      <motion.div variants={itemVariants} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="isActive"
+                          checked={formData.isActive}
+                          onChange={handleInputChange}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label className={`ml-2 text-sm font-medium ${currentTheme.text.secondary}`}>
+                          Active Subcategory
+                        </label>
                       </motion.div>
                     </div>
                   </motion.section>
@@ -374,7 +426,7 @@ const EditSubCategory = () => {
                           </div>
                         ) : (
                           <div className="relative">
-                            <div className="border rounded-lg p-4 ${currentTheme.border}">
+                            <div className={`border rounded-lg p-4 ${currentTheme.border}`}>
                               <img
                                 src={imagePreview}
                                 alt="Subcategory preview"

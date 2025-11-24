@@ -1,4 +1,4 @@
-// redux/services/subcategoryService.js - UPDATED TOGGLE STATUS
+// redux/services/subcategoryService.js
 import { apiSlice } from './api';
 import { toast } from 'react-toastify';
 
@@ -30,7 +30,7 @@ export const subcategoryService = apiSlice.injectEndpoints({
         const formData = new FormData();
         formData.append('name', subcategoryData.name);
         formData.append('description', subcategoryData.description);
-        formData.append('category', subcategoryData.category);
+        formData.append('categoryId', subcategoryData.categoryId);
         if (subcategoryData.image) {
           formData.append('image', subcategoryData.image);
         }
@@ -53,23 +53,17 @@ export const subcategoryService = apiSlice.injectEndpoints({
     }),
 
     updateSubcategory: builder.mutation({
-      query: ({ subcategoryId, subcategoryData }) => {
-        const formData = new FormData();
-        Object.keys(subcategoryData).forEach(key => {
-          if (key === 'image' && subcategoryData.image) {
-            formData.append('image', subcategoryData.image);
-          } else {
-            formData.append(key, subcategoryData[key]);
-          }
-        });
-
+      query: ({ subcategoryId, updateData }) => { // Fixed parameter name
         return {
           url: `/subcategory/admin/${subcategoryId}`,
           method: 'PUT',
-          body: formData,
+          body: updateData, // Use FormData directly
         };
       },
-      invalidatesTags: ['Subcategory'],
+      invalidatesTags: (result, error, { subcategoryId }) => [
+        { type: 'Subcategory', id: subcategoryId },
+        'Subcategory'
+      ],
       async onQueryStarted(arg, { queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -96,27 +90,27 @@ export const subcategoryService = apiSlice.injectEndpoints({
       },
     }),
 
-toggleSubcategoryStatus: builder.mutation({
-  query: ({ subcategoryId, currentStatus }) => ({
-    url: `/subcategory/admin/${subcategoryId}/status`,
-    method: 'PATCH',
-    body: {
-      isActive: !currentStatus
-    },
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }),
-  invalidatesTags: ['Subcategory'], // Change 'SubCategory' to 'Subcategory'
-  async onQueryStarted(arg, { queryFulfilled }) {
-    try {
-      await queryFulfilled;
-      toast.success('Subcategory status updated!'); // Also fixed the success message
-    } catch (error) {
-      toast.error(error.error?.data?.message || 'Failed to update subcategory status');
-    }
-  },
-}),
+    toggleSubcategoryStatus: builder.mutation({
+      query: ({ subcategoryId, currentStatus }) => ({
+        url: `/subcategory/admin/${subcategoryId}/status`,
+        method: 'PATCH',
+        body: {
+          isActive: !currentStatus
+        },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+      invalidatesTags: ['Subcategory'], // Fixed typo
+      async onQueryStarted(arg, { queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          toast.success('Subcategory status updated successfully!');
+        } catch (error) {
+          toast.error(error.error?.data?.message || 'Failed to update subcategory status');
+        }
+      },
+    }),
 
   }),
 });

@@ -19,7 +19,7 @@ const AddCustomer = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'CUSTOMER'
+    role: 'CUSTOMER' // This should match your API's expected role values
   });
 
   const [errors, setErrors] = useState({});
@@ -43,11 +43,23 @@ const AddCustomer = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) newErrors.name = 'Full name is required';
+    else if (formData.name.trim().length < 2 || formData.name.trim().length > 100) {
+      newErrors.name = 'Name must be between 2 and 100 characters';
+    }
+    
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
+    
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+
+    // Validate role based on your API requirements
+    if (!formData.role) newErrors.role = 'User role is required';
+    else if (!['ADMIN', 'CUSTOMER', 'WHOLESALER'].includes(formData.role)) {
+      newErrors.role = 'Role must be one of: ADMIN, CUSTOMER, WHOLESALER';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -63,12 +75,18 @@ const AddCustomer = () => {
     }
 
     try {
-      const userData = new FormData();
-      userData.append('name', formData.name.trim());
-      userData.append('email', formData.email.trim());
-      userData.append('password', formData.password);
-      userData.append('role', 'CUSTOMER');
-      if (formData.phone.trim()) userData.append('phone', formData.phone.trim());
+      // Send as JSON instead of FormData
+      const userData = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        role: formData.role // Make sure this matches your API's expected role values
+      };
+
+      // Add phone only if provided
+      if (formData.phone.trim()) {
+        userData.phone = formData.phone.trim();
+      }
 
       await createUser(userData).unwrap();
       
@@ -76,7 +94,23 @@ const AddCustomer = () => {
       navigate('/dashboard/users');
     } catch (error) {
       console.error('Create customer error:', error);
-      toast.error(error.data?.message || 'Failed to create customer');
+      
+      // Handle validation errors from API
+      if (error.data?.errors) {
+        const apiErrors = error.data.errors;
+        const fieldErrors = {};
+        
+        apiErrors.forEach(err => {
+          if (!fieldErrors[err.field]) {
+            fieldErrors[err.field] = err.message;
+          }
+        });
+        
+        setErrors(fieldErrors);
+        toast.error('Please fix the validation errors');
+      } else {
+        toast.error(error.data?.message || 'Failed to create customer');
+      }
     }
   };
 
@@ -86,7 +120,7 @@ const AddCustomer = () => {
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button
-            onClick={() => navigate('/dashboard/users/add')}
+            onClick={() => navigate('/dashboard/users')} // Fixed navigation path
             className={`p-2 rounded-lg ${currentTheme.border} hover:bg-gray-100 dark:hover:bg-gray-800`}
           >
             <ArrowLeft size={20} />
@@ -159,10 +193,13 @@ const AddCustomer = () => {
                 />
               </div>
 
+              {/* Hidden role field since it's hardcoded to CUSTOMER */}
+              <input type="hidden" name="role" value="CUSTOMER" />
+
               <div className="flex gap-4 pt-4">
                 <Button
                   type="button"
-                  onClick={() => navigate('/dashboard/users/create')}
+                  onClick={() => navigate('/dashboard/users')} // Fixed navigation path
                   variant="ghost"
                 >
                   Cancel

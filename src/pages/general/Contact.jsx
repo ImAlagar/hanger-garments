@@ -49,7 +49,7 @@ export default function Contact() {
               <FaMapMarkerAlt className="text-purple-500 text-3xl mb-3" />
               <h3 className="font-semibold text-lg mb-1">Address</h3>
               <p className="text-gray-500 dark:text-gray-300">
-                No.12, ABC Street, Tiruppur, Tamil Nadu, India
+                8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu  - 641602
               </p>
             </div>
 
@@ -60,10 +60,10 @@ export default function Contact() {
               <FaEnvelope className="text-yellow-500 text-3xl mb-3" />
               <h3 className="font-semibold text-lg mb-1">Email</h3>
               <a
-                href="mailto:info@hangergarments.com"
+                href="mailto:contact@hangergarments.com"
                 className="text-gray-500 dark:text-gray-300 hover:text-purple-500 transition"
               >
-                info@hangergarments.com
+                contact@hangergarments.com
               </a>
             </div>
 
@@ -77,7 +77,7 @@ export default function Contact() {
                 href="tel:+918122747148"
                 className="text-gray-500 dark:text-gray-300 hover:text-purple-500 transition"
               >
-                +91 81227 47148
+                +91 88833 85888
               </a>
             </div>
 

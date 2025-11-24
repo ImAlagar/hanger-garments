@@ -50,7 +50,7 @@ const PrivacyPolicy = () => {
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">5. Contact Us</h2>
               <p>If you have any questions about this Privacy Policy, please contact us at:</p>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p><strong>Email:</strong> info@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@hangergarments.com</p>
                 <p><strong>Phone:</strong> +91 81227 47148</p>
                 <p><strong>Address:</strong> No.12, ABC Street, Tiruppur, Tamil Nadu, India</p>
               </div>

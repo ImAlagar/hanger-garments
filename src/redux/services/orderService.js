@@ -1,3 +1,4 @@
+// redux/services/orderService.js
 import { apiSlice } from './api';
 
 export const orderService = apiSlice.injectEndpoints({
@@ -21,6 +22,15 @@ export const orderService = apiSlice.injectEndpoints({
       }),
     }),
 
+    verifyPayment: builder.mutation({
+      query: (paymentData) => ({
+        url: '/orders/verify-payment',
+        method: 'POST',
+        body: paymentData,
+      }),
+      invalidatesTags: ['Order'],
+    }),
+
     createCODOrder: builder.mutation({
       query: (orderData) => ({
         url: '/orders/create-cod-order',
@@ -28,11 +38,6 @@ export const orderService = apiSlice.injectEndpoints({
         body: orderData,
       }),
       invalidatesTags: ['Order'],
-    }),
-
-    checkPaymentStatus: builder.query({
-      query: (merchantTransactionId) => 
-        `/orders/payment-status/${merchantTransactionId}`,
     }),
 
     calculateOrderTotals: builder.mutation({
@@ -111,8 +116,8 @@ export const {
   useGetUserOrdersQuery,
   useGetOrderByOrderNumberQuery,
   useInitiatePaymentMutation,
+  useVerifyPaymentMutation,
   useCreateCODOrderMutation,
-  useCheckPaymentStatusQuery,
   useCalculateOrderTotalsMutation,
   useGetAllOrdersQuery,
   useGetOrderByIdQuery,

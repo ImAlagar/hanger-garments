@@ -12,7 +12,7 @@ const AppHeader = ({ onMenuClick, sidebarOpen }) => {
   const isAdmin = user?.role === 'admin';
 
   // Don't show header on login pages
-  if (location.pathname.includes('/login') || location.pathname.includes('/register')) {
+  if (location.pathname.includes('/login') || location.pathname.includes('/register') || location.pathname.includes('/forgot-password') || location.pathname.includes('/reset-password')) {
     return null;
   }
 

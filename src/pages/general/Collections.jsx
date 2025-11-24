@@ -20,89 +20,114 @@ const Collections = () => {
     category: activeCategory === 'All' ? '' : activeCategory
   });
 
-  // Transform API data to match ProductCard expectations with auth-based pricing
-  const transformProductData = (products) => {
+  // Function to split products by color (same as in other components)
+  const splitProductsByColor = (apiProduct) => {
+    if (!apiProduct || !apiProduct.variants) return [];
     
-    if (!products || !Array.isArray(products)) {
-      return [];
-    }
+    const colorGroups = {};
     
-    const transformed = products.map(product => {
+    // Group variants by color
+    apiProduct.variants.forEach(variant => {
+      const color = variant.color || 'Default';
+      if (!colorGroups[color]) {
+        colorGroups[color] = {
+          variants: [],
+          variantImages: []
+        };
+      }
+      colorGroups[color].variants.push(variant);
+      
+      // Collect unique images for this color
+      if (variant.variantImages) {
+        variant.variantImages.forEach(img => {
+          if (!colorGroups[color].variantImages.some(existing => existing.imageUrl === img.imageUrl)) {
+            colorGroups[color].variantImages.push(img);
+          }
+        });
+      }
+    });
+    
+    // Create separate product objects for each color
+    return Object.entries(colorGroups).map(([color, colorData]) => {
+      const primaryImage = colorData.variantImages.find(img => img.isPrimary)?.imageUrl || 
+                          colorData.variantImages[0]?.imageUrl;
+      
+      // Calculate if this color has any stock
+      const hasStock = colorData.variants.some(variant => variant.stock > 0);
+      
+      // Get available sizes for this color
+      const availableSizes = colorData.variants
+        .filter(variant => variant.stock > 0)
+        .map(variant => variant.size);
+      
+      // Format price with currency symbol
+      const formatPrice = (price) => {
+        if (price === undefined || price === null) return "₹0";
+        return `₹${price}`;
+      };
+
       // Determine which price to show based on user role
       let displayPrice;
       let originalPrice;
       let priceLabel = "";
 
-      if (isWholesaleUser && product.wholesalePrice) {
-        // Show wholesale price for wholesale users
-        displayPrice = product.wholesalePrice;
-        originalPrice = product.offerPrice || product.normalPrice;
+      if (isWholesaleUser && apiProduct.wholesalePrice) {
+        displayPrice = formatPrice(apiProduct.wholesalePrice);
+        originalPrice = apiProduct.offerPrice || apiProduct.normalPrice;
         priceLabel = "Wholesale";
-      } else if (product.offerPrice && product.offerPrice < product.normalPrice) {
-        // Show offer price for retail users when there's a discount
-        displayPrice = product.offerPrice;
-        originalPrice = product.normalPrice;
+      } else if (apiProduct.offerPrice && apiProduct.offerPrice < apiProduct.normalPrice) {
+        displayPrice = formatPrice(apiProduct.offerPrice);
+        originalPrice = apiProduct.normalPrice;
         priceLabel = "Offer";
       } else {
-        // Show normal price
-        displayPrice = product.normalPrice;
+        displayPrice = formatPrice(apiProduct.normalPrice);
         originalPrice = null;
         priceLabel = "";
       }
 
-      // Calculate if product is in stock (any variant has stock > 0)
-      const hasStock = product.variants?.some(variant => {
-        return variant.stock > 0;
-      }) || false;
-
-      // Get the first variant's primary image
-      const primaryVariant = product.variants?.[0];
-      const primaryImage = primaryVariant?.variantImages?.find(img => img.isPrimary)?.imageUrl || 
-                          primaryVariant?.variantImages?.[0]?.imageUrl;
-
-      const transformedProduct = {
-        id: product.id,
-        title: product.name,
-        description: product.description,
-        category: product.category?.name || product.category,
-        // Auth-based pricing
+      return {
+        id: `${apiProduct.id || apiProduct._id}-${color}`,
+        baseProductId: apiProduct.id || apiProduct._id,
+        title: apiProduct.name || apiProduct.title || "Unnamed Product",
+        displayTitle: `${apiProduct.name || apiProduct.title || "Unnamed Product"} (${color})`,
+        color: color,
+        category: apiProduct.category?.name || apiProduct.category || "Uncategorized",
+        subcategory: apiProduct.subcategory?.name || apiProduct.subcategory || "",
         price: displayPrice,
         originalPrice: originalPrice,
         priceLabel: priceLabel,
-        // Original price data
-        normalPrice: product.normalPrice,
-        offerPrice: product.offerPrice,
-        wholesalePrice: product.wholesalePrice,
-        // Product flags
-        isBestSeller: product.isBestSeller,
-        isNewArrival: product.isNewArrival,
-        featured: product.featured,
-        // Stock information
-        inStock: hasStock,
-        // Variants and images
-        variants: product.variants?.map(variant => ({
-          id: variant.id,
-          color: variant.color,
-          size: variant.size,
-          stock: variant.stock,
-          sku: variant.sku,
-          variantImages: variant.variantImages,
-          price: displayPrice // Use the auth-based price
-        })) || [],
-        images: product.variants?.[0]?.variantImages?.map(img => img.imageUrl) || [],
-        // Use primary image for card display
         image: primaryImage,
-        // Ratings
-        rating: product.avgRating || 0,
-        reviewCount: product.totalRatings || 0,
-        // User role info for conditional rendering in ProductCard
-        isWholesaleUser: isWholesaleUser
+        variants: colorData.variants,
+        variantImages: colorData.variantImages,
+        inStock: hasStock,
+        availableSizes: availableSizes,
+        normalPrice: apiProduct.normalPrice,
+        offerPrice: apiProduct.offerPrice,
+        wholesalePrice: apiProduct.wholesalePrice,
+        avgRating: apiProduct.avgRating || 0,
+        totalRatings: apiProduct.totalRatings || 0,
+        isWholesaleUser: isWholesaleUser,
+        isFeatured: apiProduct.featured || false,
+        isNewArrival: apiProduct.isNewArrival || false,
+        isBestSeller: apiProduct.isBestSeller || false,
+        productDetails: apiProduct.productDetails || [],
+        description: apiProduct.description,
+        ratings: apiProduct.ratings || [],
+        selectedColor: color // Crucial for passing to details page
       };
-      
-      return transformedProduct;
     });
+  };
+
+  // Transform API data to match ProductCard expectations with auth-based pricing
+  const transformProductData = (products) => {
+    if (!products || !Array.isArray(products)) {
+      return [];
+    }
     
-    return transformed;
+    // Split each product by color
+    const colorBasedProducts = products.flatMap(product => splitProductsByColor(product));
+    
+    return colorBasedProducts;
   };
 
   // Filter products when category changes or data loads
@@ -137,7 +162,7 @@ const Collections = () => {
     } else {
       setFilteredProducts([]);
     }
-  }, [productsData, activeCategory, isWholesaleUser]); // Added isWholesaleUser as dependency
+  }, [productsData, activeCategory, isWholesaleUser]);
 
   // Handle cart update from ProductCard
   const handleCartUpdate = () => {
@@ -232,7 +257,7 @@ const Collections = () => {
         animate="visible"
       >
         <p className="text-gray-600">
-          Showing {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+          Showing {filteredProducts.length} color variant{filteredProducts.length !== 1 ? 's' : ''}
           {activeCategory !== 'All' && ` in ${activeCategory}`}
           {isWholesaleUser && ' • Wholesale pricing applied'}
         </p>
@@ -254,6 +279,7 @@ const Collections = () => {
             <ProductCard
               product={product}
               onCartUpdate={handleCartUpdate}
+              selectedColor={product.selectedColor} // Pass color info
             />
           </motion.div>
         ))}

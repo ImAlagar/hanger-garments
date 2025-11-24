@@ -7,10 +7,13 @@ export const topbarMessages = [
 ];
 
 export const navItems = [
-  { name: "Home", path: "/" },
-  { name: "Shop", path: "/shop" },
-  { name: "About Us", path: "/about-us" },
-  { name: "Contact", path: "/contact" },
+  { name: "Mens", path: "/mens" },
+  { name: "Womens", path: "/womens" },
+  { name: "Kids", path: "/kids" },
+  { name: "Unisex", path: "/unisex" },
+  { name: "Customised Design", path: "/customiseddesign" },
+  { name: "Exclusive Pre Order", path: "/exclusivepreorder" },
+
 ];
 
 export const tshirtCategories = [

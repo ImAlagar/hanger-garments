@@ -29,78 +29,105 @@ export default function BestSeller() {
     setShowCartSidebar(true);
   };
 
-  // Transform API data to match ProductCard component structure
-  const transformProductData = (apiProduct) => {
-    if (!apiProduct) return null;
-
-    // Get the first variant's primary image
-    const primaryVariant = apiProduct.variants?.[0];
-    const primaryImage = primaryVariant?.variantImages?.find(img => img.isPrimary)?.imageUrl || 
-                        primaryVariant?.variantImages?.[0]?.imageUrl;
+  // Function to split products by color (same as in Shop page)
+  const splitProductsByColor = (apiProduct) => {
+    if (!apiProduct || !apiProduct.variants) return [];
     
-    // Calculate if product is in stock (any variant has stock > 0)
-    const hasStock = apiProduct.variants?.some(variant => {
-      return variant.stock > 0;
-    }) || false;
+    const colorGroups = {};
     
+    // Group variants by color
+    apiProduct.variants.forEach(variant => {
+      const color = variant.color || 'Default';
+      if (!colorGroups[color]) {
+        colorGroups[color] = {
+          variants: [],
+          variantImages: []
+        };
+      }
+      colorGroups[color].variants.push(variant);
+      
+      // Collect unique images for this color
+      if (variant.variantImages) {
+        variant.variantImages.forEach(img => {
+          if (!colorGroups[color].variantImages.some(existing => existing.imageUrl === img.imageUrl)) {
+            colorGroups[color].variantImages.push(img);
+          }
+        });
+      }
+    });
     
-    // Format price with currency symbol
-    const formatPrice = (price) => {
-      if (price === undefined || price === null) return "₹0";
-      return `₹${price}`;
-    };
+    // Create separate product objects for each color
+    return Object.entries(colorGroups).map(([color, colorData]) => {
+      const primaryImage = colorData.variantImages.find(img => img.isPrimary)?.imageUrl || 
+                          colorData.variantImages[0]?.imageUrl;
+      
+      // Calculate if this color has any stock
+      const hasStock = colorData.variants.some(variant => variant.stock > 0);
+      
+      // Get available sizes for this color
+      const availableSizes = colorData.variants
+        .filter(variant => variant.stock > 0)
+        .map(variant => variant.size);
+      
+      // Format price with currency symbol
+      const formatPrice = (price) => {
+        if (price === undefined || price === null) return "₹0";
+        return `₹${price}`;
+      };
 
-    // Determine which price to show based on user role
-    let displayPrice;
-    let originalPrice;
-    let priceLabel = "";
+      // Determine which price to show based on user role
+      let displayPrice;
+      let originalPrice;
+      let priceLabel = "";
 
-    if (isWholesaleUser && apiProduct.wholesalePrice) {
-      // Show wholesale price for wholesale users
-      displayPrice = formatPrice(apiProduct.wholesalePrice);
-      originalPrice = apiProduct.offerPrice || apiProduct.normalPrice;
-      priceLabel = "Wholesale";
-    } else if (apiProduct.offerPrice && apiProduct.offerPrice < apiProduct.normalPrice) {
-      // Show offer price for retail users when there's a discount
-      displayPrice = formatPrice(apiProduct.offerPrice);
-      originalPrice = apiProduct.normalPrice;
-      priceLabel = "Offer";
-    } else {
-      // Show normal price
-      displayPrice = formatPrice(apiProduct.normalPrice);
-      originalPrice = null;
-      priceLabel = "";
-    }
+      if (isWholesaleUser && apiProduct.wholesalePrice) {
+        displayPrice = formatPrice(apiProduct.wholesalePrice);
+        originalPrice = apiProduct.offerPrice || apiProduct.normalPrice;
+        priceLabel = "Wholesale";
+      } else if (apiProduct.offerPrice && apiProduct.offerPrice < apiProduct.normalPrice) {
+        displayPrice = formatPrice(apiProduct.offerPrice);
+        originalPrice = apiProduct.normalPrice;
+        priceLabel = "Offer";
+      } else {
+        displayPrice = formatPrice(apiProduct.normalPrice);
+        originalPrice = null;
+        priceLabel = "";
+      }
 
-    return {
-      id: apiProduct.id || apiProduct._id,
-      title: apiProduct.name,
-      category: apiProduct.category?.name || apiProduct.category || "Uncategorized",
-      price: displayPrice,
-      originalPrice: originalPrice,
-      priceLabel: priceLabel,
-      image: primaryImage,
-      // Pass the actual variants array to ProductCard
-      variants: apiProduct.variants || [],
-      // Use hasStock instead of inStock
-      inStock: hasStock,
-      // Additional price data for different user types
-      normalPrice: apiProduct.normalPrice,
-      offerPrice: apiProduct.offerPrice,
-      wholesalePrice: apiProduct.wholesalePrice,
-      avgRating: apiProduct.avgRating || 0,
-      totalRatings: apiProduct.totalRatings || 0,
-      // User role info for conditional rendering
-      isWholesaleUser: isWholesaleUser,
-      // Product flags
-      isFeatured: apiProduct.featured || false,
-      isNewArrival: apiProduct.isNewArrival || false,
-      isBestSeller: apiProduct.isBestSeller || false
-    };
+      return {
+        id: `${apiProduct.id || apiProduct._id}-${color}`,
+        baseProductId: apiProduct.id || apiProduct._id,
+        title: apiProduct.name || apiProduct.title || "Unnamed Product",
+        displayTitle: `${apiProduct.name || apiProduct.title || "Unnamed Product"} (${color})`,
+        color: color,
+        category: apiProduct.category?.name || apiProduct.category || "Uncategorized",
+        subcategory: apiProduct.subcategory?.name || apiProduct.subcategory || "",
+        price: displayPrice,
+        originalPrice: originalPrice,
+        priceLabel: priceLabel,
+        image: primaryImage,
+        variants: colorData.variants,
+        variantImages: colorData.variantImages,
+        inStock: hasStock,
+        availableSizes: availableSizes,
+        normalPrice: apiProduct.normalPrice,
+        offerPrice: apiProduct.offerPrice,
+        wholesalePrice: apiProduct.wholesalePrice,
+        avgRating: apiProduct.avgRating || 0,
+        totalRatings: apiProduct.totalRatings || 0,
+        isWholesaleUser: isWholesaleUser,
+        isFeatured: apiProduct.featured || false,
+        isNewArrival: apiProduct.isNewArrival || false,
+        isBestSeller: apiProduct.isBestSeller || false,
+        productDetails: apiProduct.productDetails || [],
+        description: apiProduct.description,
+        ratings: apiProduct.ratings || [],
+        selectedColor: color // Crucial for passing to details page
+      };
+    });
   };
 
-
-  // Handle different possible response structures - IMPROVED VERSION
+  // Handle different possible response structures
   let productsArray = [];
   
   if (bestSellersData) {
@@ -143,12 +170,10 @@ export default function BestSeller() {
     }
   }
 
-  // Limit to maximum 8 products for display
-  const limitedProducts = productsArray.slice(0, 8);
-
-  const transformedProducts = limitedProducts
-    .map(transformProductData)
-    .filter(product => product !== null);
+  // Split each product by color and limit to maximum 8 color-based products
+  const colorBasedProducts = productsArray
+    .flatMap(product => splitProductsByColor(product))
+    .slice(0, 8); // Limit to 8 color-based products
 
   // Loading state
   if (isLoading) {
@@ -208,22 +233,30 @@ export default function BestSeller() {
             🏷️ Special wholesale prices for you!
           </p>
         )}
+        
+        {/* Show color-based product info */}
+        {colorBasedProducts.length > 0 && (
+          <p className={`${subText} mt-3 text-sm`}>
+            Showing {colorBasedProducts.length} color variants
+          </p>
+        )}
       </div>
 
       {/* Product Grid */}
-      {transformedProducts.length > 0 ? (
+      {colorBasedProducts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8 px-6 md:px-16">
-            {transformedProducts.map((product) => (
+            {colorBasedProducts.map((product) => (
               <ProductCard 
                 key={product.id} 
                 product={product} 
                 onCartUpdate={handleCartUpdate}
+                selectedColor={product.selectedColor} // Pass color info
               />
             ))}
           </div>
 
-          {/* View All Products Button - Always show if we have products */}
+          {/* View All Products Button */}
           {productsArray.length > 0 && (
             <div className="flex justify-center mt-12">
               <Link 

@@ -2,11 +2,7 @@ import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useTheme } from "../../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import { 
-  removeFromCart, 
-  updateQuantity,
-  clearCart 
-} from "../../redux/slices/cartSlice";
+import { removeCartItem, updateQuantity } from "../../redux/slices/cartSlice";
 
 const Cart = () => {
   const { theme } = useTheme();
@@ -41,7 +37,7 @@ const Cart = () => {
   };
 
   const handleRemoveItem = (itemId) => {
-    dispatch(removeFromCart({ itemId }));
+    dispatch(removeCartItem({ itemId }));
   };
 
   const handleProceedToBuy = () => {

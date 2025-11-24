@@ -73,9 +73,9 @@ export default function Footer() {
   // Contact Data - MOVED OUTSIDE COMPONENT
   // =====================
   const contactData = [
-    { id: 1, icon: Mail, title: "Email", content: "support@hangergarments.com" },
-    { id: 2, icon: Phone, title: "Phone", content: "+91 63807 85706" },
-    { id: 3, icon: MapPin, title: "Location", content: "Chennai, India" },
+    { id: 1, icon: Mail, title: "Email", content: "contact@hangergarments.com" },
+    { id: 2, icon: Phone, title: "Phone", content: "+91 88833 85888" },
+    { id: 3, icon: MapPin, title: "Location", content: "8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu  - 641602" },
     { id: 4, icon: Clock, title: "Business Hours", content: "Mon–Sun: 9AM – 9PM" }
   ];
 
@@ -87,29 +87,36 @@ export default function Footer() {
       id: 1, 
       icon: Instagram, 
       name: "Instagram", 
-      url: "https://instagram.com/hangergarments",
+      url: "https://www.instagram.com/hanger_garments/",
       color: "hover:bg-pink-500"
     },
     { 
       id: 2, 
       icon: Facebook, 
       name: "Facebook", 
-      url: "https://facebook.com/hangergarments",
+      url: "https://www.facebook.com/share/19yyr4QjpU/?mibextid=wwXIfr",
       color: "hover:bg-blue-600"
     },
+  ];
+
+  // =====================
+  // Collections Data with Correct URLs
+  // =====================
+  const collections = [
     { 
-      id: 3, 
-      icon: Youtube, 
-      name: "YouTube", 
-      url: "https://youtube.com/hangergarments",
-      color: "hover:bg-red-600"
+      name: "New Arrivals", 
+      url: "/shop?newArrival=true",
+      icon: Award
     },
     { 
-      id: 4, 
-      icon: Twitter, 
-      name: "Twitter", 
-      url: "https://twitter.com/hangergarments",
-      color: "hover:bg-blue-400"
+      name: "Best Sellers", 
+      url: "/shop?bestSeller=true",
+      icon: Crown
+    },
+    { 
+      name: "Featured Products", 
+      url: "/shop?featured=true",
+      icon: Award
     }
   ];
 
@@ -166,7 +173,7 @@ export default function Footer() {
   // =====================
   // Simple Link Component
   // =====================
-  const SimpleLink = ({ children, onClick, icon: Icon }) => (
+  const SimpleLink = ({ children, onClick, icon: Icon, to }) => (
     <motion.button
       whileHover={{ x: 3 }}
       whileTap={{ scale: 0.98 }}
@@ -175,6 +182,21 @@ export default function Footer() {
     >
       {Icon && <Icon size={14} className={accentColor} />}
       <span>{children}</span>
+    </motion.button>
+  );
+
+  // =====================
+  // Collection Link Component
+  // =====================
+  const CollectionLink = ({ name, url, icon: Icon }) => (
+    <motion.button
+      whileHover={{ x: 3 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate(url)}
+      className={`flex items-center space-x-2 text-sm ${textColor} hover:text-amber-500 transition py-2 w-full text-left font-instrument-sans`}
+    >
+      {Icon && <Icon size={14} className={accentColor} />}
+      <span>{name}</span>
     </motion.button>
   );
 
@@ -274,7 +296,7 @@ export default function Footer() {
                 {categories.slice(0, 5).map((cat) => (
                   <SimpleLink
                     key={cat.id || cat._id}
-                    onClick={() => navigate(`/shop/${cat.name.toLowerCase()}`)}
+                    onClick={() => navigate(`/shop/${cat.name.toLowerCase().replace(/\s+/g, '-')}`)}
                   >
                     {cat.name}
                   </SimpleLink>
@@ -290,17 +312,13 @@ export default function Footer() {
             </h4>
 
             <div className="space-y-2">
-              {[
-                "New Arrivals",
-                "Best Sellers", 
-                "Featured Products",
-              ].map((col, index) => (
-                <SimpleLink
+              {collections.map((collection, index) => (
+                <CollectionLink
                   key={index}
-                  onClick={() => navigate(`/shop/${col.toLowerCase().replace(/\s+/g, "-")}`)}
-                >
-                  {col}
-                </SimpleLink>
+                  name={collection.name}
+                  url={collection.url}
+                  icon={collection.icon}
+                />
               ))}
             </div>
           </motion.div>

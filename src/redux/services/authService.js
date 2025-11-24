@@ -105,12 +105,24 @@ export const authService = apiSlice.injectEndpoints({
       }),
     }),
 
+    forgotPasswordWholesaler: builder.mutation({
+  query: (credentials) => ({
+    url: '/auth/forgot-password-wholesaler',
+    method: 'POST',
+    body: credentials,
+  }),
+}),
+
     resetPassword: builder.mutation({
       query: (resetData) => ({
         url: '/auth/reset-password',
         method: 'POST',
         body: resetData,
       }),
+    }),
+
+    validateResetToken: builder.query({
+      query: ({ token, userId }) => `/auth/validate-reset-token?token=${token}&userId=${userId}`,
     }),
 
     changePassword: builder.mutation({
@@ -165,6 +177,8 @@ export const {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,
+  useValidateResetTokenQuery, // Add this
+useForgotPasswordWholesalerMutation,
   useUpdateProfileMutation,
   useGetWholesalerProfileQuery,
   useUpdateWholesalerProfileMutation,

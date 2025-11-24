@@ -23,7 +23,7 @@ const AddSubCategory = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
+    categoryId: '', // Changed from 'category' to 'categoryId'
   });
 
   const [image, setImage] = useState(null);
@@ -154,8 +154,8 @@ const AddSubCategory = () => {
       newErrors.description = 'Subcategory description is required';
     }
 
-    if (!formData.category || formData.category === '') {
-      newErrors.category = 'Please select a category';
+    if (!formData.categoryId || formData.categoryId === '') { // Updated to categoryId
+      newErrors.categoryId = 'Please select a category'; // Updated error key
     }
 
     if (!image) {
@@ -180,10 +180,9 @@ const AddSubCategory = () => {
       const subcategoryData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        category: formData.category, // This should now be a valid category ID
+        categoryId: formData.categoryId, // Updated to categoryId
         image: image
       };
-
 
       await createSubcategory(subcategoryData).unwrap();
       
@@ -193,7 +192,7 @@ const AddSubCategory = () => {
       setFormData({
         name: '',
         description: '',
-        category: '',
+        categoryId: '', // Updated to categoryId
       });
       removeImage();
       setErrors({});
@@ -225,31 +224,28 @@ const AddSubCategory = () => {
               >
                 {/* Header */}
                 <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+                  <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
                     <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    
-                    {/* Back Button + Title */}
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                      {/* Back Button + Title */}
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                         <button
-                        onClick={() => navigate(-1)}
-                        className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
+                          onClick={() => navigate(-1)}
+                          className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
                         >
-                        <ArrowLeft size={20} />
+                          <ArrowLeft size={20} />
                         </button>
                         <div>
-                        <h1 className="text-xl sm:text-2xl font-bold font-italiana">
+                          <h1 className="text-xl sm:text-2xl font-bold font-italiana">
                             Create New Subcategory
-                        </h1>
-                        <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
+                          </h1>
+                          <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
                             Add a new product subcategory
-                        </p>
+                          </p>
                         </div>
+                      </div>
                     </div>
-
-                    </div>
+                  </div>
                 </div>
-                </div>
-
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                   {/* Basic Information */}
@@ -296,12 +292,12 @@ const AddSubCategory = () => {
                           Category *
                         </label>
                         <select
-                          name="category"
-                          value={formData.category}
+                          name="categoryId" // Updated to categoryId
+                          value={formData.categoryId}
                           onChange={handleInputChange}
                           required
                           className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                            errors.category ? 'border-red-500' : currentTheme.border
+                            errors.categoryId ? 'border-red-500' : currentTheme.border
                           } ${currentTheme.bg.card} ${currentTheme.text.primary}`}
                         >
                           <option value="">Select a category</option>
@@ -311,8 +307,8 @@ const AddSubCategory = () => {
                             </option>
                           ))}
                         </select>
-                        {errors.category && (
-                          <p className="text-red-500 text-sm mt-1">{errors.category}</p>
+                        {errors.categoryId && ( // Updated error key
+                          <p className="text-red-500 text-sm mt-1">{errors.categoryId}</p>
                         )}
                       </motion.div>
                     </div>

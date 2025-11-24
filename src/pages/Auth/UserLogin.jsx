@@ -8,10 +8,11 @@ import {
   FaSpinner,
   FaEye,
   FaEyeSlash,
+  FaArrowLeft,
 } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
 import { useDispatch } from "react-redux";
-import { useLoginMutation } from "../../redux/services/authService";
+import { useLoginMutation, useForgotPasswordMutation } from "../../redux/services/authService";
 import { setCredentials } from "../../redux/slices/authSlice";
 import hangerImage from "../../assets/categories/tshirt.webp";
 
@@ -20,16 +21,20 @@ const UserLogin = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Use RTK Query mutation
+  // Use RTK Query mutations
   const [login, { isLoading, error }] = useLoginMutation();
+  const [forgotPassword, { isLoading: isForgotPasswordLoading, error: forgotPasswordError }] = useForgotPasswordMutation();
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     role: 'USER'
   });
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   useEffect(() => {
     if (error) {
@@ -42,6 +47,16 @@ const UserLogin = () => {
     }
   }, [error]);
 
+  useEffect(() => {
+    if (forgotPasswordError) {
+      if ('data' in forgotPasswordError) {
+        setForgotPasswordMessage(forgotPasswordError.data.message || 'Failed to send reset email');
+      } else {
+        setForgotPasswordMessage('Failed to send reset email. Please try again.');
+      }
+    }
+  }, [forgotPasswordError]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -52,6 +67,31 @@ const UserLogin = () => {
       navigate('/');
     } catch (err) {
       console.error('Login failed:', err);
+      // Error is handled in the useEffect above
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotPasswordMessage('');
+    
+    if (!forgotPasswordEmail) {
+      setForgotPasswordMessage('Please enter your email address');
+      return;
+    }
+
+    try {
+      await forgotPassword(forgotPasswordEmail).unwrap();
+      setForgotPasswordMessage('Password reset instructions have been sent to your email!');
+      setForgotPasswordEmail('');
+      
+      // Auto-close forgot password modal after success
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setForgotPasswordMessage('');
+      }, 3000);
+    } catch (err) {
+      console.error('Forgot password failed:', err);
       // Error is handled in the useEffect above
     }
   };
@@ -111,6 +151,12 @@ const UserLogin = () => {
   const fadeUp = {
     hidden: { opacity: 0, y: 40 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
+    exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } }
   };
 
   return (
@@ -267,6 +313,20 @@ const UserLogin = () => {
               </button>
             </div>
 
+            {/* Forgot Password Link */}
+        <div className="text-right">
+          <Link
+            to="/forgot-password"
+            className={`text-sm ${
+              theme === "dark" 
+                ? "text-purple-400 hover:text-purple-300" 
+                : "text-purple-600 hover:text-purple-800"
+            } transition-colors duration-200`}
+          >
+            Forgot Password?
+          </Link>
+        </div>
+
             {/* Submit Button */}
             <motion.button
               type="submit"
@@ -324,7 +384,6 @@ const UserLogin = () => {
               >
                 Wholesaler Login
               </Link>
-              
             </motion.div>
           </motion.div>
         </motion.div>

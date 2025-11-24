@@ -74,6 +74,14 @@ import PrivacyPolicy from "../pages/general/PrivacyPolicy";
 import TermsAndPolicy from "../pages/general/TermsAndPolicy";
 import ShippingPolicy from "../pages/general/ShippingPolicy";
 import ReturnsAndRefunds from "../pages/general/ReturnsAndRefunds";
+import Cart from "../pages/general/Cart";
+import AdminCustomization from "../pages/Dashboard/Admin/customization/AdminCustomization";
+import CustomizationForm from "../pages/Dashboard/Admin/customization/CustomizationForm";
+import ForgotPassword from "../pages/Auth/ForgotPassword";
+import ResetPassword from "../pages/Auth/ResetPassword";
+import WholesalerForgotPassword from "../pages/Auth/WholesalerForgotPassword";
+
+
 
 export const router = createBrowserRouter([
   {
@@ -95,13 +103,9 @@ export const router = createBrowserRouter([
         element: <Shop />
       },
       {
-        path: "/shop/:category",
-        element: <Shop />
-      },
-      {
-        path: "/shop/:category/:subcategory",
-        element: <Shop />
-      },
+      path: "/shop/:category",
+      element: <Shop />
+    },
       {
         path: "/contact",
         element: <Contact />
@@ -110,6 +114,10 @@ export const router = createBrowserRouter([
       {
         path: "/wishlist",
         element: <UserWishlist />
+      },
+      {
+        path: "/cart",
+        element: <Cart />
       },
       {
         path: "/collections/:productSlug",
@@ -149,6 +157,18 @@ export const router = createBrowserRouter([
         element: <UserRegister />
       },
       {
+        path: "/forgot-password",
+        element: <ForgotPassword />
+      },
+            {
+        path: "/wholesaler/forgot-password",
+        element: <WholesalerForgotPassword />
+      },
+            {
+        path: "/reset-password",
+        element: <ResetPassword />
+      },
+      {
         path: "/wholesaler/login",
         element: <WholesalerLogin />
       },
@@ -163,6 +183,15 @@ export const router = createBrowserRouter([
       {
         path: "/verify-otp",
         element: <OTPVerification />
+      },
+
+        {
+        path: "user/orders",
+        element: (
+          <ProtectedRoute allowedRoles={['CUSTOMER']}>
+            <UserOrders />
+          </ProtectedRoute>
+        )
       },
     ]
   },
@@ -218,7 +247,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         )
       },
-            {
+      {
         path: "products/view/:productId",
         element: (
           <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -284,6 +313,39 @@ export const router = createBrowserRouter([
       },
       {
         path: "subcategories/view/:subcategoryId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <ViewSubCategory />
+          </ProtectedRoute>
+        )
+      },
+
+            {
+        path: "products/customization/:productId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminCustomization />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: "products/customization/add/:productId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <CustomizationForm />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: "products/customization/edit/:customizationId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <CustomizationForm />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: "products/customization/view/:subcategoryId",
         element: (
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <ViewSubCategory />
@@ -434,14 +496,15 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         )
       },
-{
-  path: "coupons",
-  element: (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
-      <AdminCoupons />
-    </ProtectedRoute>
-  )
-},
+  {
+    path: "coupons",
+    element: (
+      <ProtectedRoute allowedRoles={['ADMIN']}>
+        <AdminCoupons />
+      </ProtectedRoute>
+    )
+  },
+
 {
   path: "coupons/add",
   element: (
@@ -507,14 +570,6 @@ export const router = createBrowserRouter([
         )
       },
       {
-        path: "user/orders",
-        element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <UserOrders />
-          </ProtectedRoute>
-        )
-      },
-      {
         path: "user/profile",
         element: (
           <ProtectedRoute allowedRoles={['CUSTOMER']}>
@@ -531,7 +586,7 @@ export const router = createBrowserRouter([
         )
       },
     {
-      path: "/order-success",
+      path: "/payment-success",
       element: (
         <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
           <OrderSuccess />
