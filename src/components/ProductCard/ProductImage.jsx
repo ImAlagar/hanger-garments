@@ -4,6 +4,7 @@ import WishlistButton from "./WishlistButton";
 const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, onWishlistToggle }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageError, setImageError] = useState(false);
   
   // Get all images for the first variant
   const firstVariant = product.variants?.[0];
@@ -19,8 +20,11 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
 
   // Get the current image to display
   const getCurrentImage = () => {
+    if (imageError) {
+      return "https://via.placeholder.com/600x600/cccccc/969696?text=No+Image";
+    }
     const images = isHovered ? hoverImages : displayImages;
-    return images[currentImageIndex]?.imageUrl || "https://via.placeholder.com/300x300?text=No+Image";
+    return images[currentImageIndex]?.imageUrl || "https://via.placeholder.com/600x600/cccccc/969696?text=No+Image";
   };
 
   // Auto-cycle through images when hovered
@@ -29,9 +33,9 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
     if (isHovered && hoverImages.length > 1) {
       interval = setInterval(() => {
         setCurrentImageIndex((prev) => (prev + 1) % hoverImages.length);
-      }, 1000); // Change image every second
+      }, 1000);
     } else {
-      setCurrentImageIndex(0); // Reset to first image when not hovered
+      setCurrentImageIndex(0);
     }
     
     return () => clearInterval(interval);
@@ -42,19 +46,22 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
     : 0;
 
   return (
-    <>
+    <div className="relative w-full">
+      {/* Discount Badge */}
       {!product.isWholesaleUser && product.offerPrice && product.offerPrice < product.normalPrice && (
         <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 text-xs font-bold rounded z-10">
           {discountPercentage}% OFF
         </div>
       )}
 
+      {/* Wholesale Badge */}
       {product.isWholesaleUser && (
         <div className="absolute top-3 left-3 bg-blue-500 text-white px-2 py-1 text-xs font-bold rounded z-10">
           WHOLESALE
         </div>
       )}
 
+      {/* Wishlist Button */}
       <WishlistButton
         isInWishlist={isInWishlist}
         user={user}
@@ -63,23 +70,21 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
         styles={styles}
       />
 
+      {/* SIMPLE IMAGE CONTAINER - Try this first */}
       <div 
-        className="overflow-hidden rounded-lg w-full relative"
+        className="w-full h-96 bg-gray-200 rounded-lg overflow-hidden"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         <img
           src={getCurrentImage()}
           alt={product.name}
-          className="w-full aspect-square object-cover transform group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => {
-            e.target.src = "https://via.placeholder.com/300x300?text=No+Image";
-          }}
+          className="w-full h-full object-cover"
+          onError={() => setImageError(true)}
+          loading="lazy"
         />
-        
-
       </div>
-    </>
+    </div>
   );
 };
 

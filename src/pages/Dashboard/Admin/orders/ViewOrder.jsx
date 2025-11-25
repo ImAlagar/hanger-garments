@@ -17,7 +17,9 @@ import {
   Truck,
   CheckCircle,
   Clock,
-  XCircle
+  XCircle,
+  Image,
+  Palette
 } from 'lucide-react';
 
 const ViewOrder = () => {
@@ -166,6 +168,12 @@ const ViewOrder = () => {
     }
   };
 
+  // Extract filename without extension for display
+  const getDisplayFilename = (filename) => {
+    if (!filename) return 'Custom Design';
+    return filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' ');
+  };
+
   return (
     <motion.div
       initial="hidden"
@@ -281,37 +289,110 @@ const ViewOrder = () => {
               <h2 className={`text-xl font-semibold font-instrument mb-6 ${currentTheme.text.primary}`}>Order Items</h2>
               <div className="space-y-4">
                 {order.orderItems?.map((item, index) => (
-                  <div key={item.id} className={`flex items-center space-x-4 p-4 rounded-lg ${
+                  <div key={item.id} className={`p-4 rounded-lg ${
                     theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
                   }`}>
-                    <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
-                      theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
-                    }`}>
-                      <Package className="w-6 h-6 text-gray-500" />
+                    <div className="flex items-start space-x-4">
+                      {/* Product Image */}
+                      <div className="flex-shrink-0">
+                        {item.productVariant?.variantImages?.length > 0 ? (
+                          <img
+                            src={item.productVariant.variantImages[0].imageUrl}
+                            alt={item.product?.name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                            theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
+                          }`}>
+                            <Package className="w-6 h-6 text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Product Details */}
+                      <div className="flex-1">
+                        <h3 className={`font-medium ${currentTheme.text.primary}`}>
+                          {item.product?.name}
+                        </h3>
+                        <p className={`text-sm ${currentTheme.text.muted}`}>
+                          {item.productVariant?.color} • {item.productVariant?.size}
+                        </p>
+                        <p className={`text-sm ${currentTheme.text.muted}`}>
+                          Product Code: {item.product?.productCode}
+                        </p>
+                        <p className={`text-sm ${currentTheme.text.muted}`}>
+                          SKU: {item.productVariant?.sku}
+                        </p>
+                      </div>
+                      
+                      {/* Price */}
+                      <div className="text-right">
+                        <p className={`font-medium ${currentTheme.text.primary}`}>
+                          ₹{item.price} x {item.quantity}
+                        </p>
+                        <p className={`text-lg font-semibold ${currentTheme.text.primary}`}>
+                          ₹{item.price * item.quantity}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className={`font-medium ${currentTheme.text.primary}`}>
-                        {item.product?.name}
-                      </h3>
-                      <p className={`text-sm ${currentTheme.text.muted}`}>
-                        {item.productVariant?.color} • {item.productVariant?.size}
-                      </p>
-                      <p className={`text-sm ${currentTheme.text.muted}`}>
-                        Product Code: {item.product?.productCode}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${currentTheme.text.primary}`}>
-                        ₹{item.price} x {item.quantity}
-                      </p>
-                      <p className={`text-lg font-semibold ${currentTheme.text.primary}`}>
-                        ₹{item.price * item.quantity}
-                      </p>
-                    </div>
+
+                    {/* Variant Images Gallery */}
+                    {item.productVariant?.variantImages?.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className={`text-sm font-medium mb-2 flex items-center ${currentTheme.text.primary}`}>
+                          <Image className="w-4 h-4 mr-1" />
+                          Product Images
+                        </h4>
+                        <div className="flex space-x-2 overflow-x-auto pb-2">
+                          {item.productVariant.variantImages.map((variantImage, imgIndex) => (
+                            <img
+                              key={imgIndex}
+                              src={variantImage.imageUrl}
+                              alt={`${item.product?.name} - ${variantImage.color}`}
+                              className="w-20 h-20 rounded-lg object-cover border border-gray-300 dark:border-gray-600"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </motion.div>
+
+            {/* Custom Images Section */}
+            {order.customImages && order.customImages.length > 0 && (
+              <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
+                <h2 className={`text-xl font-semibold font-instrument mb-6 flex items-center ${currentTheme.text.primary}`}>
+                  <Palette className="w-5 h-5 mr-2" />
+                  Custom Design Images
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {order.customImages.map((customImage, index) => (
+                    <div key={customImage.id} className={`rounded-lg overflow-hidden border ${
+                      theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
+                    }`}>
+                      <img
+                        src={customImage.imageUrl}
+                        alt={customImage.filename || `Custom Design ${index + 1}`}
+                        className="w-full h-48 object-cover"
+                      />
+                      <div className={`p-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                        <p className={`text-sm font-medium truncate ${currentTheme.text.primary}`}>
+                          {getDisplayFilename(customImage.filename)}
+                        </p>
+                        {customImage.description && (
+                          <p className={`text-xs mt-1 ${currentTheme.text.muted}`}>
+                            {customImage.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             {/* Order Summary */}
             <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>

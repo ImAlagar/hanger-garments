@@ -263,6 +263,40 @@ export const productService = apiSlice.injectEndpoints({
         'Product'
       ],
     }),
+
+
+
+    // Calculate quantity price for a product
+    calculateQuantityPrice: builder.mutation({
+      query: ({ productId, quantity }) => ({
+        url: `/products/${productId}/calculate-quantity-price`,
+        method: 'POST',
+        body: { quantity },
+      }),
+    }),
+
+    // Get products with quantity offers in a subcategory
+    getProductsWithQuantityOffers: builder.query({
+      query: (subcategoryId) => `/products/subcategory/${subcategoryId}/quantity-offers`,
+      providesTags: ['Product'],
+    }),
+
+    // Calculate cart prices with quantity discounts
+    calculateCartPrices: builder.mutation({
+      query: (items) => ({
+        url: '/products/calculate-cart-prices',
+        method: 'POST',
+        body: { items },
+      }),
+    }),
+
+    // Get all subcategories with quantity pricing
+    getSubcategoriesWithQuantityPricing: builder.query({
+      query: () => '/products/subcategories/with-pricing',
+      providesTags: ['Subcategory'],
+    }),
+
+
   }),
 });
 
@@ -289,4 +323,13 @@ export const {
   useUpdateProductVariantMutation,
   useDeleteProductVariantMutation,
   useUpdateVariantStockMutation,
+
+  useCalculateQuantityPriceMutation,
+  useGetProductsWithQuantityOffersQuery,
+  useCalculateCartPricesMutation,
+  useGetSubcategoriesWithQuantityPricingQuery,
+  
+  // Admin quantity pricing exports
+  useAddSubcategoryQuantityPriceMutation,
+
 } = productService;

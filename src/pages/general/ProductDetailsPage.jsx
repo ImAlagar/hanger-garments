@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTheme } from '../../context/ThemeContext';
-import { useGetProductBySlugQuery } from '../../redux/services/productService';
+import { 
+  useGetProductBySlugQuery,
+  useCalculateQuantityPriceMutation 
+} from '../../redux/services/productService';
 import { useGetCustomizationByProductIdQuery } from '../../redux/services/customizationService';
 import { addToCart } from '../../redux/slices/cartSlice';
 import { addToWishlist, removeFromWishlist } from '../../redux/slices/wishlistSlice';
@@ -10,6 +13,7 @@ import { setDesignMode, setCustomizationOptions, resetDesign } from '../../redux
 import CartSidebar from '../../components/layout/CartSidebar';
 import RelatedProducts from './RelatedProducts';
 import CustomizationModal from '../../components/Common/CustomizationModal';
+import { toast } from 'react-toastify';
 
 const ProductDetailsPage = () => {
   const { productSlug } = useParams();
@@ -28,6 +32,7 @@ const ProductDetailsPage = () => {
   const [showCustomizationModal, setShowCustomizationModal] = useState(false);
   const [showZoomModal, setShowZoomModal] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [bulkPricing, setBulkPricing] = useState(null);
   
   const { theme } = useTheme();
   const user = useSelector((state) => state.auth.user);
@@ -35,6 +40,9 @@ const ProductDetailsPage = () => {
   const isDesignMode = useSelector((state) => state.customization.isDesignMode);
   const designData = useSelector((state) => state.customization.designData);
   const dispatch = useDispatch();
+  
+  // API mutations
+  const [calculateQuantityPrice] = useCalculateQuantityPriceMutation();
   
   const isDark = theme === "dark";
   
@@ -93,6 +101,33 @@ const ProductDetailsPage = () => {
   const isCustomizable = product?.isCustomizable && customizationData?.data?.isActive;
   const hasCustomization = customizationData?.data && customizationData.data.isActive;
 
+  // Calculate bulk pricing when quantity changes
+  useEffect(() => {
+    const calculateBulkPrice = async () => {
+      if (product?.id && quantity > 1) {
+        try {
+          const result = await calculateQuantityPrice({
+            productId: product.id,
+            quantity: quantity
+          }).unwrap();
+          
+          if (result.success) {
+            setBulkPricing(result.data);
+          } else {
+            setBulkPricing(null);
+          }
+        } catch (error) {
+          console.error('Error calculating bulk price:', error);
+          setBulkPricing(null);
+        }
+      } else {
+        setBulkPricing(null);
+      }
+    };
+
+    calculateBulkPrice();
+  }, [quantity, product?.id, calculateQuantityPrice]);
+
   // Get available colors with their primary images
   const getAvailableColors = () => {
     if (!product?.variants) return [];
@@ -119,7 +154,7 @@ const ProductDetailsPage = () => {
 
   const availableColors = getAvailableColors();
 
-  // ✅ FIXED: Set initial selected variant when product loads - NO URL UPDATE HERE
+  // Set initial selected variant when product loads
   useEffect(() => {
     if (product?.variants?.length > 0) {
       let firstVariant;
@@ -148,18 +183,16 @@ const ProductDetailsPage = () => {
       setSelectedVariant(firstVariant);
       setSelectedSize(firstVariant?.size);
     }
-  }, [product, initialColor]); // ✅ Removed searchParams and setSearchParams from dependencies
+  }, [product, initialColor]);
 
-  // ✅ FIXED: Update URL only when color changes via user interaction, not on initial load
+  // Update URL only when color changes via user interaction
   const updateURLWithColor = (color) => {
     const currentColor = searchParams.get('color');
     
-    // Only update if the color actually changed and we're not on initial load
     if (color && currentColor !== color) {
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.set('color', color);
       
-      // Use replace instead of set to avoid adding to history stack
       setSearchParams(newSearchParams, { replace: true });
     }
   };
@@ -232,7 +265,7 @@ const ProductDetailsPage = () => {
     return Math.round(savePercentage);
   };
 
-  // Auth-based pricing logic with customization price
+  // Auth-based pricing logic with customization price and bulk pricing
   const getProductPricing = () => {
     if (!product) return { 
       displayPrice: 0, 
@@ -253,7 +286,13 @@ const ProductDetailsPage = () => {
       customizationPrice = customizationData.data.basePrice || 0;
     }
 
-    if (isWholesaleUser && product.wholesalePrice) {
+    // Use bulk pricing if available, otherwise use regular pricing
+    if (bulkPricing && bulkPricing.finalPrice) {
+      displayPrice = bulkPricing.finalPrice / quantity; // Price per item
+      originalPrice = product.offerPrice || product.normalPrice;
+      priceLabel = "Bulk Price";
+      savePercentage = calculateSavePercentage(originalPrice, displayPrice);
+    } else if (isWholesaleUser && product.wholesalePrice) {
       displayPrice = product.wholesalePrice;
       originalPrice = product.offerPrice || product.normalPrice;
       priceLabel = "Wholesale";
@@ -277,7 +316,8 @@ const ProductDetailsPage = () => {
       priceLabel, 
       finalPrice, 
       customizationPrice,
-      savePercentage 
+      savePercentage,
+      bulkSavings: bulkPricing?.totalSavings || 0
     };
   };
 
@@ -287,10 +327,11 @@ const ProductDetailsPage = () => {
     priceLabel, 
     finalPrice, 
     customizationPrice,
-    savePercentage 
+    savePercentage,
+    bulkSavings
   } = getProductPricing();
 
-  // ✅ FIXED: Handle color selection with proper URL update
+  // Handle color selection with proper URL update
   const handleColorSelect = (color) => {
     const newColor = color.name;
     setSelectedColor(newColor);
@@ -306,7 +347,7 @@ const ProductDetailsPage = () => {
     
     setActiveImageIndex(0); // Reset to first image when color changes
     
-    // ✅ FIXED: Update URL after state is set
+    // Update URL after state is set
     updateURLWithColor(newColor);
   };
 
@@ -325,7 +366,7 @@ const ProductDetailsPage = () => {
 
     setAddingToCart(true);
     try {
-      // ✅ FIXED: Ensure consistent image structure
+      // Ensure consistent image structure
       const productImages = variantImages.map(img => img.imageUrl).filter(url => 
         url && !url.includes('via.placeholder.com') && !url.includes('No+Image')
       );
@@ -339,7 +380,7 @@ const ProductDetailsPage = () => {
           name: product.name,
           description: product.description,
           category: product.category?.name || product.category,
-          // ✅ FIXED: Use consistent images structure
+          // Use consistent images structure
           images: finalImages,
           image: finalImages[0], // Add main image
           normalPrice: product.normalPrice,
@@ -354,7 +395,7 @@ const ProductDetailsPage = () => {
           price: finalPrice,
           stock: selectedVariant.stock,
           sku: selectedVariant.sku,
-          // ✅ Add variant image
+          // Add variant image
           image: selectedVariant.image || finalImages[0],
         },
         ...(isDesignMode && hasCustomization && {
@@ -375,8 +416,11 @@ const ProductDetailsPage = () => {
         dispatch(setDesignMode(false));
         dispatch(resetDesign());
       }
+
+      toast.success("Product added to cart!");
     } catch (error) {
       console.error("Failed to add to cart:", error);
+      toast.error("Failed to add product to cart");
     } finally {
       setAddingToCart(false);
     }
@@ -466,6 +510,7 @@ const ProductDetailsPage = () => {
       
     } catch (error) {
       console.error('Error in Buy Now:', error);
+      toast.error("Failed to process Buy Now");
     } finally {
       setAddingToCart(false);
     }
@@ -479,7 +524,7 @@ const ProductDetailsPage = () => {
     }
     
     if (!hasCustomization) {
-      alert('Customization is not available for this product.');
+      toast.error('Customization is not available for this product.');
       return;
     }
     
@@ -505,6 +550,7 @@ const ProductDetailsPage = () => {
 
     if (isInWishlist) {
       dispatch(removeFromWishlist({ productId: product.id }));
+      toast.success("Removed from wishlist");
     } else {
       const wishlistItem = {
         product: {
@@ -521,12 +567,67 @@ const ProductDetailsPage = () => {
       };
       
       dispatch(addToWishlist(wishlistItem));
+      toast.success("Added to wishlist");
     }
   };
 
   // Stock status
   const isOutOfStock = selectedVariant?.stock === 0;
   const lowStock = selectedVariant?.stock > 0 && selectedVariant?.stock <= 10;
+
+  // Bulk pricing display
+  const renderBulkPricing = () => {
+    if (bulkPricing && quantity > 1) {
+      return (
+        <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg border border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
+                🎉 Bulk Discount Applied!
+              </p>
+              <p className="text-sm text-green-600 dark:text-green-300 mt-1">
+                {bulkPricing.message}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-green-700 dark:text-green-400">
+                Save ₹{bulkPricing.totalSavings?.toFixed(2)}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-300">
+                {bulkPricing.applicableDiscount?.value}% OFF
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show available bulk pricing tiers
+    if (product?.subcategory?.quantityPrices?.length > 0 && quantity === 1) {
+      const availableTiers = product.subcategory.quantityPrices
+        .filter(price => price.quantity > 1)
+        .slice(0, 3); // Show only first 3 tiers
+      
+      if (availableTiers.length > 0) {
+        return (
+          <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+            <p className="font-semibold text-orange-700 dark:text-orange-400 text-sm">
+              💰 Bulk Pricing Available
+            </p>
+            <div className="mt-2 space-y-1">
+              {availableTiers.map(tier => (
+                <p key={tier.quantity} className="text-xs text-orange-600 dark:text-orange-300">
+                  Buy {tier.quantity}: {tier.priceType === 'PERCENTAGE' ? `${tier.value}% OFF` : `₹${tier.value} total`}
+                </p>
+              ))}
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    return null;
+  };
 
   // Loading state
   if (isLoading || (product?.isCustomizable && isLoadingCustomization)) {
@@ -689,6 +790,13 @@ const ProductDetailsPage = () => {
                   In Stock
                 </span>
               )}
+
+              {product.subcategory?.quantityPrices?.length > 0 && (
+                <span className="inline-flex items-center px-2 sm:px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full mr-1.5 sm:mr-2"></span>
+                  Bulk Discounts
+                </span>
+              )}
             </div>
           </div>
           
@@ -723,16 +831,20 @@ const ProductDetailsPage = () => {
             {/* Price Section */}
             <div className="space-y-2">
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <span className="text-xl sm:text-2xl lg:text-3xl font-bold">₹{formatPrice(finalPrice)}</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-bold">
+                  ₹{formatPrice(finalPrice * quantity)}
+                </span>
                 {originalPrice && originalPrice !== finalPrice && (
                   <span className={`text-lg sm:text-xl line-through ${themeColors.textMuted}`}>
-                    ₹{formatPrice(originalPrice)}
+                    ₹{formatPrice(originalPrice * quantity)}
                   </span>
                 )}
                 {priceLabel && (
                   <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded ${
                     priceLabel === 'Wholesale' 
                       ? 'bg-green-100 text-green-800' 
+                      : priceLabel === 'Bulk Price'
+                      ? 'bg-orange-100 text-orange-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
                     {priceLabel}
@@ -748,7 +860,7 @@ const ProductDetailsPage = () => {
                   </span>
                   {originalPrice && (
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      (₹{formatPrice(originalPrice - displayPrice)})
+                      (₹{formatPrice((originalPrice - displayPrice) * quantity)})
                     </span>
                   )}
                 </div>
@@ -759,7 +871,17 @@ const ProductDetailsPage = () => {
                   🏷️ Special wholesale pricing applied
                 </p>
               )}
+
+              {/* Price per item */}
+              {quantity > 1 && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  ₹{formatPrice(finalPrice)} per item
+                </p>
+              )}
             </div>
+
+            {/* Bulk Pricing Display */}
+            {renderBulkPricing()}
 
             {/* Tax and Shipping Info */}
             <div>
@@ -839,62 +961,104 @@ const ProductDetailsPage = () => {
               </div>
             )}
 
-            {/* Quantity and Action Buttons */}
-            <div className="space-y-4 sm:space-y-6 pt-4">
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <label className={`font-semibold text-sm sm:text-base ${themeColors.textPrimary}`}>Quantity:</label>
-                <div className={`flex items-center border rounded ${themeColors.borderPrimary}`}>
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className={`px-3 py-1 sm:px-3 sm:py-1 text-sm sm:text-base ${
-                      quantity <= 1 
-                        ? 'bg-gray-300 cursor-not-allowed' 
-                        : themeColors.btnSecondary
-                    }`}
-                    disabled={quantity <= 1}
-                  >
-                    -
-                  </button>
-                  <span className={`px-3 sm:px-4 py-1 min-w-8 sm:min-w-12 text-center text-sm sm:text-base ${themeColors.textPrimary}`}>
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    disabled={selectedVariant && quantity >= selectedVariant.stock}
-                    className={`px-3 py-1 sm:px-3 sm:py-1 text-sm sm:text-base ${
-                      (selectedVariant && quantity >= selectedVariant.stock)
-                        ? 'bg-gray-300 cursor-not-allowed'
-                        : themeColors.btnSecondary
-                    }`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+          {/* Actions Section */}
+          <div className="space-y-5 sm:space-y-6 pt-4 w-full">
 
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              {/* Customize Button for customizable products */}
+            {/* Quantity Selector */}
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <label
+                className={`font-semibold text-sm sm:text-base ${themeColors.textPrimary}`}
+              >
+                Quantity:
+              </label>
+
+              <div
+                className={`flex items-center border rounded overflow-hidden ${themeColors.borderPrimary}`}
+              >
+                {/* Minus Button */}
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
+                    quantity <= 1
+                      ? "bg-gray-300 cursor-not-allowed"
+                      : themeColors.btnSecondary
+                  }`}
+                >
+                  -
+                </button>
+
+                {/* Quantity Display */}
+                <span
+                  className={`px-4 sm:px-5 py-1 min-w-10 sm:min-w-14 text-center text-sm sm:text-base ${themeColors.textPrimary}`}
+                >
+                  {quantity}
+                </span>
+
+                {/* Plus Button */}
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  disabled={selectedVariant && quantity >= selectedVariant.stock}
+                  className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
+                    selectedVariant && quantity >= selectedVariant.stock
+                      ? "bg-gray-300 cursor-not-allowed"
+                      : themeColors.btnSecondary
+                  }`}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div
+              className="
+                grid grid-cols-3 
+                sm:grid-cols-3
+                md:grid-cols-3
+                xl:flex lg:flex-row 
+                gap-2 sm:gap-3 
+                w-full items-stretch
+              "
+            >
+
+              {/* Customize Button */}
               {isCustomizable && !isDesignMode && (
                 <button
                   onClick={handleCustomize}
-                  className="flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center space-x-2 text-sm sm:text-base"
+                  className="
+                    col-span-3 
+                    xl:flex-1  
+                    py-2 sm:py-3 px-4 sm:px-6 
+                    rounded-lg font-semibold 
+                    bg-purple-600 hover:bg-purple-700 text-white 
+                    flex items-center justify-center space-x-2 
+                    text-sm sm:text-base
+                  "
                 >
                   <span>🎨</span>
                   <span className="whitespace-nowrap">Customize Design</span>
                 </button>
               )}
 
-              {/* Add to Cart Button */}
+              {/* Add to Cart */}
               <button
                 onClick={isDesignMode ? handleAddToCart : handleQuickAddToCart}
                 disabled={isOutOfStock || addingToCart || !selectedVariant}
-                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base ${
-                  isOutOfStock || addingToCart || !selectedVariant
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : isDesignMode
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                className={`
+                  col-span-3 
+                  xl:flex-1
+                  py-2 sm:py-3 px-4 sm:px-6 
+                  rounded-lg font-semibold flex items-center justify-center space-x-2 
+                  text-sm sm:text-base transition
+                  ${
+                    isOutOfStock || addingToCart || !selectedVariant
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : isDesignMode
+                      ? "bg-green-600 hover:bg-green-700 text-white"
                       : themeColors.btnPrimary
-                }`}
+                  }
+                `}
               >
                 {addingToCart ? (
                   <>
@@ -908,26 +1072,33 @@ const ProductDetailsPage = () => {
                   </>
                 ) : isDesignMode ? (
                   <>
-                    <span>🛒</span>
-                    <span className="whitespace-nowrap">Add Custom to Cart</span>
+                   
+                    <span>Add Custom to Cart</span>
                   </>
                 ) : (
                   <>
-                    <span>🛒</span>
+                    
                     <span>Add to Cart</span>
                   </>
                 )}
               </button>
-              
-              {/* Buy Now Button */}
+
+              {/* Buy Now */}
               <button
                 onClick={handleBuyNow}
                 disabled={isOutOfStock || addingToCart || !selectedVariant}
-                className={`flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base ${
-                  isOutOfStock || addingToCart || !selectedVariant
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700 text-white'
-                }`}
+                className={`
+                  col-span-3 
+                  lg:flex-1
+                  py-2 sm:py-3 px-4 sm:px-6 
+                  rounded-lg font-semibold flex items-center justify-center space-x-2 
+                  text-sm sm:text-base transition
+                  ${
+                    isOutOfStock || addingToCart || !selectedVariant
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-orange-600 hover:bg-orange-700 text-white"
+                  }
+                `}
               >
                 {addingToCart ? (
                   <>
@@ -946,22 +1117,36 @@ const ProductDetailsPage = () => {
                   </>
                 )}
               </button>
-              
-              {/* Wishlist Button */}
+
+              {/* Wishlist */}
               <button
                 onClick={handleWishlistToggle}
                 disabled={!user}
-                className={`p-2 sm:p-3 rounded-lg border flex items-center justify-center transition-all duration-200 ${
-                  isInWishlist
-                    ? 'bg-red-50 border-red-200 text-red-600'
-                    : `${themeColors.bgCard} ${themeColors.borderPrimary} ${themeColors.textSecondary} hover:${themeColors.borderHover}`
-                } ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={!user ? "Login to add to wishlist" : isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                className={`
+                  p-2 sm:p-3 rounded-lg border 
+                  flex items-center justify-center  
+                  transition-all duration-200
+                  ${
+                    isInWishlist
+                      ? "bg-red-50 border-red-200 text-red-600"
+                      : `${themeColors.bgCard} ${themeColors.borderPrimary} ${themeColors.textSecondary} hover:${themeColors.borderHover}`
+                  }
+                  ${!user ? "opacity-50 cursor-not-allowed" : ""}
+                `}
+                title={
+                  !user
+                    ? "Login to add to wishlist"
+                    : isInWishlist
+                    ? "Remove from wishlist"
+                    : "Add to wishlist"
+                }
               >
-                {isInWishlist ? '❤️' : '🤍'}
+                {isInWishlist ? "❤️" : "🤍"}
               </button>
             </div>
-            </div>
+          </div>
+
+
 
             {/* Product Specifications */}
             {product.productDetails && product.productDetails.length > 0 && (

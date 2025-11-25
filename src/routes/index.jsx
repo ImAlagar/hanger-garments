@@ -80,6 +80,13 @@ import CustomizationForm from "../pages/Dashboard/Admin/customization/Customizat
 import ForgotPassword from "../pages/Auth/ForgotPassword";
 import ResetPassword from "../pages/Auth/ResetPassword";
 import WholesalerForgotPassword from "../pages/Auth/WholesalerForgotPassword";
+import AdminForgotPassword from "../pages/Auth/AdminForgotPassword";
+import AdminResetPassword from "../pages/Auth/AdminResetPassword";
+import SubcategoryQuantityPricing from "../pages/Dashboard/Admin/quantity-pricing/SubcategoryQuantityPricing";
+import AdminQuantityPricing from "../pages/Dashboard/Admin/quantity-pricing/AdminQuantityPricing";
+import AddQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/AddQuantityPrice";
+import EditQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/EditQuantityPrice";
+import ViewQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/ViewQuantityPrice";
 
 
 
@@ -160,13 +167,31 @@ export const router = createBrowserRouter([
         path: "/forgot-password",
         element: <ForgotPassword />
       },
-            {
+      {
         path: "/wholesaler/forgot-password",
         element: <WholesalerForgotPassword />
       },
-            {
+      {
         path: "/reset-password",
         element: <ResetPassword />
+      },
+
+      {
+        path: "/wholesaler/forgot-password",
+        element: <WholesalerForgotPassword />
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPassword />
+      },
+
+            {
+        path: "/admin/forgot-password",
+        element: <AdminForgotPassword />
+      },
+      {
+        path: "/admin/reset-password",
+        element: <AdminResetPassword />
       },
       {
         path: "/wholesaler/login",
@@ -220,6 +245,40 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Analytics />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: "quantity-pricing",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminQuantityPricing />
+          </ProtectedRoute>
+        )
+      },
+
+      {
+        path: "quantity-pricing/add",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AddQuantityPrice />
+          </ProtectedRoute>
+        )
+      },
+
+      {
+        path: "quantity-pricing/edit/:subcategoryId/:priceId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <EditQuantityPrice />
+          </ProtectedRoute>
+        )
+      },
+            {
+        path: "quantity-pricing/view/:subcategoryId/:priceId",
+        element: (
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <ViewQuantityPrice  />
           </ProtectedRoute>
         )
       },

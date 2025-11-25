@@ -4,7 +4,61 @@ import { toast } from 'react-toastify';
 
 export const subcategoryService = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // Public endpoints
+    // ✅ UPDATED: Use the correct admin quantity pricing routes
+    getAllSubcategoriesWithQuantityPricing: builder.query({
+      query: () => '/admin/subcategory-quantity-prices', // This matches your route
+      providesTags: ['SubcategoryQuantityPricing'],
+    }),
+
+    getQuantityPriceById: builder.query({
+      query: (quantityPriceId) => `/admin/subcategory-quantity-prices/${quantityPriceId}`,
+      providesTags: (result, error, id) => [{ type: 'SubcategoryQuantityPricing', id }],
+    }),
+    // ✅ UPDATED: Correct endpoints for admin quantity pricing
+    addSubcategoryQuantityPrice: builder.mutation({
+      query: ({ subcategoryId, quantityPriceData }) => ({
+        url: `/admin/subcategory-quantity-prices/${subcategoryId}`,
+        method: 'POST',
+        body: quantityPriceData,
+      }),
+      invalidatesTags: ['SubcategoryQuantityPricing', 'Subcategory'],
+    }),
+
+    updateSubcategoryQuantityPrice: builder.mutation({
+      query: ({ quantityPriceId, updateData }) => ({
+        url: `/admin/subcategory-quantity-prices/${quantityPriceId}`,
+        method: 'PUT',
+        body: updateData,
+      }),
+      invalidatesTags: ['SubcategoryQuantityPricing', 'Subcategory'],
+    }),
+
+    deleteSubcategoryQuantityPrice: builder.mutation({
+      query: (quantityPriceId) => ({
+        url: `/admin/subcategory-quantity-prices/${quantityPriceId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['SubcategoryQuantityPricing', 'Subcategory'],
+    }),
+
+    toggleSubcategoryQuantityPriceStatus: builder.mutation({
+      query: ({ quantityPriceId, isActive }) => ({
+        url: `/admin/subcategory-quantity-prices/${quantityPriceId}/status`,
+        method: 'PATCH',
+        body: { isActive },
+      }),
+      invalidatesTags: ['SubcategoryQuantityPricing', 'Subcategory'],
+    }),
+
+    // Get quantity prices for specific subcategory
+    getSubcategoryQuantityPrices: builder.query({
+      query: (subcategoryId) => `/admin/subcategory-quantity-prices/subcategory/${subcategoryId}`,
+      providesTags: ['SubcategoryQuantityPricing'],
+    }),
+
+
+
+    // Existing endpoints remain the same...
     getAllSubcategories: builder.query({
       query: (categoryId = '') => ({
         url: '/subcategory',
@@ -18,13 +72,11 @@ export const subcategoryService = apiSlice.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'Subcategory', id }],
     }),
 
-    // Get subcategories by category ID
     getSubcategoriesByCategory: builder.query({
       query: (categoryId) => `/subcategory/category/${categoryId}`,
       providesTags: ['Subcategory'],
     }),
 
-    // Admin endpoints
     createSubcategory: builder.mutation({
       query: (subcategoryData) => {
         const formData = new FormData();
@@ -53,11 +105,11 @@ export const subcategoryService = apiSlice.injectEndpoints({
     }),
 
     updateSubcategory: builder.mutation({
-      query: ({ subcategoryId, updateData }) => { // Fixed parameter name
+      query: ({ subcategoryId, updateData }) => {
         return {
           url: `/subcategory/admin/${subcategoryId}`,
           method: 'PUT',
-          body: updateData, // Use FormData directly
+          body: updateData,
         };
       },
       invalidatesTags: (result, error, { subcategoryId }) => [
@@ -101,7 +153,7 @@ export const subcategoryService = apiSlice.injectEndpoints({
           'Content-Type': 'application/json',
         },
       }),
-      invalidatesTags: ['Subcategory'], // Fixed typo
+      invalidatesTags: ['Subcategory'],
       async onQueryStarted(arg, { queryFulfilled }) {
         try {
           await queryFulfilled;
@@ -119,6 +171,15 @@ export const {
   useGetAllSubcategoriesQuery,
   useGetSubcategoryByIdQuery,
   useGetSubcategoriesByCategoryQuery,
+  useGetAllSubcategoriesWithQuantityPricingQuery,
+  useGetQuantityPriceByIdQuery, // ✅ ADD THIS EXPORT
+
+  useAddSubcategoryQuantityPriceMutation,
+  useUpdateSubcategoryQuantityPriceMutation,
+  useDeleteSubcategoryQuantityPriceMutation,
+  useToggleSubcategoryQuantityPriceStatusMutation,
+  useGetSubcategoryQuantityPricesQuery, // ✅ ADDED
+  
   useCreateSubcategoryMutation,
   useUpdateSubcategoryMutation,
   useDeleteSubcategoryMutation,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useTheme } from "../../context/ThemeContext";
@@ -8,19 +8,27 @@ import { useGetAllSubcategoriesQuery } from '../../redux/services/subcategorySer
 import ProductCard from "../../components/ProductCard/ProductCard";
 import CartSidebar from "../../components/layout/CartSidebar";
 
+/* -----------------------
+   Helper: slugify / normalize
+   ----------------------- */
+const createSlug = (name = "") =>
+  name
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "-and-")
+    .replace(/[^a-z0-9\s-]/g, "") // remove punctuation
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
 export default function Shop() {
   const { category } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const { theme } = useTheme();
-  
-  // Debug logs
-  console.log('Shop - Category param:', category);
-  console.log('Shop - Search params:', Object.fromEntries(searchParams.entries()));
-  console.log('Shop - Full URL:', location.pathname + location.search);
 
-  // Get user role from Redux store
+  // user role
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role;
   const isWholesaleUser = userRole === 'WHOLESALER';
@@ -29,80 +37,114 @@ export default function Shop() {
   const { data: productsData, isLoading, error } = useGetAllProductsQuery();
   const { data: categoriesData } = useGetAllCategoriesQuery();
   const { data: subcategoriesData } = useGetAllSubcategoriesQuery();
-  
-  // State management
+
+  // State
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
-  
-  // Initialize filters from URL parameters
-  const [filters, setFilters] = useState({
-    categories: searchParams.get('categories')?.split(',').filter(Boolean) || [],
-    subcategories: searchParams.get('subcategories')?.split(',').filter(Boolean) || [],
-    priceRange: [
-      parseInt(searchParams.get('minPrice')) || 0,
-      parseInt(searchParams.get('maxPrice')) || 10000
-    ],
-    inStock: searchParams.get('inStock') === 'true',
-    isFeatured: searchParams.get('featured') === 'true',
-    isNewArrival: searchParams.get('newArrival') === 'true',
-    isBestSeller: searchParams.get('bestSeller') === 'true',
-    minRating: parseInt(searchParams.get('minRating')) || 0
-  });
 
-  // Extract categories and subcategories
+  // Initialize filters from URL
+  const initFiltersFromSearch = useCallback(() => {
+    const rawSub = searchParams.get('subcategories');
+    const subSlugs = rawSub
+      ? rawSub.split(',').map(s => decodeURIComponent(s)).filter(Boolean)
+      : [];
+
+    return {
+      subcategories: subSlugs,
+      priceRange: [
+        parseInt(searchParams.get('minPrice')) || 0,
+        parseInt(searchParams.get('maxPrice')) || 10000
+      ],
+      inStock: searchParams.get('inStock') === 'true',
+      isFeatured: searchParams.get('featured') === 'true',
+      isNewArrival: searchParams.get('newArrival') === 'true',
+      isBestSeller: searchParams.get('bestSeller') === 'true',
+      minRating: parseInt(searchParams.get('minRating')) || 0
+    };
+  }, [searchParams]);
+
+  const [filters, setFilters] = useState(initFiltersFromSearch);
+
+  // Extract categories and subcategories arrays
   const categories = categoriesData?.data || categoriesData || [];
   const subcategories = subcategoriesData?.data || subcategoriesData || [];
 
+  // Keep filters state in sync when URL/searchParams changes
+  useEffect(() => {
+    setFilters(initFiltersFromSearch());
+  }, [initFiltersFromSearch, location.search]);
+
   // Function to update URL with current filters
-  const updateURL = (newFilters) => {
+  const updateURL = useCallback((newFilters) => {
     const params = new URLSearchParams();
-    
-    // Add filter parameters
-    if (newFilters.categories.length > 0) {
-      params.set('categories', newFilters.categories.join(','));
-    }
-    
+
+    // subcategories are already slugs in state; encode for safety
     if (newFilters.subcategories.length > 0) {
-      params.set('subcategories', newFilters.subcategories.join(','));
+      params.set('subcategories', newFilters.subcategories.map(s => encodeURIComponent(s)).join(','));
     }
-    
+
     if (newFilters.priceRange[0] > 0) {
       params.set('minPrice', newFilters.priceRange[0].toString());
     }
-    
+
     if (newFilters.priceRange[1] < 10000) {
       params.set('maxPrice', newFilters.priceRange[1].toString());
     }
+
+    if (newFilters.inStock) params.set('inStock', 'true');
+    if (newFilters.isFeatured) params.set('featured', 'true');
+    if (newFilters.isNewArrival) params.set('newArrival', 'true');
+    if (newFilters.isBestSeller) params.set('bestSeller', 'true');
+    if (newFilters.minRating > 0) params.set('minRating', newFilters.minRating.toString());
+
+    // Use navigate instead of setSearchParams to avoid render phase updates
+    const newSearch = params.toString();
+    const newUrl = category ? `/shop/${category}${newSearch ? `?${newSearch}` : ''}` : `/shop${newSearch ? `?${newSearch}` : ''}`;
     
-    if (newFilters.inStock) {
-      params.set('inStock', 'true');
-    }
-    
-    if (newFilters.isFeatured) {
-      params.set('featured', 'true');
-    }
-    
-    if (newFilters.isNewArrival) {
-      params.set('newArrival', 'true');
-    }
-    
-    if (newFilters.isBestSeller) {
-      params.set('bestSeller', 'true');
-    }
-    
-    if (newFilters.minRating > 0) {
-      params.set('minRating', newFilters.minRating.toString());
-    }
-    
-    // Update URL without page reload
-    setSearchParams(params);
+    navigate(newUrl, { replace: true });
+  }, [category, navigate]);
+
+  // Update URL when filters change (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      updateURL(filters);
+    }, 300); // Debounce to prevent too frequent updates
+
+    return () => clearTimeout(timeoutId);
+  }, [filters, updateURL]);
+
+  // Handle filter changes
+  const handleFilterChange = (filterType, value) => {
+    setFilters(prev => {
+      let newFilters;
+
+      if (filterType === 'subcategories') {
+        // allow passing array (toggle-all) or single slug
+        if (Array.isArray(value)) {
+          newFilters = { ...prev, subcategories: value };
+        } else {
+          const currentFilters = prev.subcategories;
+          const updatedFilters = currentFilters.includes(value)
+            ? currentFilters.filter(item => item !== value)
+            : [...currentFilters, value];
+
+          newFilters = { ...prev, subcategories: updatedFilters };
+        }
+      } else if (filterType === 'priceRange') {
+        newFilters = { ...prev, priceRange: value };
+      } else {
+        newFilters = { ...prev, [filterType]: value };
+      }
+
+      return newFilters;
+    });
   };
 
-  // Utility function to extract products array from productsData
+  // Utility to extract products array from API data
   const extractProductsArray = useMemo(() => {
     if (!productsData) return [];
-    
+
     if (Array.isArray(productsData)) {
       return productsData;
     } else if (productsData.data && Array.isArray(productsData.data.products)) {
@@ -114,36 +156,23 @@ export default function Shop() {
     } else if (productsData.success && Array.isArray(productsData.data)) {
       return productsData.data;
     }
-    
+
     return [];
   }, [productsData]);
 
-  // Function to get product count for a category
-  const getProductCountByCategory = (categoryName) => {
-    return extractProductsArray.filter(product => {
-      const productCategory = product.category?.name || product.category;
-      return productCategory === categoryName;
-    }).length;
-  };
-
-  // Function to split products by color
+  // Helper: split product by color
   const splitProductsByColor = (apiProduct) => {
     if (!apiProduct || !apiProduct.variants) return [];
-    
+
     const colorGroups = {};
-    
-    // Group variants by color
+
     apiProduct.variants.forEach(variant => {
       const color = variant.color || 'Default';
       if (!colorGroups[color]) {
-        colorGroups[color] = {
-          variants: [],
-          variantImages: []
-        };
+        colorGroups[color] = { variants: [], variantImages: [] };
       }
       colorGroups[color].variants.push(variant);
-      
-      // Collect unique images for this color
+
       if (variant.variantImages) {
         variant.variantImages.forEach(img => {
           if (!colorGroups[color].variantImages.some(existing => existing.imageUrl === img.imageUrl)) {
@@ -152,27 +181,25 @@ export default function Shop() {
         });
       }
     });
-    
-    // Create separate product objects for each color
+
     return Object.entries(colorGroups).map(([color, colorData]) => {
-      const primaryImage = colorData.variantImages.find(img => img.isPrimary)?.imageUrl || 
-                          colorData.variantImages[0]?.imageUrl;
-      
-      // Calculate if this color has any stock
-      const hasStock = colorData.variants.some(variant => variant.stock > 0);
-      
-      // Get available sizes for this color
+      const primaryImage = colorData.variantImages.find(img => img.isPrimary)?.imageUrl ||
+        colorData.variantImages[0]?.imageUrl ||
+        apiProduct.image ||
+        (apiProduct.images && apiProduct.images[0]);
+
+      const hasStock = colorData.variants.some(variant => (variant.stock ?? 0) > 0);
+
       const availableSizes = colorData.variants
-        .filter(variant => variant.stock > 0)
-        .map(variant => variant.size);
-      
-      // Format price with currency symbol
+        .filter(variant => (variant.stock ?? 0) > 0)
+        .map(variant => variant.size)
+        .filter(Boolean);
+
       const formatPrice = (price) => {
         if (price === undefined || price === null) return "₹0";
         return `₹${price}`;
       };
 
-      // Determine which price to show based on user role
       let displayPrice;
       let originalPrice;
       let priceLabel = "";
@@ -191,132 +218,106 @@ export default function Shop() {
         priceLabel = "";
       }
 
+      const subcatName = apiProduct.subcategory?.name || apiProduct.subcategory || "";
+      const categoryName = apiProduct.category?.name || apiProduct.category || "";
+
       return {
         id: `${apiProduct.id || apiProduct._id}-${color}`,
         baseProductId: apiProduct.id || apiProduct._id,
         title: apiProduct.name || apiProduct.title || "Unnamed Product",
         displayTitle: `${apiProduct.name || apiProduct.title || "Unnamed Product"} (${color})`,
-        color: color,
-        category: apiProduct.category?.name || apiProduct.category || "Uncategorized",
-        subcategory: apiProduct.subcategory?.name || apiProduct.subcategory || "",
+        color,
+        category: categoryName,
+        categorySlug: createSlug(categoryName),
+        subcategory: subcatName,
+        subcategorySlug: createSlug(subcatName),
         price: displayPrice,
-        originalPrice: originalPrice,
-        priceLabel: priceLabel,
+        originalPrice,
+        priceLabel,
         image: primaryImage,
         variants: colorData.variants,
         variantImages: colorData.variantImages,
         inStock: hasStock,
-        availableSizes: availableSizes,
-        normalPrice: apiProduct.normalPrice,
-        offerPrice: apiProduct.offerPrice,
-        wholesalePrice: apiProduct.wholesalePrice,
+        availableSizes,
+        normalPrice: apiProduct.normalPrice || 0,
+        offerPrice: apiProduct.offerPrice || null,
+        wholesalePrice: apiProduct.wholesalePrice || null,
         avgRating: apiProduct.avgRating || 0,
         totalRatings: apiProduct.totalRatings || 0,
-        isWholesaleUser: isWholesaleUser,
+        isWholesaleUser,
         isFeatured: apiProduct.featured || false,
         isNewArrival: apiProduct.isNewArrival || false,
         isBestSeller: apiProduct.isBestSeller || false,
         productDetails: apiProduct.productDetails || [],
-        description: apiProduct.description,
+        description: apiProduct.description || "",
         ratings: apiProduct.ratings || [],
         selectedColor: color
       };
     });
   };
 
-  // Filter products based on multiple criteria
+  // Filtering effect — runs when data / category / filters change
   useEffect(() => {
-    if (productsData && extractProductsArray.length > 0) {
-      let filtered = extractProductsArray;
-      
-      // Filter by URL category first
-      if (category && category !== "all") {
-        filtered = extractProductsArray.filter((product) => {
-          const productCategory = product.category?.name || product.category;
-          if (!productCategory) return false;
-          
-          // Create URL-safe category name for comparison
-          const productCategorySlug = productCategory.toLowerCase().replace(/\s+/g, '-');
-          return productCategorySlug === category.toLowerCase();
-        });
+    if (extractProductsArray.length === 0) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    let filtered = extractProductsArray;
+
+    // Filter by URL category first - this is the main category from navigation
+    if (category && category !== "all") {
+      filtered = extractProductsArray.filter((product) => {
+        const productCategory = product.category?.name || product.category || "";
+        const productCategorySlug = createSlug(productCategory);
+        return productCategorySlug === category.toLowerCase();
+      });
+    }
+
+    // Apply additional filters
+    filtered = filtered.filter(product => {
+      // Subcategory filter (compare slug)
+      if (filters.subcategories.length > 0) {
+        const productSubName = product.subcategory?.name || product.subcategory || "";
+        const productSubSlug = createSlug(productSubName);
+        if (!filters.subcategories.includes(productSubSlug)) return false;
       }
 
-      // Apply additional filters
-      filtered = filtered.filter(product => {
-        // Category filter (from URL params)
-        if (filters.categories.length > 0) {
-          const productCategory = product.category?.name || product.category;
-          if (!filters.categories.includes(productCategory)) return false;
-        }
+      // Price range - use the correct price based on user type
+      let productPrice;
+      if (isWholesaleUser && product.wholesalePrice) {
+        productPrice = product.wholesalePrice;
+      } else if (product.offerPrice && product.offerPrice < product.normalPrice) {
+        productPrice = product.offerPrice;
+      } else {
+        productPrice = product.normalPrice || 0;
+      }
 
-        // Subcategory filter (from URL params)
-        if (filters.subcategories.length > 0) {
-          const productSubcategory = product.subcategory?.name || product.subcategory;
-          if (!filters.subcategories.includes(productSubcategory)) return false;
-        }
+      if (productPrice < filters.priceRange[0] || productPrice > filters.priceRange[1]) return false;
 
-        // Price range filter
-        const productPrice = product.normalPrice || 0;
-        if (productPrice < filters.priceRange[0] || productPrice > filters.priceRange[1]) return false;
+      // Stock filter
+      if (filters.inStock) {
+        const hasStock = product.variants?.some(variant => (variant.stock ?? 0) > 0);
+        if (!hasStock) return false;
+      }
 
-        // Stock filter
-        if (filters.inStock) {
-          const hasStock = product.variants?.some(variant => variant.stock > 0);
-          if (!hasStock) return false;
-        }
+      // Featured / new / bestseller / rating filters
+      if (filters.isFeatured && !product.featured) return false;
+      if (filters.isNewArrival && !product.isNewArrival) return false;
+      if (filters.isBestSeller && !product.isBestSeller) return false;
+      if ((product.avgRating || 0) < filters.minRating) return false;
 
-        // Featured filter
-        if (filters.isFeatured && !product.featured) return false;
+      return true;
+    });
 
-        // New arrival filter
-        if (filters.isNewArrival && !product.isNewArrival) return false;
-
-        // Best seller filter
-        if (filters.isBestSeller && !product.isBestSeller) return false;
-
-        // Rating filter
-        if (product.avgRating < filters.minRating) return false;
-
-        return true;
-      });
-      
-      // Split each product by color
-      const colorBasedProducts = filtered.flatMap(product => splitProductsByColor(product));
-      
-      setFilteredProducts(colorBasedProducts);
-    } else {
-      setFilteredProducts([]);
-    }
+    // Split by color and produce flattened list
+    const colorBasedProducts = filtered.flatMap(product => splitProductsByColor(product));
+    setFilteredProducts(colorBasedProducts);
   }, [productsData, category, isWholesaleUser, filters, extractProductsArray]);
 
-  // Handle filter changes
-  const handleFilterChange = (filterType, value) => {
-    setFilters(prev => {
-      let newFilters;
-      
-      if (filterType === 'categories' || filterType === 'subcategories') {
-        const currentFilters = prev[filterType];
-        const updatedFilters = currentFilters.includes(value)
-          ? currentFilters.filter(item => item !== value)
-          : [...currentFilters, value];
-        
-        newFilters = { ...prev, [filterType]: updatedFilters };
-      } else if (filterType === 'priceRange') {
-        newFilters = { ...prev, priceRange: value };
-      } else {
-        newFilters = { ...prev, [filterType]: value };
-      }
-      
-      // Update URL whenever filters change
-      updateURL(newFilters);
-      return newFilters;
-    });
-  };
-
-  // Clear all filters
+  // Clear all filters (preserve main category path)
   const clearAllFilters = () => {
     const clearedFilters = {
-      categories: [],
       subcategories: [],
       priceRange: [0, 10000],
       inStock: false,
@@ -325,25 +326,24 @@ export default function Shop() {
       isBestSeller: false,
       minRating: 0
     };
-    
+
     setFilters(clearedFilters);
-    // Clear URL parameters but keep the category
+
+    // Clear URL params but keep route
     if (category) {
-      setSearchParams({});
+      navigate(`/shop/${category}`, { replace: true });
     } else {
-      navigate('/shop');
+      navigate('/shop', { replace: true });
     }
   };
 
-  // Function to copy shareable URL
+  // Copy URL helper
   const copyShareableURL = () => {
     const currentURL = window.location.href;
-    navigator.clipboard.writeText(currentURL)
-      .then(() => {
-        alert('Filtered URL copied to clipboard!');
-      })
+    navigator.clipboard?.writeText(currentURL)
+      .then(() => alert('Filtered URL copied to clipboard!'))
       .catch(() => {
-        // Fallback for older browsers
+        // fallback
         const textArea = document.createElement('textarea');
         textArea.value = currentURL;
         document.body.appendChild(textArea);
@@ -354,30 +354,26 @@ export default function Shop() {
       });
   };
 
-  const handleCartUpdate = () => {
-    setShowCartSidebar(true);
-  };
+  const handleCartUpdate = () => setShowCartSidebar(true);
 
-  // 🎨 Theme-based colors
+  // Theme classes
   const isDark = theme === "dark";
   const bg = isDark ? "bg-black" : "bg-white";
   const text = isDark ? "text-white" : "text-black";
-  const textColor = isDark ? "text-white" : "text-black";
   const subText = isDark ? "text-gray-400" : "text-gray-600";
   const borderColor = isDark ? "border-gray-700" : "border-gray-200";
   const hoverBg = isDark ? "hover:bg-gray-800" : "hover:bg-gray-50";
 
-  // Get display name for category
+  // Category display name helper
   const getCategoryDisplayName = () => {
     if (!category) return "All Products";
-    
-    // Find the category by slug
+
     const foundCategory = categories.find(cat => {
       const categorySlug = cat.name.toLowerCase().replace(/\s+/g, '-');
       return categorySlug === category.toLowerCase();
     });
-    
-    return foundCategory ? `${foundCategory.name}'s Collections` : `${category}'s Collections`;
+
+    return foundCategory ? `${foundCategory.name}'s Collections` : `${category.replace('-', ' ')}'s Collections`;
   };
 
   // Loading state
@@ -421,11 +417,10 @@ export default function Shop() {
 
   return (
     <section className={`pb-10 pt-12 px-6 min-h-screen transition-colors duration-500 ${bg} ${text}`}>
-      {/* Page Header */}
+      {/* Header */}
       <h1 className="text-3xl font-bold font-italiana tracking-widest lg:text-5xl text-center mb-6 capitalize">
         {category ? getCategoryDisplayName() : "All Products"}
       </h1>
-
 
       {/* Mobile Filter Button */}
       <div className="lg:hidden flex justify-between items-center mb-6">
@@ -482,7 +477,7 @@ export default function Shop() {
               </button>
             </div>
 
-            {/* Filter Header */}
+            {/* Header + Clear */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Filters</h2>
               <button
@@ -493,58 +488,61 @@ export default function Shop() {
               </button>
             </div>
 
-            {/* Categories Filter */}
-            <div className="mb-8">
-              <h3 className="font-semibold mb-4 text-lg">Categories</h3>
-              <div className="space-y-2">
-                {categories.map((cat) => {
-                  const categoryName = cat.name;
-                  const categorySlug = categoryName.toLowerCase().replace(/\s+/g, '-');
-                  const isActive = category === categorySlug;
-                  
-                  return (
-                    <label key={cat.id || cat._id} className="flex items-center gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={filters.categories.includes(categoryName) || isActive}
-                        onChange={() => handleFilterChange('categories', categoryName)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="group-hover:text-blue-500 transition-colors capitalize">
-                        {categoryName}
-                      </span>
-                      <span className="text-xs text-gray-500 ml-auto">
-                        ({getProductCountByCategory(categoryName)})
-                      </span>
-                    </label>
-                  );
-                })}
+            {/* Category info */}
+            {category && (
+              <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Viewing: <span className="capitalize">{getCategoryDisplayName()}</span>
+                </p>
+                <button
+                  onClick={() => navigate('/shop')}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1"
+                >
+                  View All Products
+                </button>
               </div>
-            </div>
+            )}
 
-            {/* Subcategories Filter */}
+            {/* Subcategories */}
             {subcategories.length > 0 && (
               <div className="mb-8">
                 <h3 className="font-semibold mb-4 text-lg">Subcategories</h3>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {subcategories.map((subcat) => (
-                    <label key={subcat.id || subcat._id} className="flex items-center gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={filters.subcategories.includes(subcat.name)}
-                        onChange={() => handleFilterChange('subcategories', subcat.name)}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="group-hover:text-blue-500 transition-colors capitalize">
-                        {subcat.name}
-                      </span>
-                    </label>
-                  ))}
+                  {subcategories
+                    .filter(subcat => {
+                      // If we're in a category, only show subcategories for that category
+                      if (category) {
+                        const categoryName = categories.find(cat => {
+                          const categorySlug = cat.name.toLowerCase().replace(/\s+/g, '-');
+                          return categorySlug === category.toLowerCase();
+                        })?.name;
+                        
+                        const subcatCategory = subcat.category?.name || subcat.category;
+                        return subcatCategory === categoryName;
+                      }
+                      return true;
+                    })
+                    .map((subcat) => {
+                      const subcatSlug = createSlug(subcat.name);
+                      return (
+                        <label key={subcat.id || subcat._id} className="flex items-center gap-3 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={filters.subcategories.includes(subcatSlug)}
+                            onChange={() => handleFilterChange('subcategories', subcatSlug)}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="group-hover:text-blue-500 transition-colors capitalize">
+                            {subcat.name}
+                          </span>
+                        </label>
+                      );
+                    })}
                 </div>
               </div>
             )}
 
-            {/* Price Range Filter */}
+            {/* Price Range */}
             <div className="mb-8">
               <h3 className="font-semibold mb-4 text-lg">Price Range</h3>
               <div className="space-y-4">
@@ -552,15 +550,26 @@ export default function Shop() {
                   <span>₹{filters.priceRange[0]}</span>
                   <span>₹{filters.priceRange[1]}</span>
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="10000"
-                  step="100"
-                  value={filters.priceRange[1]}
-                  onChange={(e) => handleFilterChange('priceRange', [filters.priceRange[0], parseInt(e.target.value)])}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                <div className="flex flex-col gap-4">
+                  <input
+                    type="range"
+                    min="0"
+                    max="10000"
+                    step="100"
+                    value={filters.priceRange[0]}
+                    onChange={(e) => handleFilterChange('priceRange', [parseInt(e.target.value), filters.priceRange[1]])}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="10000"
+                    step="100"
+                    value={filters.priceRange[1]}
+                    onChange={(e) => handleFilterChange('priceRange', [filters.priceRange[0], parseInt(e.target.value)])}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -626,7 +635,7 @@ export default function Shop() {
               </div>
             </div>
 
-            {/* Rating Filter */}
+            {/* Rating */}
             <div className="mb-8">
               <h3 className="font-semibold mb-4 text-lg">Minimum Rating</h3>
               <div className="space-y-2">
@@ -657,33 +666,26 @@ export default function Shop() {
               </div>
             </div>
 
-            {/* Active Filters */}
-            {(filters.categories.length > 0 || filters.subcategories.length > 0 || filters.inStock || filters.isFeatured || filters.isNewArrival || filters.isBestSeller || filters.minRating > 0) && (
+            {/* Active Filters (chips) */}
+            {(filters.subcategories.length > 0 || filters.inStock || filters.isFeatured || filters.isNewArrival || filters.isBestSeller || filters.minRating > 0) && (
               <div className="mb-8">
                 <h3 className="font-semibold mb-4 text-lg">Active Filters</h3>
                 <div className="flex flex-wrap gap-2">
-                  {filters.categories.map(cat => (
-                    <span key={cat} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                      {cat}
-                      <button 
-                        onClick={() => handleFilterChange('categories', cat)}
-                        className="hover:text-blue-900"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  {filters.subcategories.map(subcat => (
-                    <span key={subcat} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                      {subcat}
-                      <button 
-                        onClick={() => handleFilterChange('subcategories', subcat)}
-                        className="hover:text-green-900"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                  {filters.subcategories.map(subcatSlug => {
+                    // Find readable name if available
+                    const readable = subcategories.find(s => createSlug(s.name) === subcatSlug)?.name || subcatSlug;
+                    return (
+                      <span key={subcatSlug} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                        {readable}
+                        <button 
+                          onClick={() => handleFilterChange('subcategories', subcatSlug)}
+                          className="hover:text-green-900"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
                   {filters.inStock && (
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
                       In Stock
@@ -747,25 +749,6 @@ export default function Shop() {
 
         {/* Main Content */}
         <div className="flex-1">
-          {/* Results Summary */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="text-sm text-gray-500">
-              Showing {filteredProducts.length} of {extractProductsArray.length} products
-              {category && ` in ${getCategoryDisplayName()}`}
-            </div>
-            
-            {/* Sort Options */}
-            <div className="flex items-center gap-2">
-              <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-                <option>Sort by: Featured</option>
-                <option>Price: Low to High</option>
-                <option>Price: High to Low</option>
-                <option>Rating: High to Low</option>
-                <option>Newest First</option>
-              </select>
-            </div>
-          </div>
-
           {filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <svg className="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -786,8 +769,7 @@ export default function Shop() {
             </div>
           ) : (
             <>
-              {/* Product Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 md:grid-cols-3 xl:grid-cols-3 gap-8">
                 {filteredProducts.map((product) => (
                   <ProductCard 
                     key={product.id} 
@@ -797,7 +779,6 @@ export default function Shop() {
                 ))}
               </div>
 
-              {/* Load More Button (Optional) */}
               {filteredProducts.length > 0 && (
                 <div className="text-center mt-12">
                   <button className="px-8 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">

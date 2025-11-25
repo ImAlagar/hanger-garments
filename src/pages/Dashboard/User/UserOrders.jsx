@@ -22,7 +22,9 @@ import {
   FaTag,
   FaShippingFast,
   FaCreditCard,
-  FaUser
+  FaUser,
+  FaPalette,
+  FaImage
 } from 'react-icons/fa';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -262,12 +264,13 @@ const UserOrders = () => {
     }
   };
 
-  const tabs = [
-    { key: 'items', label: 'Order Items', icon: FaListUl, color: 'text-blue-600' },
-    { key: 'shipping', label: 'Shipping Info', icon: FaMapMarkerAlt, color: 'text-purple-600' },
-    { key: 'tracking', label: 'Order Tracking', icon: FaShippingFast, color: 'text-orange-600' },
-    { key: 'summary', label: 'Order Summary', icon: FaReceipt, color: 'text-emerald-600' }
-  ];
+const tabs = [
+  { key: 'items', label: 'Order Items', icon: FaListUl, color: 'text-blue-600' },
+  { key: 'custom', label: 'Custom Designs', icon: FaPalette, color: 'text-purple-600' }, // Add this
+  { key: 'shipping', label: 'Shipping Info', icon: FaMapMarkerAlt, color: 'text-purple-600' },
+  { key: 'tracking', label: 'Order Tracking', icon: FaShippingFast, color: 'text-orange-600' },
+  { key: 'summary', label: 'Order Summary', icon: FaReceipt, color: 'text-emerald-600' }
+];
 
   if (!user || isLoading) {
     return (
@@ -751,8 +754,51 @@ const UserOrders = () => {
                                       </motion.div>
                                     ))}
                                   </div>
+
+                                  
                                 </div>
                               )}
+
+                              {/* Custom Designs Tab */}
+                              {activeTab === 'custom' && (
+                                <div className="space-y-4">
+                                  <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                                    <FaPalette className="w-5 h-5 text-purple-600 mr-2" />
+                                    Custom Design Images ({order.customImages?.length || 0})
+                                  </h4>
+                                  
+                                  {order.customImages && order.customImages.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                      {order.customImages.map((customImage, index) => (
+                                        <motion.div
+                                          key={customImage.id}
+                                          initial={{ opacity: 0, scale: 0.9 }}
+                                          animate={{ opacity: 1, scale: 1 }}
+                                          transition={{ delay: 0.1 * index }}
+                                          className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300"
+                                        >
+                                          <img
+                                            src={customImage.imageUrl}
+                                            alt={customImage.filename || `Custom Design ${index + 1}`}
+                                            className="w-full h-48 object-cover"
+                                          />
+                                          <div className="p-3">
+                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                              {customImage.filename ? customImage.filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' ') : `Custom Design ${index + 1}`}
+                                            </p>
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
+                                      <FaImage className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                      <p className="text-gray-600">No custom design images for this order</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
 
                               {/* Shipping Address Tab */}
                               {activeTab === 'shipping' && (

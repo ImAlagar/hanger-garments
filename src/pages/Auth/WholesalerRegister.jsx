@@ -19,6 +19,8 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import { useRegisterMutation } from "../../redux/services/authService";
 import hangerImage from "../../assets/categories/tshirt.webp";
+import logo from "../../assets/images/logo.png";
+import logowhite from "../../assets/images/logowhite.png";
 
 const WholesalerRegister = () => {
   const { theme } = useTheme();
@@ -50,6 +52,9 @@ const WholesalerRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Determine which logo to use based on theme
+  const currentLogo = theme === "dark" ? logowhite : logo;
 
   const businessTypes = [
     { value: "CLOTHING_STORE", label: "Clothing Store" },
@@ -229,7 +234,6 @@ const WholesalerRegister = () => {
         });
       }
 
-
       const result = await register(submitData).unwrap();
       
       if (result?.success) {
@@ -318,17 +322,31 @@ const WholesalerRegister = () => {
           variants={itemVariants}
           className="text-center max-w-md z-10 relative"
         >
+          {/* Logo */}
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
+          </motion.div>
+          
           <motion.div 
             className="mb-8"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
           >
-            <h1 className="text-5xl font-Italiana font-bold text-white mb-4 leading-tight">
+            <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
               Hanger<br />Garments
             </h1>
             <motion.p 
-              className="text-xl text-gray-300 font-SpaceGrotesk mt-6"
+              className="text-xl text-gray-300 font-bai-jamjuree mt-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
@@ -343,14 +361,14 @@ const WholesalerRegister = () => {
             transition={{ delay: 0.4, duration: 0.7 }}
           >
             <motion.h2 
-              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3"
+              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3 font-bai-jamjuree"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
               <FaBuilding className="w-7 h-7" />
               Become a Wholesaler
             </motion.h2>
-            <p className="text-gray-300 leading-relaxed text-lg">
+            <p className="text-gray-300 leading-relaxed text-lg font-instrument">
               Join our network of trusted wholesale partners. Get access to exclusive pricing, bulk orders, and premium collections.
             </p>
           </motion.div>
@@ -364,13 +382,17 @@ const WholesalerRegister = () => {
           className={`relative w-full max-w-2xl rounded-2xl shadow-lg p-8 border ${card}`}
         >
           {/* Header Icon */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="flex justify-center mb-6"
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
           >
-            <FaUserCircle className={`text-6xl ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`} />
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </motion.div>
 
           <motion.h2
@@ -392,7 +414,7 @@ const WholesalerRegister = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {error}
               </motion.div>
@@ -407,7 +429,7 @@ const WholesalerRegister = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {success}
               </motion.div>
@@ -435,7 +457,7 @@ const WholesalerRegister = () => {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -453,7 +475,7 @@ const WholesalerRegister = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -472,7 +494,7 @@ const WholesalerRegister = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none ${
+                className={`w-full bg-transparent border-none outline-none font-instrument ${
                   theme === "dark" 
                     ? "text-white placeholder-gray-500" 
                     : "text-gray-900 placeholder-gray-400"
@@ -491,7 +513,7 @@ const WholesalerRegister = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none pr-8 ${
+                  className={`w-full bg-transparent border-none outline-none pr-8 font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -515,7 +537,7 @@ const WholesalerRegister = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none pr-8 ${
+                  className={`w-full bg-transparent border-none outline-none pr-8 font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -543,7 +565,7 @@ const WholesalerRegister = () => {
                   value={formData.city}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -561,7 +583,7 @@ const WholesalerRegister = () => {
                   value={formData.state}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -570,34 +592,34 @@ const WholesalerRegister = () => {
               </div>
             </div>
 
-        {/* Business Type */}
-        <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
-          <FaBuilding className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
-          <select
-            name="businessType"
-            value={formData.businessType}
-            onChange={handleChange}
-            required
-            className={`w-full bg-transparent border-none outline-none ${
-              theme === "dark" 
-                ? "text-white bg-gray-800" 
-                : "text-gray-900 bg-white"
-            } py-2 px-1 rounded`}
-          >
-            <option value="" className={theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"}>
-              Select Business Type
-            </option>
-            {businessTypes.map(type => (
-              <option 
-                key={type.value} 
-                value={type.value}
-                className={theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"}
+            {/* Business Type */}
+            <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
+              <FaBuilding className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
+              <select
+                name="businessType"
+                value={formData.businessType}
+                onChange={handleChange}
+                required
+                className={`w-full bg-transparent border-none outline-none font-instrument ${
+                  theme === "dark" 
+                    ? "text-white bg-gray-800" 
+                    : "text-gray-900 bg-white"
+                } py-2 px-1 rounded`}
               >
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </div>
+                <option value="" className={theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"}>
+                  Select Business Type
+                </option>
+                {businessTypes.map(type => (
+                  <option 
+                    key={type.value} 
+                    value={type.value}
+                    className={theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"}
+                  >
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Type-specific Fields */}
 
@@ -616,7 +638,7 @@ const WholesalerRegister = () => {
                   value={formData.companyName}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -641,7 +663,7 @@ const WholesalerRegister = () => {
                   onChange={handleChange}
                   maxLength={15}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -665,7 +687,7 @@ const WholesalerRegister = () => {
                   value={formData.websiteUrl}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -689,7 +711,7 @@ const WholesalerRegister = () => {
                   value={formData.instagramUrl}
                   onChange={handleChange}
                   required
-                  className={`w-full bg-transparent border-none outline-none ${
+                  className={`w-full bg-transparent border-none outline-none font-instrument ${
                     theme === "dark" 
                       ? "text-white placeholder-gray-500" 
                       : "text-gray-900 placeholder-gray-400"
@@ -717,7 +739,7 @@ const WholesalerRegister = () => {
                   multiple
                   accept="image/*"
                   onChange={handlePhotoUpload}
-                  className="w-full text-sm"
+                  className="w-full text-sm font-instrument"
                 />
                 
                 {shopPhotos.length > 0 && (
@@ -777,7 +799,7 @@ const WholesalerRegister = () => {
               Already have an account?{" "}
               <Link
                 to="/wholesaler/login"
-                className={`cursor-pointer font-semibold ${
+                className={`cursor-pointer font-semibold font-instrument ${
                   theme === "dark"
                     ? "text-purple-400 hover:text-purple-300"
                     : "text-purple-600 hover:text-purple-800"
@@ -792,7 +814,7 @@ const WholesalerRegister = () => {
             >
               <Link 
                 to="/register" 
-                className={`block text-sm ${
+                className={`block text-sm font-instrument ${
                   theme === "dark" 
                     ? "text-gray-400 hover:text-gray-300" 
                     : "text-gray-600 hover:text-gray-800"
@@ -800,7 +822,6 @@ const WholesalerRegister = () => {
               >
                 Register as Customer
               </Link>
-              
             </motion.div>
           </motion.div>
         </motion.div>

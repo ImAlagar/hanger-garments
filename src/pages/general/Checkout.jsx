@@ -824,83 +824,117 @@ const Checkout = () => {
             </div>
 
             {/* Payment Method */}
-            <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
-                <span className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-purple-600 dark:text-purple-400 text-sm">3</span>
-                </span>
-                Payment Method
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Online Payment Option */}
-                <div 
-                  className={`border-2 ${
-                    orderData.paymentMethod === "ONLINE" 
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                      : "border-gray-300 dark:border-gray-600"
-                  } rounded-lg p-4 cursor-pointer transition-all`}
-                  onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "ONLINE" }))}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <CreditCard className="w-6 h-6 text-blue-500" />
-                      <div>
-                        <h3 className="font-semibold">Pay Online</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Credit/Debit Card, UPI, Net Banking
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 ${
-                      orderData.paymentMethod === "ONLINE" 
-                        ? "bg-blue-500 border-blue-500" 
-                        : "border-gray-400"
-                    }`}></div>
-                  </div>
-                  
-                  {orderData.paymentMethod === "ONLINE" && (
-                    <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center justify-center space-x-6 mb-4">
-                        <img src="/images/razorpay-logo.png" alt="Razorpay" className="h-8" />
-                        <img src="/images/upi-logo.png" alt="UPI" className="h-8" />
-                        <img src="/images/cards-logo.png" alt="Cards" className="h-8" />
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                        Secure payment powered by Razorpay
+          <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <span className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mr-2">
+                <span className="text-purple-600 dark:text-purple-400 text-sm">3</span>
+              </span>
+              Payment Method
+            </h2>
+            
+            <div className="space-y-4">
+              {/* Online Payment Option */}
+              <div 
+                className={`border-2 ${
+                  orderData.paymentMethod === "ONLINE" 
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
+                    : "border-gray-300 dark:border-gray-600"
+                } rounded-lg p-4 cursor-pointer transition-all`}
+                onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "ONLINE" }))}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <CreditCard className="w-6 h-6 text-blue-500" />
+                    <div>
+                      <h3 className="font-semibold">Pay Online</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Credit/Debit Card, UPI, Net Banking
                       </p>
                     </div>
-                  )}
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 ${
+                    orderData.paymentMethod === "ONLINE" 
+                      ? "bg-blue-500 border-blue-500" 
+                      : "border-gray-400"
+                  }`}></div>
                 </div>
-
-                {/* COD Option */}
-                <div 
-                  className={`border-2 ${
-                    orderData.paymentMethod === "COD" 
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
-                      : "border-gray-300 dark:border-gray-600"
-                  } rounded-lg p-4 cursor-pointer transition-all`}
-                  onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "COD" }))}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Truck className="w-6 h-6 text-green-500" />
-                      <div>
-                        <h3 className="font-semibold">Cash on Delivery</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Pay when you receive your order
-                        </p>
+                
+                {orderData.paymentMethod === "ONLINE" && (
+                  <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-center space-x-6 mb-4">
+                      {/* Razorpay Icon */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                          <CreditCard className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Razorpay</span>
+                      </div>
+                      
+                      {/* UPI Icon */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">UPI</span>
+                      </div>
+                      
+                      {/* Cards Icon */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                          </svg>
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Cards</span>
+                      </div>
+                      
+                      {/* Wallet Icon */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Wallet</span>
                       </div>
                     </div>
-                    <div className={`w-5 h-5 rounded-full border-2 ${
-                      orderData.paymentMethod === "COD" 
-                        ? "bg-green-500 border-green-500" 
-                        : "border-gray-400"
-                    }`}></div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                      Secure payment powered by Razorpay
+                    </p>
                   </div>
+                )}
+              </div>
+
+              {/* COD Option */}
+              <div 
+                className={`border-2 ${
+                  orderData.paymentMethod === "COD" 
+                    ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
+                    : "border-gray-300 dark:border-gray-600"
+                } rounded-lg p-4 cursor-pointer transition-all`}
+                onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "COD" }))}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Truck className="w-6 h-6 text-green-500" />
+                    <div>
+                      <h3 className="font-semibold">Cash on Delivery</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Pay when you receive your order
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 ${
+                    orderData.paymentMethod === "COD" 
+                      ? "bg-green-500 border-green-500" 
+                      : "border-gray-400"
+                  }`}></div>
                 </div>
               </div>
             </div>
+          </div>
 
             {/* Coupon Section */}
             <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>

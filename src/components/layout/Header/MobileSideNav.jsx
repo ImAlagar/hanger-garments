@@ -20,7 +20,8 @@ import {
   FiTwitter,
   FiYoutube,
   FiAward,
-  FiStar
+  FiStar,
+  FiPlus
 } from 'react-icons/fi';
 
 // Import constants
@@ -31,6 +32,10 @@ import {
 import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
 import { useGetAllCategoriesQuery } from '../../../redux/services/categoryService';
 import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
+
+// Import logos
+import logowhite from "../../../assets/images/logowhite.png";
+import logoblack from "../../../assets/images/logo.png";
 
 const MobileSideNav = ({
   theme,
@@ -55,6 +60,7 @@ const MobileSideNav = ({
   const { category } = useParams();
   const [categoryDropdowns, setCategoryDropdowns] = useState({});
   const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [authDropdownOpen, setAuthDropdownOpen] = useState(false);
 
   // Fetch categories and subcategories
   const { 
@@ -83,6 +89,11 @@ const MobileSideNav = ({
     }
     return acc;
   }, {});
+
+  // Get the appropriate logo based on theme
+  const getLogo = () => {
+    return theme === "dark" ? logowhite : logoblack;
+  };
 
   const isActivePath = (path) => {
     return location.pathname === path;
@@ -116,6 +127,10 @@ const MobileSideNav = ({
     }));
   };
 
+  const toggleAuthDropdown = () => {
+    setAuthDropdownOpen(!authDropdownOpen);
+  };
+
   const handleCategoryClick = (categoryName) => {
     const categorySlug = createCategorySlug(categoryName);
     navigate(`/shop/${categorySlug}`);
@@ -132,6 +147,56 @@ const MobileSideNav = ({
     navigate(url);
     setMenuOpen(false);
   };
+
+  // Auth navigation handlers
+  const handleUserLogin = () => {
+    navigate('/login');
+    setMenuOpen(false);
+  };
+
+  const handleWholesalerLogin = () => {
+    navigate('/wholesaler/login');
+    setMenuOpen(false);
+  };
+
+  const handleUserRegister = () => {
+    navigate('/register');
+    setMenuOpen(false);
+  };
+
+  const handleWholesalerRegister = () => {
+    navigate('/wholesaler/register');
+    setMenuOpen(false);
+  };
+
+  // Close sidebar when clicking on backdrop
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      setMenuOpen(false);
+    }
+  };
+
+  // Close sidebar when pressing Escape key
+  useEffect(() => {
+    const handleEscapeKey = (e) => {
+      if (e.key === 'Escape' && menuOpen) {
+        setMenuOpen(false);
+      }
+    };
+
+    if (menuOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+      // Prevent body scroll when sidebar is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [menuOpen, setMenuOpen]);
 
   const ThemeToggle = ({ theme, toggleTheme }) => (
     <motion.button
@@ -153,10 +218,8 @@ const MobileSideNav = ({
   );
 
   const socialIcons = [
-    { icon: FiInstagram, href: "https://instagram.com" },
-    { icon: FiFacebook, href: "https://facebook.com" },
-    { icon: FiTwitter, href: "https://twitter.com" },
-    { icon: FiYoutube, href: "https://youtube.com" }
+    { icon: FiInstagram, href: "https://www.instagram.com/hanger_garments/" },
+    { icon: FiFacebook, href: "https://www.facebook.com/share/19yyr4QjpU/?mibextid=wwXIfr" },
   ];
 
   // Collections data
@@ -187,13 +250,21 @@ const MobileSideNav = ({
     <AnimatePresence>
       {menuOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Fixed to cover entire screen */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden"
-            onClick={() => setMenuOpen(false)}
+            onClick={handleBackdropClick}
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0,
+              cursor: 'pointer'
+            }}
           />
 
           {/* Side Navigation */}
@@ -207,13 +278,22 @@ const MobileSideNav = ({
                 ? 'bg-gray-900 text-white' 
                 : 'bg-white text-gray-900'
             }`}
+            onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking inside sidebar
           >
-            {/* Header */}
+            {/* Header with Logo */}
             <div className={`p-6 border-b ${
               theme === 'dark' ? 'border-gray-800' : 'border-gray-100'
             }`}>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold tracking-tight">Hanger Garments</h2>
+                <div className="flex items-center">
+                  {/* Logo */}
+                  <img 
+                    src={getLogo()} 
+                    alt="Garments Logo" 
+                    className="h-8 w-auto mr-3"
+                  />
+                  <h2 className="text-xl font-bold tracking-tight font-italiana">Hanger Garments</h2>
+                </div>
                 <motion.button
                   onClick={() => setMenuOpen(false)}
                   className={`p-2 rounded-xl ${
@@ -503,14 +583,143 @@ const MobileSideNav = ({
                   theme === "dark" ? "border-gray-800" : "border-gray-200"
                 }`}>
                   {!isLoggedIn ? (
-                    <motion.button
-                      onClick={handleLoginClick}
-                      className="w-full bg-gradient-to-r from-purple-600 to-purple-800 text-white px-4 py-3.5 rounded-xl shadow-lg text-base font-semibold transition-all duration-300 hover:shadow-purple-500/25 hover:scale-[1.02]"
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <FiUser className="inline mr-2 size-4" />
-                      Login to Account
-                    </motion.button>
+                    <div className="space-y-2">
+                      {/* Auth Dropdown Toggle */}
+                      <motion.button
+                        onClick={toggleAuthDropdown}
+                        className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-base transition-all duration-200 ${
+                          theme === "dark"
+                            ? "text-gray-200 hover:bg-gray-800/50"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }`}
+                        whileHover={{ x: 4 }}
+                      >
+                        <div className="flex items-center">
+                          <FiUser className="size-4 mr-3 text-purple-500" />
+                          Login to Account
+                        </div>
+                        <FiChevronDown className={`size-4 transition-transform ${authDropdownOpen ? 'rotate-180' : ''}`} />
+                      </motion.button>
+
+                      {/* Auth Dropdown Content */}
+                      <AnimatePresence>
+                        {authDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="ml-4 space-y-2 border-l-2 border-purple-500/20"
+                          >
+                            {/* Login Options */}
+                            <div className="pt-2">
+                              <div className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                Login Options
+                              </div>
+                              
+                              {/* User Login */}
+                              <motion.button
+                                onClick={handleUserLogin}
+                                className={`flex items-center w-full px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
+                                  theme === "dark"
+                                    ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                    : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                }`}
+                                whileHover={{ x: 4 }}
+                              >
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
+                                  theme === "dark" ? "bg-purple-900" : "bg-purple-100"
+                                }`}>
+                                  <FiUser className={`size-4 ${theme === "dark" ? "text-purple-300" : "text-purple-600"}`} />
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium">User Login</div>
+                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                    For regular customers
+                                  </div>
+                                </div>
+                              </motion.button>
+
+                              {/* Wholesaler Login */}
+                              <motion.button
+                                onClick={handleWholesalerLogin}
+                                className={`flex items-center w-full px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
+                                  theme === "dark"
+                                    ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                    : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                }`}
+                                whileHover={{ x: 4 }}
+                              >
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
+                                  theme === "dark" ? "bg-blue-900" : "bg-blue-100"
+                                }`}>
+                                  <FiShoppingBag className={`size-4 ${theme === "dark" ? "text-blue-300" : "text-blue-600"}`} />
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium">Wholesaler Login</div>
+                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                    For business accounts
+                                  </div>
+                                </div>
+                              </motion.button>
+                            </div>
+
+                            {/* Register Options */}
+                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                              <div className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                Create Account
+                              </div>
+                              
+                              {/* User Register */}
+                              <motion.button
+                                onClick={handleUserRegister}
+                                className={`flex items-center w-full px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
+                                  theme === "dark"
+                                    ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                    : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                }`}
+                                whileHover={{ x: 4 }}
+                              >
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
+                                  theme === "dark" ? "bg-green-900" : "bg-green-100"
+                                }`}>
+                                  <FiPlus className={`size-4 ${theme === "dark" ? "text-green-300" : "text-green-600"}`} />
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium">User Register</div>
+                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                    Create customer account
+                                  </div>
+                                </div>
+                              </motion.button>
+
+                              {/* Wholesaler Register */}
+                              <motion.button
+                                onClick={handleWholesalerRegister}
+                                className={`flex items-center w-full px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
+                                  theme === "dark"
+                                    ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                    : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                }`}
+                                whileHover={{ x: 4 }}
+                              >
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
+                                  theme === "dark" ? "bg-orange-900" : "bg-orange-100"
+                                }`}>
+                                  <FiPlus className={`size-4 ${theme === "dark" ? "text-orange-300" : "text-orange-600"}`} />
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium">Wholesaler Register</div>
+                                  <div className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                    Create business account
+                                  </div>
+                                </div>
+                              </motion.button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {/* Wishlist Link in Menu */}

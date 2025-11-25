@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { RxCross2 } from "react-icons/rx";
-import logo from '../../../assets/images/hanger.jpg';
+import logo from '../../../assets/images/logo.png';
+import logowhite from '../../../assets/images/logowhite.png';
 import { FolderPlus, Home, Mail, MessageSquare, Package, ShoppingBag, Sliders, TicketPercent, Users } from 'lucide-react';
-import { FiChevronLeft, FiChevronRight, FiGift, FiLogOut, FiStar } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiGift, FiLogOut, FiStar, FiTrendingUp } from 'react-icons/fi';
 import { useTheme } from "../../../context/ThemeContext";
 
 const AdminSidebar = ({ isOpen, setIsOpen }) => {
@@ -39,6 +40,7 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     { name: "Dashboard", icon: <Home size={20} />, path: "/dashboard" },
     { name: "Slider", icon: <Sliders size={20} />, path: "/dashboard/sliders" },
     { name: "Products", icon: <Package size={20} />, path: "/dashboard/products" },
+    { name: "Quantity Pricing", icon: <FiTrendingUp size={20} />, path: "/dashboard/quantity-pricing" },
     { name: "Categories", icon: <FolderPlus size={20} />, path: "/dashboard/categories" },
     { name: "SubCategories", icon: <FolderPlus size={20} />, path: "/dashboard/subcategories" },
     { name: "Orders", icon: <ShoppingBag size={20} />, path: "/dashboard/orders" },
@@ -54,18 +56,18 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
     window.location.href = "/admin/login";
   };
 
-const isActiveLink = (path) => {
-  // Exact match for dashboard
-  if (path === "/dashboard" && location.pathname === "/dashboard") {
-    return true;
-  }
-  
-  if (path !== "/dashboard" && location.pathname.startsWith(path)) {
-    return true;
-  }
-  
-  return false;
-};
+  const isActiveLink = (path) => {
+    // Exact match for dashboard
+    if (path === "/dashboard" && location.pathname === "/dashboard") {
+      return true;
+    }
+    
+    if (path !== "/dashboard" && location.pathname.startsWith(path)) {
+      return true;
+    }
+    
+    return false;
+  };
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -118,12 +120,12 @@ const isActiveLink = (path) => {
             <div className={`flex items-center justify-between p-6 border-b flex-shrink-0 ${headerBg} ${sidebarBorder}`}>
               <div className="flex items-center space-x-3">
                 <img 
-                  src={logo} 
+                  src={theme === "dark" ? logowhite : logo} 
                   alt="Logo" 
                   className="w-8 h-8 object-contain"
                 />
                 <span className={`text-xl font-italiana font-bold ${textColor}`}>
-                  Hanger Garments
+                  Admin Panel
                 </span>
               </div>
               
@@ -153,45 +155,45 @@ const isActiveLink = (path) => {
               )}
             </div>
 
-          {/* Navigation Menu */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
-            {menuItems.map((item) => {
-              const isActive = isActiveLink(item.path);
-              return (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  onClick={() => {
-                    if (isMobile) {
-                      setIsOpen(false);
-                    }
-                  }}
-                  className={`w-full flex items-center justify-start space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
-                    isActive
-                      ? `${activeBg} ${activeText} border ${activeBorder} shadow-sm`
-                      : `${textMuted} ${hoverBg} hover:text-gray-900 dark:hover:text-white`
-                  }`}
-                >
-                  <div className={
-                    isActive 
-                      ? activeText 
-                      : theme === "dark" 
-                        ? "text-gray-400 group-hover:text-gray-200" 
-                        : "text-gray-400 group-hover:text-gray-600"
-                  }>
-                    {item.icon}
-                  </div>
-                  <span className="font-medium flex-1">{item.name}</span>
-                  {isActive && (
-                    <FiChevronRight 
-                      size={16} 
-                      className={activeText} 
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+            {/* Navigation Menu */}
+            <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-hide">
+              {menuItems.map((item) => {
+                const isActive = isActiveLink(item.path);
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    onClick={() => {
+                      if (isMobile) {
+                        setIsOpen(false);
+                      }
+                    }}
+                    className={`w-full flex items-center justify-start space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
+                      isActive
+                        ? `${activeBg} ${activeText} border ${activeBorder} shadow-sm`
+                        : `${textMuted} ${hoverBg} hover:text-gray-900 dark:hover:text-white`
+                    }`}
+                  >
+                    <div className={
+                      isActive 
+                        ? activeText 
+                        : theme === "dark" 
+                          ? "text-gray-400 group-hover:text-gray-200" 
+                          : "text-gray-400 group-hover:text-gray-600"
+                    }>
+                      {item.icon}
+                    </div>
+                    <span className="font-medium flex-1">{item.name}</span>
+                    {isActive && (
+                      <FiChevronRight 
+                        size={16} 
+                        className={activeText} 
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
 
             {/* Sidebar Footer */}
             <div className={`p-4 border-t space-y-2 flex-shrink-0 ${sidebarBorder}`}>

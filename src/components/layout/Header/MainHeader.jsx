@@ -26,6 +26,10 @@ import CartSidebar from '../CartSidebar';
 // Import wishlist selector
 import { selectWishlistCount } from '../../../redux/slices/wishlistSlice';
 
+// Import logos
+import logowhite from "../../../assets/images/logowhite.png";
+import logoblack from "../../../assets/images/logo.png";
+
 const MainHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +66,11 @@ const MainHeader = () => {
     setSearchOpen, 
     handleSearch 
   } = useSearch();
+
+  // Get the appropriate logo based on theme
+  const getLogo = () => {
+    return theme === "dark" ? logowhite : logoblack;
+  };
 
   const handleLogout = () => {
     // Clear cart and wishlist first (user-specific data)
@@ -134,9 +143,17 @@ const MainHeader = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <h1 className="font-italiana tracking-widest font-semibold uppercase text-2xl lg:text-3xl">
+            {/* Logo Image */}
+            <img 
+              src={getLogo()} 
+              alt="Garments Logo" 
+              className="h-16 lg:h-16 xl:h-16 w-28" // Adjust height as needed
+            />
+            
+            {/* Optional: Keep text logo as fallback or remove it */}
+            {/* <h1 className="font-italiana tracking-widest font-semibold uppercase text-2xl lg:text-3xl ml-3">
               Garments
-            </h1>
+            </h1> */}
           </motion.div>
 
           {/* Desktop Navigation */}
@@ -294,6 +311,7 @@ const MainHeader = () => {
           setMenuOpen={setMenuOpen}
           getUserDisplayName={getUserDisplayName}
           wishlistCount={wishlistCount}
+          
         />
 
         {/* Cart Sidebar */}

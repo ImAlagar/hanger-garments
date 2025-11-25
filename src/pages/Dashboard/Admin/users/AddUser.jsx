@@ -27,14 +27,6 @@ const AddUser = () => {
       path: '/dashboard/users/create/customer'
     },
     {
-      role: 'WHOLESALER',
-      title: 'Create Wholesaler',
-      description: 'Add a new wholesaler business account',
-      icon: Store,
-      color: 'blue',
-      path: '/dashboard/users/create/wholesaler'
-    },
-    {
       role: 'ADMIN',
       title: 'Create Admin',
       description: 'Add a new administrator user',
@@ -112,10 +104,6 @@ const AddUser = () => {
             <div>
               <span className="font-semibold text-green-600">Customers</span>
               <p className="opacity-70">Can browse products and place orders</p>
-            </div>
-            <div>
-              <span className="font-semibold text-blue-600">Wholesalers</span>
-              <p className="opacity-70">Business accounts with additional verification</p>
             </div>
             <div>
               <span className="font-semibold text-purple-600">Admins</span>

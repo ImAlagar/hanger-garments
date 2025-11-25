@@ -17,6 +17,8 @@ import { setCredentials, authFailure } from "../../redux/slices/authSlice";
 import { useAppSelector } from "../../redux/hooks";
 import hangerImage from "../../assets/categories/tshirt.webp";
 import { FaSpinner } from "react-icons/fa";
+import logo from "../../assets/images/logo.png";
+import logowhite from "../../assets/images/logowhite.png";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -38,6 +40,9 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginError, setLoginError] = useState('');
+
+  // Determine which logo to use based on theme
+  const currentLogo = theme === "dark" ? logowhite : logo;
 
   // Redirect if user is already authenticated as admin
   useEffect(() => {
@@ -213,7 +218,7 @@ const AdminLogin = () => {
       <div className={`min-h-screen flex items-center justify-center ${bg}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Redirecting to dashboard...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400 font-instrument">Redirecting to dashboard...</p>
         </div>
       </div>
     );
@@ -245,17 +250,31 @@ const AdminLogin = () => {
           variants={itemVariants}
           className="text-center max-w-md z-10 relative"
         >
+          {/* Logo */}
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
+          </motion.div>
+          
           <motion.div 
             className="mb-8"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
           >
-            <h1 className="text-5xl font-Italiana font-bold text-white mb-4 leading-tight">
+            <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
               Hanger<br />Garments
             </h1>
             <motion.p 
-              className="text-xl text-gray-300 font-SpaceGrotesk mt-6"
+              className="text-xl text-gray-300 font-bai-jamjuree mt-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
@@ -270,14 +289,14 @@ const AdminLogin = () => {
             transition={{ delay: 0.4, duration: 0.7 }}
           >
             <motion.h2 
-              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3"
+              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3 font-bai-jamjuree"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
               <Shield className="w-7 h-7" />
               Administrator Portal
             </motion.h2>
-            <p className="text-gray-300 leading-relaxed text-lg">
+            <p className="text-gray-300 leading-relaxed text-lg font-instrument">
               This portal is exclusively for authorized administrators. Customer accounts cannot access this area.
             </p>
           </motion.div>
@@ -291,17 +310,17 @@ const AdminLogin = () => {
           className={`relative w-full max-w-md rounded-2xl shadow-lg p-10 border ${card}`}
         >
           {/* Header Icon */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="flex justify-center mb-6"
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
           >
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-              theme === "dark" ? "bg-red-600" : "bg-red-500"
-            }`}>
-              <Shield className="w-8 h-8 text-white" />
-            </div>
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </motion.div>
 
           <motion.h2
@@ -323,7 +342,7 @@ const AdminLogin = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {loginError}
               </motion.div>
@@ -348,7 +367,7 @@ const AdminLogin = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none ${
+                className={`w-full bg-transparent border-none outline-none font-instrument ${
                   theme === "dark" ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"
                 }`}
               />
@@ -357,7 +376,7 @@ const AdminLogin = () => {
               <motion.p 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
-                className="text-red-500 text-sm mt-1"
+                className="text-red-500 text-sm mt-1 font-instrument"
               >
                 {errors.email}
               </motion.p>
@@ -373,7 +392,7 @@ const AdminLogin = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none pr-8 ${
+                className={`w-full bg-transparent border-none outline-none pr-8 font-instrument ${
                   theme === "dark" ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"
                 }`}
               />
@@ -389,18 +408,37 @@ const AdminLogin = () => {
               <motion.p 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
-                className="text-red-500 text-sm mt-1"
+                className="text-red-500 text-sm mt-1 font-instrument"
               >
                 {errors.password}
               </motion.p>
             )}
+
+
+          {/* Forgot Password Link */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-end"
+          >
+            <button
+              onClick={() => navigate('/admin/forgot-password')}
+              className={`text-sm font-instrument hover:underline transition ${
+                theme === "dark" ? "text-purple-400 hover:text-purple-300" : "text-purple-600 hover:text-purple-700"
+              }`}
+            >
+              Forgot Admin Password?
+            </button>
+          </motion.div>
+
 
             {/* Submit Button */}
             <motion.button
               type="submit"
               disabled={isLoading}
               whileTap={{ scale: 0.95 }}
-              className={`w-full mt-6 py-3 rounded-md font-instrument tracking-widest font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+              className={`w-full mt-6 py-2 rounded-md font-instrument tracking-widest font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
                 theme === "dark"
                   ? "bg-red-600 hover:bg-red-700 text-white"
                   : "bg-red-600 hover:bg-red-700 text-white"
@@ -413,7 +451,7 @@ const AdminLogin = () => {
               ) : (
                 <>
                   <Shield className="w-4 h-4" />
-                  ACCESS ADMIN DASHBOARD
+                  LOGIN
                 </>
               )}
             </motion.button>
@@ -437,7 +475,7 @@ const AdminLogin = () => {
               }`}
             >
               <ArrowLeft className="w-4 h-4" />
-              Return to Customer Portal
+              Customer Portal
             </motion.button>
 
             {/* Customer Login */}
@@ -462,7 +500,7 @@ const AdminLogin = () => {
             transition={{ delay: 0.6 }}
             className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg"
           >
-            <p className={`text-sm text-center ${
+            <p className={`text-sm text-center font-instrument ${
               theme === "dark" ? "text-yellow-300" : "text-yellow-700"
             }`}>
               🔒 Restricted Access: Admin Personnel Only

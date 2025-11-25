@@ -14,6 +14,8 @@ import { useTheme } from "../../context/ThemeContext";
 import { useDispatch, useSelector } from "react-redux";
 import { useRegisterMutation } from "../../redux/services/authService";
 import hangerImage from "../../assets/categories/tshirt.webp";
+import logo from "../../assets/images/logo.png";
+import logowhite from "../../assets/images/logowhite.png";
 
 const UserRegister = () => {
   const { theme } = useTheme();
@@ -101,6 +103,9 @@ const UserRegister = () => {
     : "bg-gray-100 text-gray-900 border-gray-200";
   const inputBorder = theme === "dark" ? "border-gray-600" : "border-gray-400";
 
+  // Determine which logo to use based on theme
+  const currentLogo = theme === "dark" ? logowhite : logo;
+
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -173,17 +178,31 @@ const UserRegister = () => {
           variants={itemVariants}
           className="text-center max-w-md z-10 relative"
         >
+          {/* Logo */}
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
+          </motion.div>
+          
           <motion.div 
             className="mb-8"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
           >
-            <h1 className="text-5xl font-Italiana font-bold text-white mb-4 leading-tight">
+            <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
               Hanger<br />Garments
             </h1>
             <motion.p 
-              className="text-xl text-gray-300 font-SpaceGrotesk mt-6"
+              className="text-xl text-gray-300 font-bai-jamjuree mt-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
@@ -198,14 +217,14 @@ const UserRegister = () => {
             transition={{ delay: 0.4, duration: 0.7 }}
           >
             <motion.h2 
-              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3"
+              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3 font-bai-jamjuree"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
               <FaUserCircle className="w-7 h-7" />
               Create Your Account 
             </motion.h2>
-            <p className="text-gray-300 leading-relaxed text-lg">
+            <p className="text-gray-300 leading-relaxed text-lg font-instrument">
               Join thousands of fashion enthusiasts and discover the latest trends with exclusive member benefits.
             </p>
           </motion.div>
@@ -219,13 +238,17 @@ const UserRegister = () => {
           className={`relative w-full max-w-md rounded-2xl shadow-lg p-10 border ${card}`}
         >
           {/* Header Icon */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="flex justify-center mb-6"
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
           >
-            <FaUserCircle className={`text-6xl ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`} />
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </motion.div>
 
           <motion.h2
@@ -247,7 +270,7 @@ const UserRegister = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {errorMessage || localError}
               </motion.div>
@@ -262,7 +285,7 @@ const UserRegister = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {success}
               </motion.div>
@@ -278,7 +301,7 @@ const UserRegister = () => {
             className="space-y-6"
           >
             {/* Name Input */}
-            <div className={`flex items-center font-instrument border-b pb-2 ${inputBorder}`}>
+            <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
               <FaUser className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
               <input
                 type="text"
@@ -287,7 +310,7 @@ const UserRegister = () => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none ${
+                className={`w-full bg-transparent border-none outline-none font-instrument ${
                   theme === "dark"
                     ? "text-white placeholder-gray-500"
                     : "text-gray-900 placeholder-gray-400"
@@ -296,7 +319,7 @@ const UserRegister = () => {
             </div>
 
             {/* Email Input */}
-            <div className={`flex items-center font-instrument border-b pb-2 ${inputBorder}`}>
+            <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
               <FaEnvelope className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
               <input
                 type="email"
@@ -305,7 +328,7 @@ const UserRegister = () => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none ${
+                className={`w-full bg-transparent border-none outline-none font-instrument ${
                   theme === "dark"
                     ? "text-white placeholder-gray-500"
                     : "text-gray-900 placeholder-gray-400"
@@ -323,7 +346,7 @@ const UserRegister = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none pr-8 ${
+                className={`w-full bg-transparent border-none outline-none pr-8 font-instrument ${
                   theme === "dark"
                     ? "text-white placeholder-gray-500"
                     : "text-gray-900 placeholder-gray-400"
@@ -348,7 +371,7 @@ const UserRegister = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none pr-8 ${
+                className={`w-full bg-transparent border-none outline-none pr-8 font-instrument ${
                   theme === "dark"
                     ? "text-white placeholder-gray-500"
                     : "text-gray-900 placeholder-gray-400"
@@ -397,7 +420,7 @@ const UserRegister = () => {
               Already have an account?{" "}
               <Link
                 to="/login"
-                className={`cursor-pointer font-semibold ${
+                className={`cursor-pointer font-semibold font-instrument ${
                   theme === "dark"
                     ? "text-purple-400 hover:text-purple-300"
                     : "text-purple-600 hover:text-purple-800"
@@ -412,7 +435,7 @@ const UserRegister = () => {
             >
               <Link 
                 to="/wholesaler/register" 
-                className={`block text-sm ${
+                className={`block text-sm font-instrument ${
                   theme === "dark" 
                     ? "text-gray-400 hover:text-gray-300" 
                     : "text-gray-600 hover:text-gray-800"
@@ -420,7 +443,6 @@ const UserRegister = () => {
               >
                 Register as Wholesaler
               </Link>
-              
             </motion.div>
           </motion.div>
         </motion.div>

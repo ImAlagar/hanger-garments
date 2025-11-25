@@ -156,9 +156,11 @@ export default function Categories() {
                                 <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
                                     {cat.title}
                                 </h2>
+                              <Link to={'/shop'}>
                                 <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
                                     Explore
                                 </button>
+                              </Link>
                             </div>
 
                             {/* Category Label Animation */}

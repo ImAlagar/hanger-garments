@@ -96,6 +96,25 @@ export const authService = apiSlice.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
+        adminForgotPassword: builder.mutation({
+      query: (email) => ({
+        url: '/auth/admin/forgot-password',
+        method: 'POST',
+        body: { email },
+      }),
+    }),
+
+    adminResetPassword: builder.mutation({
+      query: (resetData) => ({
+        url: '/auth/admin/reset-password',
+        method: 'POST',
+        body: resetData,
+      }),
+    }),
+
+        validateAdminResetToken: builder.query({
+      query: ({ token, adminId }) => `/auth/admin/validate-reset-token?token=${token}&adminId=${adminId}`,
+    }),
     // Password management
     forgotPassword: builder.mutation({
       query: (email) => ({
@@ -104,6 +123,7 @@ export const authService = apiSlice.injectEndpoints({
         body: { email },
       }),
     }),
+
 
     forgotPasswordWholesaler: builder.mutation({
   query: (credentials) => ({
@@ -174,6 +194,9 @@ export const {
   useWholesalerRegisterMutation,
   useSendOTPMutation,
   useVerifyWholesalerOTPMutation,
+    useAdminForgotPasswordMutation,
+  useAdminResetPasswordMutation,
+  useValidateAdminResetTokenQuery,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,

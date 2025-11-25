@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaPhone, FaSpinner, FaArrowLeft, FaCheckCircle, FaUserTie } from "react-icons/fa";
+import { FaEnvelope, FaSpinner, FaArrowLeft, FaCheckCircle, FaUserTie } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
 import { useForgotPasswordMutation } from "../../redux/services/authService";
 import hangerImage from "../../assets/categories/tshirt.webp";
@@ -11,30 +11,27 @@ const WholesalerForgotPassword = () => {
   const { theme } = useTheme();
   const [forgotPassword, { isLoading, error, isSuccess }] = useForgotPasswordMutation();
 
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!phone) {
-      setErrorMessage('Please enter your registered phone number');
+    if (!email) {
+      setErrorMessage('Please enter your registered email address');
       return;
     }
 
-    // Basic phone validation
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phone.replace(/\D/g, ''))) {
-      setErrorMessage('Please enter a valid 10-digit phone number');
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage('Please enter a valid email address');
       return;
     }
 
     try {
-      await forgotPassword({ 
-        phone: phone.replace(/\D/g, ''),
-        role: 'WHOLESALER' 
-      }).unwrap();
+      await forgotPassword(email).unwrap();
     } catch (err) {
       console.error('Forgot password failed:', err);
       if ('data' in err) {
@@ -149,7 +146,7 @@ const WholesalerForgotPassword = () => {
               Wholesaler Portal
             </motion.h2>
             <p className="text-gray-300 leading-relaxed text-lg">
-              Enter your registered phone number to reset your password.
+              Enter your registered email address to reset your password.
             </p>
           </motion.div>
         </motion.div>
@@ -198,7 +195,7 @@ const WholesalerForgotPassword = () => {
             <p className={`text-sm ${
               theme === "dark" ? "text-gray-400" : "text-gray-600"
             }`}>
-              Enter your registered phone number to receive reset instructions.
+              Enter your registered email address to receive reset instructions.
             </p>
           </motion.div>
 
@@ -210,9 +207,9 @@ const WholesalerForgotPassword = () => {
               className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-4 rounded-lg mb-6 text-center"
             >
               <FaCheckCircle className="w-6 h-6 mx-auto mb-2" />
-              <p className="font-semibold">Reset Instructions Sent!</p>
+              <p className="font-semibold">Reset Email Sent!</p>
               <p className="text-sm mt-1">
-                Password reset instructions have been sent to your registered phone number.
+                Password reset instructions have been sent to your email address.
               </p>
             </motion.div>
           )}
@@ -238,12 +235,12 @@ const WholesalerForgotPassword = () => {
               className="space-y-6"
             >
               <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
-                <FaPhone className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
+                <FaEnvelope className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
                 <input
-                  type="tel"
-                  placeholder="Enter your registered phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  type="email"
+                  placeholder="Enter your registered email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   className={`w-full bg-transparent border-none outline-none ${
                     theme === "dark" ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"

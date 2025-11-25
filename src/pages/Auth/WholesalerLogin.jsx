@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,6 +15,8 @@ import {
 } from "../../redux/services/authService";
 import { setCredentials } from "../../redux/slices/authSlice";
 import hangerImage from "../../assets/categories/tshirt.webp";
+import logo from "../../assets/images/logo.png"; // Import your logo
+import logowhite from "../../assets/images/logowhite.png"; // Import your white logo
 
 const WholesalerLogin = () => {
   const { theme } = useTheme();
@@ -32,38 +34,56 @@ const WholesalerLogin = () => {
   const [success, setSuccess] = useState("");
   const [showOTPField, setShowOTPField] = useState(false);
   const [otp, setOtp] = useState("");
+  const [countryCode, setCountryCode] = useState("+91"); // Default country code
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError("");
-  setSuccess("");
-
-  try {
-    if (showOTPField) {
-      // Verify OTP and login
-      const result = await verifyOTP({
-        phone: formData.phone,
-        otp: otp
-      }).unwrap();
-      
-      dispatch(setCredentials(result));
-      
-      // Check if user needs additional verification (adjust this condition based on your actual business logic)
-      // Since there's no status field, you might need to check something else
-      // For now, let's assume all verified users go to dashboard
-      navigate('/');
-      
-    } else {
-      // Send OTP first - send phone to login endpoint
-      const response = await sendOTP({ phone: formData.phone }).unwrap();
-      setSuccess(response.message || "OTP sent to your phone number!");
+  // Check if error message indicates OTP was already sent
+  useEffect(() => {
+    if (error && error.toLowerCase().includes("otp already sent")) {
       setShowOTPField(true);
     }
-  } catch (err) {
-    console.error('Login failed:', err);
-    setError(err?.data?.message || "Login failed. Please try again.");
-  }
-};
+  }, [error]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    try {
+      // Combine country code with phone number
+      const fullPhoneNumber = countryCode + formData.phone;
+      
+      if (showOTPField) {
+        // Verify OTP and login
+        const result = await verifyOTP({
+          phone: fullPhoneNumber,
+          otp: otp
+        }).unwrap();
+        
+        dispatch(setCredentials(result));
+        
+        // Check if user needs additional verification (adjust this condition based on your actual business logic)
+        // Since there's no status field, you might need to check something else
+        // For now, let's assume all verified users go to dashboard
+        navigate('/');
+        
+      } else {
+        // Send OTP first - send phone to login endpoint
+        const response = await sendOTP({ phone: fullPhoneNumber }).unwrap();
+        setSuccess(response.message || "OTP sent to your phone number!");
+        setShowOTPField(true);
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+      const errorMessage = err?.data?.message || "Login failed. Please try again.";
+      setError(errorMessage);
+      
+      // If error indicates OTP was already sent, show OTP field
+      if (errorMessage.toLowerCase().includes("otp already sent")) {
+        setShowOTPField(true);
+      }
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -78,6 +98,9 @@ const handleSubmit = async (e) => {
     ? "bg-gray-900 text-white border-gray-700" 
     : "bg-gray-100 text-gray-900 border-gray-200";
   const inputBorder = theme === "dark" ? "border-gray-600" : "border-gray-400";
+
+  // Determine which logo to use based on theme
+  const currentLogo = theme === "dark" ? logowhite : logo;
 
   // Animation variants
   const containerVariants = {
@@ -150,17 +173,31 @@ const handleSubmit = async (e) => {
           variants={itemVariants}
           className="text-center max-w-md z-10 relative"
         >
+          {/* Logo */}
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
+          >
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
+          </motion.div>
+          
           <motion.div 
             className="mb-8"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
           >
-            <h1 className="text-5xl font-Italiana font-bold text-white mb-4 leading-tight">
+            <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
               Hanger<br />Garments
             </h1>
             <motion.p 
-              className="text-xl text-gray-300 font-SpaceGrotesk mt-6"
+              className="text-xl text-gray-300 font-bai-jamjuree mt-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
@@ -175,14 +212,14 @@ const handleSubmit = async (e) => {
             transition={{ delay: 0.4, duration: 0.7 }}
           >
             <motion.h2 
-              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3"
+              className="text-2xl font-semibold mb-4 text-white flex items-center justify-center gap-3 font-bai-jamjuree"
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
               <FaUserCircle className="w-7 h-7" />
               Wholesaler Portal
             </motion.h2>
-            <p className="text-gray-300 leading-relaxed text-lg">
+            <p className="text-gray-300 leading-relaxed text-lg font-instrument">
               Access your wholesale account with secure OTP verification. Get exclusive pricing and manage your bulk orders.
             </p>
           </motion.div>
@@ -196,13 +233,17 @@ const handleSubmit = async (e) => {
           className={`relative w-full max-w-md rounded-2xl shadow-lg p-10 border ${card}`}
         >
           {/* Header Icon */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="flex justify-center mb-6"
+          <motion.div 
+            className="mb-6 flex justify-center"
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.7 }}
           >
-            <FaUserCircle className={`text-6xl ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`} />
+            <img 
+              src={currentLogo} 
+              alt="Hanger Garments Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </motion.div>
 
           <motion.h2
@@ -224,7 +265,7 @@ const handleSubmit = async (e) => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-yellow-500/20 border border-yellow-500 text-yellow-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {error}
               </motion.div>
@@ -239,7 +280,7 @@ const handleSubmit = async (e) => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center"
+                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {success}
               </motion.div>
@@ -254,9 +295,13 @@ const handleSubmit = async (e) => {
             animate="visible"
             className="space-y-6"
           >
-            {/* Phone Number */}
-            <div className={`flex items-center font-instrument border-b pb-2 ${inputBorder}`}>
-              <FaPhone className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
+            {/* Phone Number with Country Code */}
+            <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
+              <span className={`mr-3 font-medium font-instrument ${
+                theme === "dark" ? "text-gray-300" : "text-gray-700"
+              }`}>
+                +91
+              </span>
               <input
                 type="tel"
                 name="phone"
@@ -264,7 +309,7 @@ const handleSubmit = async (e) => {
                 value={formData.phone}
                 onChange={handleChange}
                 required
-                className={`w-full bg-transparent border-none outline-none ${
+                className={`w-full bg-transparent border-none outline-none py-2 font-instrument ${
                   theme === "dark" 
                     ? "text-white placeholder-gray-500" 
                     : "text-gray-900 placeholder-gray-400"
@@ -272,28 +317,39 @@ const handleSubmit = async (e) => {
               />
             </div>
 
-            {/* OTP Field (shown after sending OTP) */}
+            {/* OTP Field (shown after sending OTP or when OTP already sent error occurs) */}
             <AnimatePresence>
-              {showOTPField && (
+              {(showOTPField || (error && error.toLowerCase().includes("otp already sent"))) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className={`flex items-center border-b pb-2 ${inputBorder}`}
+                  className="space-y-2"
                 >
-                  <FaLock className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
-                  <input
-                    type="text"
-                    placeholder="Enter OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    required
-                    className={`w-full bg-transparent border-none outline-none ${
-                      theme === "dark" 
-                        ? "text-white placeholder-gray-500" 
-                        : "text-gray-900 placeholder-gray-400"
-                    }`}
-                  />
+                  <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
+                    <FaLock className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
+                    <input
+                      type="text"
+                      placeholder="Enter OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      required
+                      className={`w-full bg-transparent border-none outline-none font-instrument ${
+                        theme === "dark" 
+                          ? "text-white placeholder-gray-500" 
+                          : "text-gray-900 placeholder-gray-400"
+                      }`}
+                    />
+                  </div>
+                  {error && error.toLowerCase().includes("otp already sent") && (
+                    <motion.p 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-xs text-yellow-500 font-instrument text-center"
+                    >
+                      Please enter the OTP that was already sent to your phone
+                    </motion.p>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -315,23 +371,24 @@ const handleSubmit = async (e) => {
                   {showOTPField ? "Verifying..." : "Sending OTP..."}
                 </>
               ) : (
-                showOTPField ? "VERIFY & LOGIN" : "SEND OTP"
+                (showOTPField || (error && error.toLowerCase().includes("otp already sent"))) ? "VERIFY & LOGIN" : "SEND OTP"
               )}
             </motion.button>
           </motion.form>
 
-      <div className="text-right mt-2">
-        <Link
-          to="/wholesaler/forgot-password"
-          className={`text-sm ${
-            theme === "dark" 
-              ? "text-purple-400 hover:text-purple-300" 
-              : "text-purple-600 hover:text-purple-800"
-          } transition-colors duration-200`}
-        >
-          Forgot Password?
-        </Link>
-      </div>
+          <div className="text-right mt-2">
+            <Link
+              to="/wholesaler/forgot-password"
+              className={`text-sm font-instrument ${
+                theme === "dark" 
+                  ? "text-purple-400 hover:text-purple-300" 
+                  : "text-purple-600 hover:text-purple-800"
+              } transition-colors duration-200`}
+            >
+              Forgot Password?
+            </Link>
+          </div>
+
           {/* Links Section */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -345,7 +402,7 @@ const handleSubmit = async (e) => {
               Don't have an account?{" "}
               <Link
                 to="/wholesaler/register"
-                className={`cursor-pointer font-semibold ${
+                className={`cursor-pointer font-semibold font-instrument ${
                   theme === "dark"
                     ? "text-purple-400 hover:text-purple-300"
                     : "text-purple-600 hover:text-purple-800"
@@ -360,7 +417,7 @@ const handleSubmit = async (e) => {
             >
               <Link 
                 to="/login" 
-                className={`block text-sm ${
+                className={`block text-sm font-instrument ${
                   theme === "dark" 
                     ? "text-gray-400 hover:text-gray-300" 
                     : "text-gray-600 hover:text-gray-800"
