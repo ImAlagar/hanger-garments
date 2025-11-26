@@ -32,7 +32,7 @@ const UserRegister = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "USER"
+    role: "CUSTOMER"
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
