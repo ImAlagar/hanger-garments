@@ -12,8 +12,10 @@ import {
 } from "../../redux/services/orderService";
 import { clearCart } from "../../redux/slices/cartSlice";
 import { useGetAvailableCouponsQuery, useValidateCouponMutation } from "../../redux/services/couponService";
-import { CreditCard, MapPin, ShoppingCart, Shield, Truck, Upload, X } from "lucide-react";
+import { useCalculateQuantityPriceMutation } from "../../redux/services/productService";
+import { CreditCard, MapPin, ShoppingCart, Shield, Truck, Upload, X, Percent, Tag } from "lucide-react";
 import razorpayService from "../../utils/razorpayService";
+import QuantityDiscountBadge from "../../components/discount/QuantityDiscountBadge";
 
 const Checkout = () => {
   const { theme } = useTheme();
@@ -30,7 +32,13 @@ const Checkout = () => {
   const [verifyPayment] = useVerifyPaymentMutation();
   const [createCODOrder] = useCreateCODOrderMutation();
   const [validateCoupon] = useValidateCouponMutation();
+  const [calculateQuantityPrice] = useCalculateQuantityPriceMutation();
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
+
+  // State for quantity discounts
+  const [individualItemTotals, setIndividualItemTotals] = useState({});
+  const [quantityDiscounts, setQuantityDiscounts] = useState({});
+  const [calculatingDiscounts, setCalculatingDiscounts] = useState(false);
 
   // Get available coupons based on subtotal
   const subtotal = cartItems.reduce((total, item) => {
@@ -67,7 +75,9 @@ const Checkout = () => {
     subtotal: 0,
     discount: 0,
     shippingCost: 0,
-    totalAmount: 0
+    totalAmount: 0,
+    quantityDiscount: 0,
+    couponDiscount: 0
   });
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
@@ -83,6 +93,91 @@ const Checkout = () => {
   const textColor = isDark ? "text-white" : "text-black";
   const borderColor = isDark ? "border-gray-700" : "border-gray-200";
   const inputBg = isDark ? "bg-gray-800" : "bg-gray-50";
+
+  // Calculate individual item totals with quantity discounts
+  useEffect(() => {
+    const calculateIndividualTotals = async () => {
+      if (cartItems.length === 0) {
+        setIndividualItemTotals({});
+        setQuantityDiscounts({});
+        return;
+      }
+
+      setCalculatingDiscounts(true);
+      const newTotals = {};
+      const newDiscounts = {};
+      let totalQuantityDiscount = 0;
+      
+      for (const item of cartItems) {
+        try {
+          const cleanProductId = getCleanProductId(item.product?._id);
+          if (!cleanProductId) continue;
+
+          const result = await calculateQuantityPrice({
+            productId: cleanProductId,
+            variantId: item.variant?._id,
+            quantity: item.quantity
+          }).unwrap();
+
+          if (result.success) {
+            const originalPrice = (item.variant?.price || item.product?.price || 0) * item.quantity;
+            const discountedPrice = result.data.finalPrice;
+            const itemDiscount = originalPrice - discountedPrice;
+
+            newTotals[item.id] = {
+              finalPrice: discountedPrice,
+              originalPrice: originalPrice,
+              discount: result.data.applicableDiscount,
+              savings: result.data.totalSavings
+            };
+
+            newDiscounts[item.id] = {
+              discount: itemDiscount,
+              discountInfo: result.data.applicableDiscount,
+              originalPrice: originalPrice,
+              discountedPrice: discountedPrice
+            };
+
+            totalQuantityDiscount += itemDiscount;
+          }
+        } catch (error) {
+          // Fallback to original calculation
+          const price = Number(item.variant?.price) || Number(item.product?.price) || 0;
+          const originalPrice = price * item.quantity;
+          newTotals[item.id] = {
+            finalPrice: originalPrice,
+            originalPrice: originalPrice,
+            discount: null,
+            savings: 0
+          };
+          newDiscounts[item.id] = {
+            discount: 0,
+            discountInfo: null,
+            originalPrice: originalPrice,
+            discountedPrice: originalPrice
+          };
+        }
+      }
+      
+      setIndividualItemTotals(newTotals);
+      setQuantityDiscounts(newDiscounts);
+      
+      // Update totals with quantity discounts
+      const discountedSubtotal = Object.values(newTotals).reduce((total, item) => total + item.finalPrice, 0);
+      const originalSubtotal = Object.values(newTotals).reduce((total, item) => total + item.originalPrice, 0);
+      
+      setTotals(prev => ({
+        ...prev,
+        subtotal: discountedSubtotal,
+        quantityDiscount: originalSubtotal - discountedSubtotal,
+        totalAmount: discountedSubtotal - (appliedCoupon ? totals.couponDiscount : 0)
+      }));
+      
+      setCalculatingDiscounts(false);
+    };
+
+    calculateIndividualTotals();
+  }, [cartItems, calculateQuantityPrice]);
 
   // Calculate initial totals
   useEffect(() => {
@@ -103,7 +198,9 @@ const Checkout = () => {
         subtotal,
         discount: 0,
         shippingCost: 0,
-        totalAmount: subtotal
+        totalAmount: subtotal,
+        quantityDiscount: 0,
+        couponDiscount: 0
       });
     } catch (error) {
       console.error("Error calculating totals:", error);
@@ -125,6 +222,74 @@ const Checkout = () => {
     }
     
     return cleanId;
+  };
+
+  // Calculate item total with quantity discounts
+  const calculateItemTotal = (item) => {
+    if (individualItemTotals[item.id]) {
+      return individualItemTotals[item.id].finalPrice;
+    }
+    
+    // Fallback calculation
+    const price = item.variant?.price || item.product?.price || 0;
+    const quantity = item.quantity || 0;
+    return price * quantity;
+  };
+
+  // Get item discount information
+  const getItemDiscountInfo = (item) => {
+    if (quantityDiscounts[item.id]) {
+      return quantityDiscounts[item.id].discountInfo;
+    }
+    return null;
+  };
+
+  // Get item discount amount
+  const getItemDiscountAmount = (item) => {
+    if (quantityDiscounts[item.id]) {
+      return quantityDiscounts[item.id].discount;
+    }
+    return 0;
+  };
+
+  // Render discount badge for items
+  const renderItemDiscountBadge = (item) => {
+    const discountInfo = getItemDiscountInfo(item);
+    const discountAmount = getItemDiscountAmount(item);
+
+    if (!discountInfo || discountAmount <= 0) return null;
+
+    const isFixedAmount = discountInfo.priceType === 'FIXED_AMOUNT';
+    
+    return (
+      <div className={`absolute -top-1 -right-1 text-white text-xs px-2 py-1 rounded-full ${
+        isFixedAmount ? 'bg-purple-500' : 'bg-green-500'
+      }`}>
+        {isFixedAmount ? (
+          <>-₹{discountAmount.toFixed(0)}</>
+        ) : (
+          <>{discountInfo.value}% OFF</>
+        )}
+      </div>
+    );
+  };
+
+  // Render discount type indicator for items
+  const renderItemDiscountType = (item) => {
+    const discountInfo = getItemDiscountInfo(item);
+    if (!discountInfo) return null;
+
+    const isFixedAmount = discountInfo.priceType === 'FIXED_AMOUNT';
+    
+    return (
+      <span className={`text-xs px-2 py-1 rounded ${
+        isFixedAmount 
+          ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' 
+          : 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400'
+      }`}>
+        {isFixedAmount ? 'Fixed Price' : 'Bulk Save'}
+      </span>
+    );
   };
 
   // Map cart items to order items
@@ -238,11 +403,14 @@ const Checkout = () => {
       
       if (result.success) {
         setAppliedCoupon(result.data.coupon);
+        const couponDiscount = result.data.discount;
+        
         setTotals(prev => ({
           ...prev,
-          discount: result.data.discount,
-          totalAmount: result.data.finalAmount
+          couponDiscount: couponDiscount,
+          totalAmount: prev.subtotal - couponDiscount
         }));
+        
         toast.success("Coupon applied successfully!");
       }
     } catch (error) {
@@ -259,15 +427,13 @@ const Checkout = () => {
     setCouponCode("");
     setAppliedCoupon(null);
     
-    const orderItemsData = getOrderItemsData();
-    const calculatedTotals = await calculateOrderTotals({
-      orderItems: orderItemsData
-    }).unwrap();
-
-    if (calculatedTotals.success) {
-      setTotals(calculatedTotals.data);
-      toast.info("Coupon removed");
-    }
+    setTotals(prev => ({
+      ...prev,
+      couponDiscount: 0,
+      totalAmount: prev.subtotal
+    }));
+    
+    toast.info("Coupon removed");
   };
 
   const handleApplyAvailableCoupon = (coupon) => {
@@ -352,105 +518,114 @@ const Checkout = () => {
   };
 
   // Handle Razorpay Payment
-  const handleRazorpayPayment = async () => {
-    if (!validateForm()) {
-      toast.error("Please fix the form errors before proceeding");
-      return;
-    }
 
-    try {
-      setPaymentProcessing(true);
-      
-      const orderItemsData = getOrderItemsData();
-      
-      // Prepare custom images data for the order API
-      const customImageData = customImages.map((file, index) => ({
-        url: imagePreviews[index]?.url || '', // Use preview URL as temporary reference
-        key: `custom-image-${Date.now()}-${index}`,
-        filename: file.name || `custom-image-${Date.now()}-${index}.jpg`
-      }));
-      
-      // Step 1: Initiate payment with backend
-      const paymentData = {
+const handleRazorpayPayment = async () => {
+  if (!validateForm()) {
+    toast.error("Please fix the form errors before proceeding");
+    return;
+  }
+
+  try {
+    setPaymentProcessing(true);
+    
+    const orderItemsData = getOrderItemsData();
+    
+    // Prepare custom images data
+    const customImageData = customImages.map((file, index) => ({
+      url: imagePreviews[index]?.url || '',
+      key: `custom-image-${Date.now()}-${index}`,
+      filename: file.name || `custom-image-${Date.now()}-${index}.jpg`
+    }));
+    
+    // Step 1: Initiate payment with backend (this will calculate quantity discounts)
+    const paymentData = {
+      orderData: {
+        ...orderData,
+        orderItems: orderItemsData,
+        couponCode: appliedCoupon?.code || null,
+        customImages: customImageData
+      }
+    };
+
+    const result = await initiatePayment(paymentData).unwrap();
+    
+    
+    if (result.success) {
+      const { razorpayOrder, tempOrderData, calculatedTotals } = result.data;
+
+      // Step 2: Open Razorpay checkout with the calculated amount
+      const razorpayResponse = await razorpayService.openRazorpayCheckout({
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Hanger Garments",
+        description: `Order Payment - ${tempOrderData.orderNumber}`,
+        prefill: {
+          name: orderData.name,
+          email: orderData.email,
+          contact: orderData.phone
+        },
+        notes: {
+          orderNumber: tempOrderData.orderNumber
+        },
+        theme: {
+          color: "#3399cc"
+        }
+      });
+
+
+      // Step 3: Verify payment with backend
+      const verificationResult = await verifyPayment({
+        razorpay_order_id: razorpayResponse.razorpay_order_id,
+        razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+        razorpay_signature: razorpayResponse.razorpay_signature,
         orderData: {
           ...orderData,
           orderItems: orderItemsData,
           couponCode: appliedCoupon?.code || null,
-          customImages: customImageData // Pass file data directly to order API
+          customImages: customImageData
         }
-      };
+      }).unwrap();
 
-      const result = await initiatePayment(paymentData).unwrap();
-      
-      if (result.success) {
-        const { razorpayOrder, tempOrderData } = result.data;
 
-        // Step 2: Open Razorpay checkout
-        const razorpayResponse = await razorpayService.openRazorpayCheckout({
-          razorpayOrderId: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          name: "Hanger Garments",
-          description: `Order Payment - ${tempOrderData.orderNumber}`,
-          prefill: {
-            name: orderData.name,
-            email: orderData.email,
-            contact: orderData.phone
-          },
-          notes: {
-            orderNumber: tempOrderData.orderNumber
-          },
-          theme: {
-            color: "#3399cc"
-          }
-        });
-
-        // Step 3: Verify payment with backend
-        const verificationResult = await verifyPayment({
-          razorpay_order_id: razorpayResponse.razorpay_order_id,
-          razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-          razorpay_signature: razorpayResponse.razorpay_signature,
-          orderData: {
-            ...orderData,
-            orderItems: orderItemsData,
-            couponCode: appliedCoupon?.code || null,
-            customImages: customImageData // Include in verification too
-          }
-        }).unwrap();
-
-        if (verificationResult.success) {
-          // Payment successful
-          const order = verificationResult.data;
-          
-          const successData = {
-            orderNumber: order.orderNumber,
-            totalAmount: order.totalAmount,
-            items: cartItems,
-            paymentMethod: 'ONLINE',
-            status: 'confirmed',
-            timestamp: new Date().toISOString(),
-            razorpayPaymentId: razorpayResponse.razorpay_payment_id,
-            customImages: order.customImages || [] // Get from order response
-          };
-          
-          toast.success("Payment successful! Order confirmed.");
-          handleOrderSuccess(successData);
-        }
+      if (verificationResult.success) {
+        // Payment successful
+        const order = verificationResult.data;
+        
+        const successData = {
+          orderNumber: order.orderNumber,
+          totalAmount: order.totalAmount,
+          items: cartItems,
+          paymentMethod: 'ONLINE',
+          status: 'confirmed',
+          timestamp: new Date().toISOString(),
+          razorpayPaymentId: razorpayResponse.razorpay_payment_id,
+          customImages: order.customImages || [],
+          calculatedTotals: calculatedTotals
+        };
+        
+        toast.success("Payment successful! Order confirmed.");
+        handleOrderSuccess(successData);
       }
-    } catch (error) {
-      console.error("Payment processing failed:", error);
-      
-      if (error.message === 'Payment cancelled by user') {
-        toast.info("Payment was cancelled");
-      } else {
-        const errorMessage = error.data?.message || "Payment processing failed";
-        toast.error(`Payment failed: ${errorMessage}`);
-      }
-    } finally {
-      setPaymentProcessing(false);
     }
-  };
-
+  } catch (error) {
+    console.error("Payment processing failed:", error);
+    console.error("Error details:", {
+      status: error.status,
+      data: error.data,
+      message: error.message
+    });
+    
+    if (error.message === 'Payment cancelled by user') {
+      toast.info("Payment was cancelled");
+    } else {
+      const errorMessage = error.data?.message || "Payment processing failed";
+      toast.error(`Payment failed: ${errorMessage}`);
+    }
+  } finally {
+    setPaymentProcessing(false);
+  }
+};
   // Handle COD order
   const handleCODOrder = async () => {
     if (!validateForm()) {
@@ -566,7 +741,7 @@ const Checkout = () => {
           <p className={`text-xl ${textColor} mb-4`}>Order Completed Successfully!</p>
           <p className="text-gray-500 mb-4">Redirecting to order details...</p>
           <button
-            onClick={() => navigate('/orders')}
+            onClick={() => navigate('/user/orders')}
             className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
           >
             View Orders
@@ -824,117 +999,117 @@ const Checkout = () => {
             </div>
 
             {/* Payment Method */}
-          <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <span className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mr-2">
-                <span className="text-purple-600 dark:text-purple-400 text-sm">3</span>
-              </span>
-              Payment Method
-            </h2>
-            
-            <div className="space-y-4">
-              {/* Online Payment Option */}
-              <div 
-                className={`border-2 ${
-                  orderData.paymentMethod === "ONLINE" 
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                    : "border-gray-300 dark:border-gray-600"
-                } rounded-lg p-4 cursor-pointer transition-all`}
-                onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "ONLINE" }))}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <CreditCard className="w-6 h-6 text-blue-500" />
-                    <div>
-                      <h3 className="font-semibold">Pay Online</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Credit/Debit Card, UPI, Net Banking
-                      </p>
-                    </div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 ${
+            <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>
+              <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <span className="w-6 h-6 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-purple-600 dark:text-purple-400 text-sm">3</span>
+                </span>
+                Payment Method
+              </h2>
+              
+              <div className="space-y-4">
+                {/* Online Payment Option */}
+                <div 
+                  className={`border-2 ${
                     orderData.paymentMethod === "ONLINE" 
-                      ? "bg-blue-500 border-blue-500" 
-                      : "border-gray-400"
-                  }`}></div>
-                </div>
-                
-                {orderData.paymentMethod === "ONLINE" && (
-                  <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-center space-x-6 mb-4">
-                      {/* Razorpay Icon */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                          <CreditCard className="w-6 h-6 text-white" />
-                        </div>
-                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Razorpay</span>
-                      </div>
-                      
-                      {/* UPI Icon */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                        </div>
-                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">UPI</span>
-                      </div>
-                      
-                      {/* Cards Icon */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                          </svg>
-                        </div>
-                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Cards</span>
-                      </div>
-                      
-                      {/* Wallet Icon */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </div>
-                        <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Wallet</span>
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
+                      : "border-gray-300 dark:border-gray-600"
+                  } rounded-lg p-4 cursor-pointer transition-all`}
+                  onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "ONLINE" }))}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <CreditCard className="w-6 h-6 text-blue-500" />
+                      <div>
+                        <h3 className="font-semibold">Pay Online</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Credit/Debit Card, UPI, Net Banking
+                        </p>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                      Secure payment powered by Razorpay
-                    </p>
+                    <div className={`w-5 h-5 rounded-full border-2 ${
+                      orderData.paymentMethod === "ONLINE" 
+                        ? "bg-blue-500 border-blue-500" 
+                        : "border-gray-400"
+                    }`}></div>
                   </div>
-                )}
-              </div>
-
-              {/* COD Option */}
-              <div 
-                className={`border-2 ${
-                  orderData.paymentMethod === "COD" 
-                    ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
-                    : "border-gray-300 dark:border-gray-600"
-                } rounded-lg p-4 cursor-pointer transition-all`}
-                onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "COD" }))}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Truck className="w-6 h-6 text-green-500" />
-                    <div>
-                      <h3 className="font-semibold">Cash on Delivery</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Pay when you receive your order
+                  
+                  {orderData.paymentMethod === "ONLINE" && (
+                    <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-center space-x-6 mb-4">
+                        {/* Razorpay Icon */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                            <CreditCard className="w-6 h-6 text-white" />
+                          </div>
+                          <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Razorpay</span>
+                        </div>
+                        
+                        {/* UPI Icon */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                          </div>
+                          <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">UPI</span>
+                        </div>
+                        
+                        {/* Cards Icon */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                          </div>
+                          <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Cards</span>
+                        </div>
+                        
+                        {/* Wallet Icon */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </div>
+                          <span className="text-xs mt-1 text-gray-600 dark:text-gray-400">Wallet</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                        Secure payment powered by Razorpay
                       </p>
                     </div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 ${
+                  )}
+                </div>
+
+                {/* COD Option */}
+                <div 
+                  className={`border-2 ${
                     orderData.paymentMethod === "COD" 
-                      ? "bg-green-500 border-green-500" 
-                      : "border-gray-400"
-                  }`}></div>
+                      ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
+                      : "border-gray-300 dark:border-gray-600"
+                  } rounded-lg p-4 cursor-pointer transition-all`}
+                  onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "COD" }))}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Truck className="w-6 h-6 text-green-500" />
+                      <div>
+                        <h3 className="font-semibold">Cash on Delivery</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Pay when you receive your order
+                        </p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 ${
+                      orderData.paymentMethod === "COD" 
+                        ? "bg-green-500 border-green-500" 
+                        : "border-gray-400"
+                    }`}></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
             {/* Coupon Section */}
             <div className={`border ${borderColor} rounded-xl p-6 shadow-sm`}>
@@ -1050,7 +1225,7 @@ const Checkout = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-green-700 dark:text-green-400 font-bold">
-                        -₹{totals.discount.toFixed(2)}
+                        -₹{totals.couponDiscount.toFixed(2)}
                       </p>
                       <p className="text-xs text-green-600 dark:text-green-300">
                         {appliedCoupon.discountType === 'PERCENTAGE' 
@@ -1087,27 +1262,42 @@ const Checkout = () => {
               {/* Order Items */}
               <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
                 {cartItems.map((item) => {
-                  const price = item.variant?.price || item.product?.price || 0;
-                  const quantity = item.quantity || 0;
-                  const itemTotal = price * quantity;
+                  const itemTotal = calculateItemTotal(item);
+                  const discountInfo = getItemDiscountInfo(item);
+                  const discountAmount = getItemDiscountAmount(item);
+                  const hasDiscount = discountAmount > 0;
+                  const originalPrice = (item.variant?.price || item.product?.price || 0) * item.quantity;
 
                   return (
                     <div key={item.id} className="flex items-center space-x-3 pb-4 border-b border-gray-200 dark:border-gray-600">
-                      <img
-                        src={item.product.images?.[0] || "/images/placeholder-product.jpg"}
-                        alt={item.product.name}
-                        className="w-16 h-16 object-cover rounded-lg"
-                        onError={(e) => {
-                          e.target.src = "/images/placeholder-product.jpg";
-                        }}
-                      />
+                      <div className="relative">
+                        <img
+                          src={item.product.images?.[0] || "/images/placeholder-product.jpg"}
+                          alt={item.product.name}
+                          className="w-16 h-16 object-cover rounded-lg"
+                          onError={(e) => {
+                            e.target.src = "/images/placeholder-product.jpg";
+                          }}
+                        />
+                        {renderItemDiscountBadge(item)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{item.product.name}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {item.variant?.color || 'N/A'} | {item.variant?.size || 'N/A'} × {quantity}
+                          {item.variant?.color || 'N/A'} | {item.variant?.size || 'N/A'} × {item.quantity}
                         </p>
+                        {hasDiscount && renderItemDiscountType(item)}
+                        
+
                       </div>
-                      <span className="font-semibold text-sm">₹{itemTotal.toFixed(2)}</span>
+                      <div className="text-right">
+                        <span className="font-semibold text-sm">₹{itemTotal.toFixed(2)}</span>
+                        {hasDiscount && (
+                          <span className="text-xs line-through text-gray-500 block">
+                            ₹{originalPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1146,10 +1336,25 @@ const Checkout = () => {
                   <span>₹{totals.subtotal.toFixed(2)}</span>
                 </div>
                 
-                {totals.discount > 0 && (
+                {/* Quantity Discounts */}
+                {totals.quantityDiscount > 0 && (
                   <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                    <span>Discount</span>
-                    <span>-₹{totals.discount.toFixed(2)}</span>
+                    <span className="flex items-center">
+                      <Percent className="w-3 h-3 mr-1" />
+                      Quantity Discounts
+                    </span>
+                    <span>-₹{totals.quantityDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {/* Coupon Discount */}
+                {totals.couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                    <span className="flex items-center">
+                      <Tag className="w-3 h-3 mr-1" />
+                      Coupon Discount
+                    </span>
+                    <span>-₹{totals.couponDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 
@@ -1164,10 +1369,24 @@ const Checkout = () => {
                 </div>
               </div>
 
+              {/* Savings Summary */}
+              {(totals.quantityDiscount > 0 || totals.couponDiscount > 0) && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <p className="text-sm text-green-700 dark:text-green-400 font-semibold">
+                    🎉 You're saving ₹{(totals.quantityDiscount + totals.couponDiscount).toFixed(2)}!
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+                    {totals.quantityDiscount > 0 && `₹${totals.quantityDiscount.toFixed(2)} from quantity discounts`}
+                    {totals.quantityDiscount > 0 && totals.couponDiscount > 0 && ' + '}
+                    {totals.couponDiscount > 0 && `₹${totals.couponDiscount.toFixed(2)} from coupon`}
+                  </p>
+                </div>
+              )}
+
               {/* Place Order Button */}
               <button
                 onClick={handlePlaceOrder}
-                disabled={loading || paymentProcessing}
+                disabled={loading || paymentProcessing || calculatingDiscounts}
                 className={`w-full py-4 rounded-lg font-semibold text-lg mt-6 transition-all ${
                   isDark 
                     ? "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 shadow-lg shadow-blue-500/25" 
@@ -1179,10 +1398,10 @@ const Checkout = () => {
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     Processing Payment...
                   </div>
-                ) : loading ? (
+                ) : loading || calculatingDiscounts ? (
                   <div className="flex items-center justify-center">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Processing...
+                    {calculatingDiscounts ? 'Calculating Discounts...' : 'Processing...'}
                   </div>
                 ) : orderData.paymentMethod === "COD" ? (
                   "PLACE ORDER (COD)"

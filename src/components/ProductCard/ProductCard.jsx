@@ -10,6 +10,7 @@ import { useProductCardStyles } from "./styles";
 import VariantModal from "./VariantModal";
 import { generateProductSlug } from "../../utils/slugify";
 import ModalPortal from "./ModalPortal";
+import VerticalAutoScrollBadge from "../discount/VerticalAutoScrollBadge";
 
 const ProductCard = ({ product, onCartUpdate }) => {
   const [showVariantModal, setShowVariantModal] = useState(false);
@@ -17,6 +18,7 @@ const ProductCard = ({ product, onCartUpdate }) => {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [togglingWishlist, setTogglingWishlist] = useState(false);
+  const [showDiscountBadge, setShowDiscountBadge] = useState(false);
 
   const user = useSelector((state) => state.auth.user);
   const { 
@@ -38,6 +40,15 @@ const ProductCard = ({ product, onCartUpdate }) => {
   // Generate product slug with error handling
   const productSlug = generateProductSlug(safeProduct);
 
+  // Handle mouse enter/leave for discount badge animation
+  const handleMouseEnter = () => {
+    setShowDiscountBadge(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowDiscountBadge(false);
+  };
+
   const getProductImage = () => {
     if (safeProduct.variantImages?.length > 0) {
       return safeProduct.variantImages[0].imageUrl;
@@ -45,7 +56,7 @@ const ProductCard = ({ product, onCartUpdate }) => {
     return "https://via.placeholder.com/300x300?text=No+Image";
   };
 
-  // ✅ FIXED: Handle card click to navigate to product details WITH COLOR
+  // Handle card click to navigate to product details WITH COLOR
   const handleCardClick = (e) => {
     if (!safeProduct.id && !safeProduct._id) {
       console.error('Product missing ID, cannot navigate');
@@ -56,20 +67,18 @@ const ProductCard = ({ product, onCartUpdate }) => {
       e.target.closest('button') || 
       e.target.closest('.wishlist-btn') ||
       e.target.closest('.add-to-cart-btn') ||
-      e.target.closest('.variant-selector')
+      e.target.closest('.variant-selector') ||
+      e.target.closest('.discount-badge-container')
     ) {
       return;
     }
     
-    // ✅ CORRECT: Pass the specific color in navigation state
     navigate(`/collections/${productSlug}`, {
       state: {
-        selectedColor: safeProduct.color, // This is crucial!
+        selectedColor: safeProduct.color,
         baseProductId: safeProduct.baseProductId
       }
     });
-    
-    console.log('Navigating to product with color:', safeProduct.color);
   };
 
   // Handle wishlist click
@@ -106,104 +115,91 @@ const ProductCard = ({ product, onCartUpdate }) => {
     setShowVariantModal(true);
   };
 
-
-// In ProductCard.js - FIXED addVariantToCart function
-const addVariantToCart = async (variant, qty = quantity) => {
-  if (!safeProduct.id && !safeProduct._id) {
-    console.error('Product missing ID, cannot add to cart');
-    return;
-  }
-
-  setAddingToCart(true);
-  try {
-    // ✅ FIXED: Better image handling
-    const getProductImages = () => {
-      // Priority 1: Product images array
-      if (safeProduct.images && safeProduct.images.length > 0) {
-        const validImages = safeProduct.images.filter(img => 
-          img && !img.includes('via.placeholder.com') && !img.includes('No+Image')
-        );
-        if (validImages.length > 0) return validImages;
-      }
-      
-      // Priority 2: Variant images
-      if (variant?.image && !variant.image.includes('via.placeholder.com')) {
-        return [variant.image];
-      }
-      
-      // Priority 3: Product image
-      if (safeProduct.image && !safeProduct.image.includes('via.placeholder.com')) {
-        return [safeProduct.image];
-      }
-      
-      // Fallback
-      return ['/images/placeholder-product.jpg'];
-    };
-
-    const productImages = getProductImages();
-    
-    // ✅ FIXED: Ensure price is calculated correctly
-    const calculatePrice = () => {
-      // Priority 1: Variant price
-      if (variant?.price) return Number(variant.price);
-      
-      // Priority 2: Product prices
-      if (safeProduct.isWholesaleUser && safeProduct.wholesalePrice) {
-        return Number(safeProduct.wholesalePrice);
-      }
-      if (safeProduct.offerPrice) {
-        return Number(safeProduct.offerPrice);
-      }
-      if (safeProduct.normalPrice) {
-        return Number(safeProduct.normalPrice);
-      }
-      
-      return 0;
-    };
-
-    const cartItem = {
-      product: {
-        _id: safeProduct.id || safeProduct._id,
-        name: safeProduct.title || safeProduct.name || 'Unknown Product',
-        description: safeProduct.description || '',
-        category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
-        images: productImages,
-        image: productImages[0],
-        normalPrice: Number(safeProduct.normalPrice) || 0,
-        offerPrice: Number(safeProduct.offerPrice) || 0,
-        wholesalePrice: Number(safeProduct.wholesalePrice) || 0,
-      },
-      variant: {
-        _id: variant.id || `variant_${Date.now()}`,
-        color: variant.color || safeProduct.color || 'N/A',
-        size: variant.size || 'N/A',
-        price: calculatePrice(),
-        stock: variant.stock || 0,
-        sku: variant.sku || '',
-        image: variant.image || productImages[0],
-      },
-      quantity: Math.max(1, Number(qty) || 1)
-    };
-    
-
-    
-    dispatch(addToCart(cartItem));
-    
-    // Close modal and reset
-    setShowVariantModal(false);
-    setSelectedVariant(null);
-    setQuantity(1);
-    
-    // Trigger cart update
-    if (onCartUpdate) {
-      onCartUpdate();
+  // FIXED addVariantToCart function
+  const addVariantToCart = async (variant, qty = quantity) => {
+    if (!safeProduct.id && !safeProduct._id) {
+      console.error('Product missing ID, cannot add to cart');
+      return;
     }
-  } catch (error) {
-    console.error("Failed to add to cart:", error);
-  } finally {
-    setAddingToCart(false);
-  }
-};
+
+    setAddingToCart(true);
+    try {
+      const getProductImages = () => {
+        if (safeProduct.images && safeProduct.images.length > 0) {
+          const validImages = safeProduct.images.filter(img => 
+            img && !img.includes('via.placeholder.com') && !img.includes('No+Image')
+          );
+          if (validImages.length > 0) return validImages;
+        }
+        
+        if (variant?.image && !variant.image.includes('via.placeholder.com')) {
+          return [variant.image];
+        }
+        
+        if (safeProduct.image && !safeProduct.image.includes('via.placeholder.com')) {
+          return [safeProduct.image];
+        }
+        
+        return ['/images/placeholder-product.jpg'];
+      };
+
+      const productImages = getProductImages();
+      
+      const calculatePrice = () => {
+        if (variant?.price) return Number(variant.price);
+        
+        if (safeProduct.isWholesaleUser && safeProduct.wholesalePrice) {
+          return Number(safeProduct.wholesalePrice);
+        }
+        if (safeProduct.offerPrice) {
+          return Number(safeProduct.offerPrice);
+        }
+        if (safeProduct.normalPrice) {
+          return Number(safeProduct.normalPrice);
+        }
+        
+        return 0;
+      };
+
+      const cartItem = {
+        product: {
+          _id: safeProduct.id || safeProduct._id,
+          name: safeProduct.title || safeProduct.name || 'Unknown Product',
+          description: safeProduct.description || '',
+          category: safeProduct.category?.name || safeProduct.category || 'Uncategorized',
+          images: productImages,
+          image: productImages[0],
+          normalPrice: Number(safeProduct.normalPrice) || 0,
+          offerPrice: Number(safeProduct.offerPrice) || 0,
+          wholesalePrice: Number(safeProduct.wholesalePrice) || 0,
+        },
+        variant: {
+          _id: variant.id || `variant_${Date.now()}`,
+          color: variant.color || safeProduct.color || 'N/A',
+          size: variant.size || 'N/A',
+          price: calculatePrice(),
+          stock: variant.stock || 0,
+          sku: variant.sku || '',
+          image: variant.image || productImages[0],
+        },
+        quantity: Math.max(1, Number(qty) || 1)
+      };
+      
+      dispatch(addToCart(cartItem));
+      
+      setShowVariantModal(false);
+      setSelectedVariant(null);
+      setQuantity(1);
+      
+      if (onCartUpdate) {
+        onCartUpdate();
+      }
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   const handleVariantSelect = (variant) => {
     if (variant?.stock > 0) {
@@ -233,10 +229,22 @@ const addVariantToCart = async (variant, qty = quantity) => {
     <>
       <div
         onClick={handleCardClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`flex flex-col shadow-2xl px-5 py-3 rounded-xl ${styles.cardBg} ${
           styles.theme === "dark" ? "shadow-gray-800" : ""
-        } items-start text-left group cursor-pointer relative transition-all duration-300 hover:shadow-xl`}
+        } items-start text-left group cursor-pointer relative transition-all duration-300 hover:shadow-xl overflow-hidden`}
       >
+        
+  <div className="absolute top-2 left-2 z-20">
+    <VerticalAutoScrollBadge
+      product={safeProduct}
+      variant={safeProduct.variants?.[0]}
+      quantity={quantity}
+    />
+  </div>
+
+
         <ProductImage 
           product={safeProduct}
           styles={styles}

@@ -3,9 +3,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { useTheme } from "../../context/ThemeContext";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiX, FiMinus, FiPlus, FiTrash2, FiImage, FiPercent } from "react-icons/fi";
+import { FiX, FiMinus, FiPlus, FiTrash2, FiImage, FiPercent, FiDollarSign } from "react-icons/fi";
 import { removeCartItem, updateQuantity } from "../../redux/slices/cartSlice";
-import { useCalculateCartPricesMutation } from "../../redux/services/productService";
+import { useCalculateCartPricesMutation, useCalculateQuantityPriceMutation } from "../../redux/services/productService";
 
 const CartSidebar = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
@@ -15,16 +15,82 @@ const CartSidebar = ({ isOpen, onClose }) => {
   const cartItems = useSelector((state) => state.cart.items);
   const user = useSelector((state) => state.auth.user);
 
-  // API mutation for calculating cart prices with quantity discounts
+  // API mutations
   const [calculateCartPrices] = useCalculateCartPricesMutation();
+  const [calculateQuantityPrice] = useCalculateQuantityPriceMutation();
+  
   const [discountedTotals, setDiscountedTotals] = useState(null);
   const [calculatingDiscounts, setCalculatingDiscounts] = useState(false);
+  const [individualItemTotals, setIndividualItemTotals] = useState({});
 
   const isDark = theme === "dark";
   const bgColor = isDark ? "bg-gray-900" : "bg-white";
   const textColor = isDark ? "text-white" : "text-black";
   const borderColor = isDark ? "border-gray-700" : "border-gray-200";
   const hoverBg = isDark ? "hover:bg-gray-800" : "hover:bg-gray-50";
+
+  // Helper function to clean product ID
+  const cleanProductIdFunc = (product) => {
+    if (!product) return null;
+    const rawId = product._id || product.id;
+    if (!rawId) return null;
+    
+    if (rawId.includes('-')) {
+      const parts = rawId.split('-');
+      const lastPart = parts[parts.length - 1];
+      if (/^[A-Z][a-z]*$/.test(lastPart)) {
+        return parts.slice(0, -1).join('-');
+      }
+    }
+    return rawId;
+  };
+
+  // Calculate individual item totals with quantity discounts
+  useEffect(() => {
+    const calculateIndividualTotals = async () => {
+      if (cartItems.length === 0) {
+        setIndividualItemTotals({});
+        return;
+      }
+
+      const newTotals = {};
+      
+      for (const item of cartItems) {
+        try {
+          const cleanProductId = cleanProductIdFunc(item.product);
+          if (!cleanProductId) continue;
+
+          const result = await calculateQuantityPrice({
+            productId: cleanProductId,
+            variantId: item.variant?._id,
+            quantity: item.quantity
+          }).unwrap();
+
+          if (result.success) {
+            newTotals[item.id] = {
+              finalPrice: result.data.finalPrice,
+              originalPrice: result.data.originalPrice,
+              discount: result.data.applicableDiscount,
+              savings: result.data.totalSavings
+            };
+          }
+        } catch (error) {
+          // Fallback to original calculation
+          const price = Number(item.variant?.price) || Number(item.price) || 0;
+          newTotals[item.id] = {
+            finalPrice: price * item.quantity,
+            originalPrice: price * item.quantity,
+            discount: null,
+            savings: 0
+          };
+        }
+      }
+      
+      setIndividualItemTotals(newTotals);
+    };
+
+    calculateIndividualTotals();
+  }, [cartItems, calculateQuantityPrice]);
 
   // Calculate cart totals with quantity discounts
   useEffect(() => {
@@ -69,33 +135,131 @@ const CartSidebar = ({ isOpen, onClose }) => {
     }, 0);
   };
 
-  const originalSubtotal = calculateOriginalSubtotal();
-  
-  // Use discounted totals if available, otherwise calculate normally
-  const subtotal = discountedTotals?.summary?.subtotal || originalSubtotal;
-  const totalDiscount = discountedTotals?.summary?.totalDiscount || 0;
-  const totalAmount = discountedTotals?.summary?.totalAmount || subtotal;
-  const totalSavings = discountedTotals?.summary?.totalSavings || 0;
+  // Calculate ACTUAL subtotal with individual discounts
+  const calculateActualSubtotal = () => {
+    if (Object.keys(individualItemTotals).length > 0) {
+      return Object.values(individualItemTotals).reduce((total, itemTotal) => {
+        return total + (itemTotal.finalPrice || 0);
+      }, 0);
+    }
+    
+    // Fallback to discounted totals or original calculation
+    return discountedTotals?.summary?.subtotal || calculateOriginalSubtotal();
+  };
 
-  // Calculate item totals safely
+  // Calculate total discount
+  const calculateTotalDiscount = () => {
+    const originalSubtotal = calculateOriginalSubtotal();
+    const actualSubtotal = calculateActualSubtotal();
+    return originalSubtotal - actualSubtotal;
+  };
+
+  const originalSubtotal = calculateOriginalSubtotal();
+  const actualSubtotal = calculateActualSubtotal();
+  const totalDiscount = calculateTotalDiscount();
+  const totalAmount = actualSubtotal; // Shipping is free
+  const totalSavings = totalDiscount;
+
+  // Calculate item totals safely - UPDATED
   const calculateItemTotal = (item, itemIndex) => {
+    // Use individual item totals first
+    if (individualItemTotals[item.id]) {
+      return individualItemTotals[item.id].finalPrice;
+    }
+    
+    // Fallback to discounted totals
     if (discountedTotals?.cartItems?.[itemIndex]) {
       return discountedTotals.cartItems[itemIndex].finalPrice;
     }
     
+    // Final fallback
     const price = Number(item.variant?.price) || Number(item.price) || 0;
     const qty = Number(item.quantity) || 0;
     return price * qty;
   };
 
-  // Get item discount if available
+  // Get item discount if available - UPDATED
   const getItemDiscount = (item, itemIndex) => {
+    // Use individual item totals first
+    if (individualItemTotals[item.id]) {
+      const itemTotal = individualItemTotals[item.id];
+      const originalPrice = (Number(item.variant?.price) || Number(item.price) || 0) * item.quantity;
+      return originalPrice - itemTotal.finalPrice;
+    }
+    
+    // Fallback to discounted totals
     if (discountedTotals?.cartItems?.[itemIndex]) {
       const discountedItem = discountedTotals.cartItems[itemIndex];
       const originalPrice = (Number(item.variant?.price) || Number(item.price) || 0) * item.quantity;
       return originalPrice - discountedItem.finalPrice;
     }
+    
     return 0;
+  };
+
+  // Get discount type and value for an item - UPDATED
+  const getItemDiscountInfo = (item, itemIndex) => {
+    // Use individual item totals first
+    if (individualItemTotals[item.id]?.discount) {
+      return {
+        type: individualItemTotals[item.id].discount?.priceType,
+        value: individualItemTotals[item.id].discount?.value,
+        message: individualItemTotals[item.id].discount?.message
+      };
+    }
+    
+    // Fallback to discounted totals
+    if (discountedTotals?.cartItems?.[itemIndex]) {
+      const discountedItem = discountedTotals.cartItems[itemIndex];
+      return {
+        type: discountedItem.applicableDiscount?.priceType,
+        value: discountedItem.applicableDiscount?.value,
+        message: discountedItem.applicableDiscount?.message
+      };
+    }
+    
+    return null;
+  };
+
+  // Enhanced quantity handler with immediate feedback
+  const handleQuantityChange = async (itemId, newQuantity) => {
+    const numericQuantity = Number(newQuantity);
+    if (isNaN(numericQuantity) || numericQuantity < 0) return;
+    
+    if (numericQuantity === 0) {
+      dispatch(removeCartItem(itemId));
+    } else {
+      dispatch(updateQuantity({ itemId, quantity: numericQuantity }));
+      
+      // Immediately update individual total for this item
+      const item = cartItems.find(item => item.id === itemId);
+      if (item) {
+        try {
+          const cleanProductId = cleanProductIdFunc(item.product);
+          if (cleanProductId) {
+            const result = await calculateQuantityPrice({
+              productId: cleanProductId,
+              variantId: item.variant?._id,
+              quantity: numericQuantity
+            }).unwrap();
+
+            if (result.success) {
+              setIndividualItemTotals(prev => ({
+                ...prev,
+                [itemId]: {
+                  finalPrice: result.data.finalPrice,
+                  originalPrice: result.data.originalPrice,
+                  discount: result.data.applicableDiscount,
+                  savings: result.data.totalSavings
+                }
+              }));
+            }
+          }
+        } catch (error) {
+          // If API call fails, it will be updated in the next useEffect cycle
+        }
+      }
+    }
   };
 
   // Handle remove item
@@ -103,7 +267,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
     dispatch(removeCartItem(itemId));
   };
 
-  // SIMPLIFIED: Get product image - focuses on your actual data structure
+  // SIMPLIFIED: Get product image
   const getProductImage = (item) => {
     if (!item) return '/images/placeholder-product.jpg';
 
@@ -123,12 +287,6 @@ const CartSidebar = ({ isOpen, onClose }) => {
       if (validImage) return validImage;
     }
 
-    // Priority 4: Direct images (fallback)
-    if (item.images && item.images.length > 0) {
-      const validImage = item.images.find(img => isValidImage(img));
-      if (validImage) return validImage;
-    }
-
     return '/images/placeholder-product.jpg';
   };
 
@@ -139,18 +297,6 @@ const CartSidebar = ({ isOpen, onClose }) => {
     if (imageUrl.includes('via.placeholder.com')) return false;
     if (imageUrl.includes('No+Image')) return false;
     return true;
-  };
-
-  // Enhanced quantity handler
-  const handleQuantityChange = (itemId, newQuantity) => {
-    const numericQuantity = Number(newQuantity);
-    if (isNaN(numericQuantity) || numericQuantity < 0) return;
-    
-    if (numericQuantity === 0) {
-      dispatch(removeCartItem(itemId));
-    } else {
-      dispatch(updateQuantity({ itemId, quantity: numericQuantity }));
-    }
   };
 
   // Handle image error
@@ -206,6 +352,42 @@ const CartSidebar = ({ isOpen, onClose }) => {
     navigate("/cart");
   };
 
+  // Render discount badge for items
+  const renderItemDiscountBadge = (discountInfo, itemDiscount) => {
+    if (!discountInfo || itemDiscount <= 0) return null;
+
+    const isFixedAmount = discountInfo.type === 'FIXED_AMOUNT';
+    
+    return (
+      <div className={`absolute -top-1 -right-1 text-white text-xs px-1 py-0.5 rounded-full ${
+        isFixedAmount ? 'bg-purple-500' : 'bg-green-500'
+      }`}>
+        {isFixedAmount ? (
+          <>-₹{itemDiscount.toFixed(0)}</>
+        ) : (
+          <>{discountInfo.value}% OFF</>
+        )}
+      </div>
+    );
+  };
+
+  // Render discount type indicator for items
+  const renderItemDiscountType = (discountInfo) => {
+    if (!discountInfo) return null;
+
+    const isFixedAmount = discountInfo.type === 'FIXED_AMOUNT';
+    
+    return (
+      <span className={`text-xs px-2 py-1 rounded ${
+        isFixedAmount 
+          ? 'text-purple-600 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400' 
+          : 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400'
+      }`}>
+        {isFixedAmount ? 'Fixed Price' : 'Bulk Save'}
+      </span>
+    );
+  };
+
   // Render savings information
   const renderSavings = () => {
     if (totalSavings > 0) {
@@ -214,7 +396,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
           <div className="flex justify-between items-center text-green-700 dark:text-green-400">
             <span className="text-sm font-semibold flex items-center">
               <FiPercent className="w-4 h-4 mr-1" />
-              Quantity Discounts
+              Quantity Discounts Applied
             </span>
             <span className="font-bold">-₹{totalSavings.toFixed(2)}</span>
           </div>
@@ -231,18 +413,42 @@ const CartSidebar = ({ isOpen, onClose }) => {
   const renderBestDeal = () => {
     if (discountedTotals?.bestDeal) {
       const { bestDeal } = discountedTotals;
+      const isFixedAmount = bestDeal.discountType === 'FIXED_AMOUNT';
+      
       return (
         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mt-3 border border-blue-200 dark:border-blue-800">
-          <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
-            💰 Best Deal
+          <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center">
+            {isFixedAmount ? "💰 Fixed Price Deal" : "💰 Best Bulk Deal"}
           </p>
           <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
             {bestDeal.message}
           </p>
+          {bestDeal.savings > 0 && (
+            <p className="text-xs text-blue-600 dark:text-blue-300">
+              Save ₹{bestDeal.savings.toFixed(2)}
+            </p>
+          )}
         </div>
       );
     }
     return null;
+  };
+
+  // Render discount breakdown for items
+  const renderItemDiscountBreakdown = (discountInfo, itemDiscount, originalItemTotal) => {
+    if (!discountInfo || itemDiscount <= 0) return null;
+
+    const isFixedAmount = discountInfo.type === 'FIXED_AMOUNT';
+    
+    return (
+      <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+        {isFixedAmount ? (
+          <>Fixed price applied: Save ₹{itemDiscount.toFixed(2)}</>
+        ) : (
+          <>{discountInfo.value}% off: Save ₹{itemDiscount.toFixed(2)}</>
+        )}
+      </div>
+    );
   };
 
   const sidebarVariants = {
@@ -302,6 +508,33 @@ const CartSidebar = ({ isOpen, onClose }) => {
     </svg>
   );
 
+  // Empty Cart Component
+  const EmptyCart = () => (
+    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+      <ShoppingCartSVG />
+      <p className="text-gray-500 dark:text-gray-400 text-lg mb-2 font-medium">
+        Your cart is empty
+      </p>
+      <p className="text-gray-400 dark:text-gray-500 text-sm mb-1">
+        There is nothing in your cart.
+      </p>
+      <p className="text-gray-400 dark:text-gray-500 text-sm mb-8">
+        Let's add some items
+      </p>
+      <Link 
+        to={'/shop'}
+        onClick={onClose}
+        className={`px-8 py-3 rounded-lg font-semibold transition-colors duration-200 ${
+          isDark 
+            ? "bg-white text-black hover:bg-gray-200" 
+            : "bg-black text-white hover:bg-gray-800"
+        }`}
+      >
+        CONTINUE SHOPPING
+      </Link>
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -345,29 +578,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
             {/* Cart Items */}
             <div className="flex-1 overflow-y-auto">
               {cartItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <ShoppingCartSVG />
-                  <p className="text-gray-500 dark:text-gray-400 text-lg mb-2 font-medium">
-                    Your cart is empty
-                  </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-sm mb-1">
-                    There is nothing in your cart.
-                  </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-sm mb-8">
-                    Let's add some items
-                  </p>
-                  <Link 
-                    to={'/shop'}
-                    onClick={onClose}
-                    className={`px-8 py-3 rounded-lg font-semibold transition-colors duration-200 ${
-                      isDark 
-                        ? "bg-white text-black hover:bg-gray-200" 
-                        : "bg-black text-white hover:bg-gray-800"
-                    }`}
-                  >
-                    CONTINUE SHOPPING
-                  </Link>
-                </div>
+                <EmptyCart />
               ) : (
                 <div className="p-4 space-y-4">
                   {cartItems.map((item, index) => {
@@ -375,7 +586,9 @@ const CartSidebar = ({ isOpen, onClose }) => {
                     const hasValidImage = imageUrl && imageUrl !== 'null' && imageUrl !== 'undefined';
                     const itemTotal = calculateItemTotal(item, index);
                     const itemDiscount = getItemDiscount(item, index);
+                    const discountInfo = getItemDiscountInfo(item, index);
                     const hasDiscount = itemDiscount > 0;
+                    const originalItemTotal = (Number(item.variant?.price) || Number(item.price) || 0) * item.quantity;
                     
                     return (
                       <div key={item.id} className={`border ${borderColor} rounded-lg p-4 ${hoverBg} transition-colors`}>
@@ -391,11 +604,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
                                   onError={(e) => handleImageError(e, item)}
                                   loading="lazy"
                                 />
-                                {hasDiscount && (
-                                  <div className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1 py-0.5 rounded-full">
-                                    -₹{itemDiscount.toFixed(0)}
-                                  </div>
-                                )}
+                                {renderItemDiscountBadge(discountInfo, itemDiscount)}
                               </div>
                             ) : (
                               <ImagePlaceholder />
@@ -411,13 +620,10 @@ const CartSidebar = ({ isOpen, onClose }) => {
                               <p className="font-semibold text-sm">
                                 ₹{((item.variant?.price || item.price || 0)).toFixed(2)}
                               </p>
-                              {hasDiscount && (
-                                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                  Bulk Save
-                                </span>
-                              )}
+                              {hasDiscount && renderItemDiscountType(discountInfo)}
                             </div>
                             
+
                             
                             <div className="flex items-center justify-between mt-3">
                               <div className="flex items-center gap-2">
@@ -453,9 +659,12 @@ const CartSidebar = ({ isOpen, onClose }) => {
                                   ₹{itemTotal.toFixed(2)}
                                 </span>
                                 {hasDiscount && (
-                                  <span className="text-xs text-green-600 block">
-                                    Saved ₹{itemDiscount.toFixed(2)}
-                                  </span>
+                                  <>
+                                    <span className="text-xs line-through text-gray-500 block">
+                                      ₹{originalItemTotal.toFixed(2)}
+                                    </span>
+                                    {renderItemDiscountBreakdown(discountInfo, itemDiscount, originalItemTotal)}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -478,13 +687,13 @@ const CartSidebar = ({ isOpen, onClose }) => {
                 {/* Order Summary */}
                 <div className="space-y-3 border-t border-gray-200 dark:border-gray-600 pt-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
+                    <span className="text-gray-600 dark:text-gray-400">Original Subtotal</span>
                     <span>₹{originalSubtotal.toFixed(2)}</span>
                   </div>
                   
                   {totalDiscount > 0 && (
                     <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
-                      <span>Quantity Discount</span>
+                      <span>Quantity Discounts</span>
                       <span>-₹{totalDiscount.toFixed(2)}</span>
                     </div>
                   )}

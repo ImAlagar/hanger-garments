@@ -1,10 +1,12 @@
+// ProductDetailsPage.jsx - UPDATED WITH BOTH PRICING TYPES
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTheme } from '../../context/ThemeContext';
 import { 
   useGetProductBySlugQuery,
-  useCalculateQuantityPriceMutation 
+  useCalculateQuantityPriceMutation,
+  useGetRelatedProductsQuery
 } from '../../redux/services/productService';
 import { useGetCustomizationByProductIdQuery } from '../../redux/services/customizationService';
 import { addToCart } from '../../redux/slices/cartSlice';
@@ -14,6 +16,12 @@ import CartSidebar from '../../components/layout/CartSidebar';
 import RelatedProducts from './RelatedProducts';
 import CustomizationModal from '../../components/Common/CustomizationModal';
 import { toast } from 'react-toastify';
+import RatingSummary from './RatingSummary';
+import ReviewForm from './ReviewForm';
+import ReviewsList from './ReviewsList';
+import RatingDisplay from './RatingDisplay';
+import { useGetProductRatingsQuery } from '../../redux/services/ratingService';
+import calculateRatingStats from '../../utils/calculateRatingStats';
 
 const ProductDetailsPage = () => {
   const { productSlug } = useParams();
@@ -33,7 +41,10 @@ const ProductDetailsPage = () => {
   const [showZoomModal, setShowZoomModal] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
   const [bulkPricing, setBulkPricing] = useState(null);
-  
+  // Add to existing state variables
+  const [showReviews, setShowReviews] = useState(false);
+  const [ratingFilter, setRatingFilter] = useState(0);
+
   const { theme } = useTheme();
   const user = useSelector((state) => state.auth.user);
   const wishlistItems = useSelector((state) => state.wishlist.items);
@@ -95,11 +106,34 @@ const ProductDetailsPage = () => {
     skip: !productId || !productResponse?.data?.isCustomizable
   });
 
+  // Get related products
+  const { data: relatedProductsData } = useGetRelatedProductsQuery(
+    { 
+      category: productResponse?.data?.category?.name || productResponse?.data?.category,
+      excludeProductId: productId 
+    },
+    { skip: !productId || !productResponse?.data?.category }
+  );
+
   const product = productResponse?.data || productResponse;
   
   // Check if product is customizable
   const isCustomizable = product?.isCustomizable && customizationData?.data?.isActive;
   const hasCustomization = customizationData?.data && customizationData.data.isActive;
+
+
+  // Add after other API calls
+// In ProductDetailsPage.jsx, update the ratings data extraction:
+
+const { 
+  data: ratingsResponse, 
+  refetch: refetchRatings 
+} = useGetProductRatingsQuery(productId, {
+  skip: !productId
+});
+
+const ratings = ratingsResponse?.data?.ratings || ratingsResponse?.ratings || [];
+const ratingStats = calculateRatingStats(ratings);
 
   // Calculate bulk pricing when quantity changes
   useEffect(() => {
@@ -170,7 +204,7 @@ const ProductDetailsPage = () => {
           firstVariant = colorVariant;
           setSelectedColor(initialColor);
         } else {
-          console.log('Color variant not found, using default');
+          console.error('Color variant not found, using default');
         }
       }
       
@@ -265,6 +299,19 @@ const ProductDetailsPage = () => {
     return Math.round(savePercentage);
   };
 
+  // Calculate savings for fixed amount pricing
+  const calculateFixedAmountSavings = (originalTotal, fixedPrice) => {
+    return originalTotal - fixedPrice;
+  };
+
+  // Calculate savings percentage for fixed amount
+  const calculateFixedAmountSavePercentage = (originalTotal, fixedPrice) => {
+    if (!originalTotal || originalTotal <= fixedPrice) return 0;
+    const saveAmount = originalTotal - fixedPrice;
+    const savePercentage = (saveAmount / originalTotal) * 100;
+    return Math.round(savePercentage);
+  };
+
   // Auth-based pricing logic with customization price and bulk pricing
   const getProductPricing = () => {
     if (!product) return { 
@@ -280,6 +327,8 @@ const ProductDetailsPage = () => {
     let priceLabel = "";
     let customizationPrice = 0;
     let savePercentage = 0;
+    let isBulkFixedPrice = false;
+    let bulkFixedTotal = 0;
 
     // Add customization price if in design mode
     if (isDesignMode && hasCustomization) {
@@ -288,10 +337,20 @@ const ProductDetailsPage = () => {
 
     // Use bulk pricing if available, otherwise use regular pricing
     if (bulkPricing && bulkPricing.finalPrice) {
-      displayPrice = bulkPricing.finalPrice / quantity; // Price per item
-      originalPrice = product.offerPrice || product.normalPrice;
-      priceLabel = "Bulk Price";
-      savePercentage = calculateSavePercentage(originalPrice, displayPrice);
+      if (bulkPricing.applicableDiscount?.priceType === 'FIXED_AMOUNT') {
+        // For fixed amount pricing, show the fixed total price
+        isBulkFixedPrice = true;
+        bulkFixedTotal = bulkPricing.finalPrice;
+        displayPrice = bulkFixedTotal / quantity; // Price per item for display
+        originalPrice = product.offerPrice || product.normalPrice;
+        priceLabel = "Bulk Deal";
+      } else {
+        // For percentage pricing
+        displayPrice = bulkPricing.finalPrice / quantity; // Price per item
+        originalPrice = product.offerPrice || product.normalPrice;
+        priceLabel = "Bulk Price";
+        savePercentage = calculateSavePercentage(originalPrice, displayPrice);
+      }
     } else if (isWholesaleUser && product.wholesalePrice) {
       displayPrice = product.wholesalePrice;
       originalPrice = product.offerPrice || product.normalPrice;
@@ -317,7 +376,10 @@ const ProductDetailsPage = () => {
       finalPrice, 
       customizationPrice,
       savePercentage,
-      bulkSavings: bulkPricing?.totalSavings || 0
+      bulkSavings: bulkPricing?.totalSavings || 0,
+      isBulkFixedPrice,
+      bulkFixedTotal,
+      applicableDiscount: bulkPricing?.applicableDiscount
     };
   };
 
@@ -328,7 +390,10 @@ const ProductDetailsPage = () => {
     finalPrice, 
     customizationPrice,
     savePercentage,
-    bulkSavings
+    bulkSavings,
+    isBulkFixedPrice,
+    bulkFixedTotal,
+    applicableDiscount
   } = getProductPricing();
 
   // Handle color selection with proper URL update
@@ -571,41 +636,62 @@ const ProductDetailsPage = () => {
     }
   };
 
+
+  const handleReviewSubmitted = () => {
+  refetchRatings();
+  setShowReviews(true);
+};
   // Stock status
   const isOutOfStock = selectedVariant?.stock === 0;
   const lowStock = selectedVariant?.stock > 0 && selectedVariant?.stock <= 10;
 
-  // Bulk pricing display
+  // Bulk pricing display - UPDATED FOR BOTH PRICING TYPES
   const renderBulkPricing = () => {
     if (bulkPricing && quantity > 1) {
+      const isFixedAmount = applicableDiscount?.priceType === 'FIXED_AMOUNT';
+      const originalTotal = (product.offerPrice || product.normalPrice) * quantity;
+      
       return (
         <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg border border-green-200 dark:border-green-800">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-semibold text-green-700 dark:text-green-400 flex items-center">
-                🎉 Bulk Discount Applied!
+                🎉 {isFixedAmount ? 'Fixed Price Deal!' : 'Bulk Discount Applied!'}
               </p>
               <p className="text-sm text-green-600 dark:text-green-300 mt-1">
                 {bulkPricing.message}
               </p>
             </div>
             <div className="text-right">
-              <p className="font-bold text-green-700 dark:text-green-400">
-                Save ₹{bulkPricing.totalSavings?.toFixed(2)}
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-300">
-                {bulkPricing.applicableDiscount?.value}% OFF
-              </p>
+              {isFixedAmount ? (
+                <>
+                  <p className="font-bold text-green-700 dark:text-green-400">
+                    Save ₹{bulkPricing.totalSavings?.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-300">
+                    {calculateFixedAmountSavePercentage(originalTotal, bulkFixedTotal)}% OFF
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-green-700 dark:text-green-400">
+                    Save ₹{bulkPricing.totalSavings?.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-300">
+                    {applicableDiscount?.value}% OFF
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
       );
     }
     
-    // Show available bulk pricing tiers
-    if (product?.subcategory?.quantityPrices?.length > 0 && quantity === 1) {
-      const availableTiers = product.subcategory.quantityPrices
-        .filter(price => price.quantity > 1)
+    // Show available bulk pricing tiers - UPDATED FOR BOTH PRICING TYPES
+    if (product?.quantityOffers?.length > 0 && quantity === 1) {
+      const availableTiers = product.quantityOffers
+        .filter(offer => offer.quantity > 1 && offer.isActive)
         .slice(0, 3); // Show only first 3 tiers
       
       if (availableTiers.length > 0) {
@@ -615,11 +701,27 @@ const ProductDetailsPage = () => {
               💰 Bulk Pricing Available
             </p>
             <div className="mt-2 space-y-1">
-              {availableTiers.map(tier => (
-                <p key={tier.quantity} className="text-xs text-orange-600 dark:text-orange-300">
-                  Buy {tier.quantity}: {tier.priceType === 'PERCENTAGE' ? `${tier.value}% OFF` : `₹${tier.value} total`}
-                </p>
-              ))}
+              {availableTiers.map(tier => {
+                const basePrice = product.offerPrice || product.normalPrice;
+                const originalTotal = basePrice * tier.quantity;
+                
+                if (tier.priceType === 'FIXED_AMOUNT') {
+                  const savings = originalTotal - tier.value;
+                  const savePercentage = calculateFixedAmountSavePercentage(originalTotal, tier.value);
+                  
+                  return (
+                    <p key={tier.quantity} className="text-xs text-orange-600 dark:text-orange-300">
+                      Buy {tier.quantity}: Only ₹{tier.value} total (Save {savePercentage}%)
+                    </p>
+                  );
+                } else {
+                  return (
+                    <p key={tier.quantity} className="text-xs text-orange-600 dark:text-orange-300">
+                      Buy {tier.quantity}: {tier.value}% OFF - ₹{(basePrice * tier.quantity * (1 - tier.value/100)).toFixed(2)} total
+                    </p>
+                  );
+                }
+              })}
             </div>
           </div>
         );
@@ -627,6 +729,22 @@ const ProductDetailsPage = () => {
     }
     
     return null;
+  };
+
+  // Calculate total price display - UPDATED FOR FIXED AMOUNT PRICING
+  const getTotalPriceDisplay = () => {
+    if (isBulkFixedPrice && bulkFixedTotal) {
+      return bulkFixedTotal;
+    }
+    return finalPrice * quantity;
+  };
+
+  // Calculate price per item display - UPDATED FOR FIXED AMOUNT PRICING
+  const getPricePerItemDisplay = () => {
+    if (isBulkFixedPrice && bulkFixedTotal) {
+      return bulkFixedTotal / quantity;
+    }
+    return finalPrice;
   };
 
   // Loading state
@@ -791,7 +909,7 @@ const ProductDetailsPage = () => {
                 </span>
               )}
 
-              {product.subcategory?.quantityPrices?.length > 0 && (
+              {product.quantityOffers?.length > 0 && (
                 <span className="inline-flex items-center px-2 sm:px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                   <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full mr-1.5 sm:mr-2"></span>
                   Bulk Discounts
@@ -828,22 +946,27 @@ const ProductDetailsPage = () => {
               )}
             </div>
 
-            {/* Price Section */}
+            {/* Price Section - UPDATED FOR FIXED AMOUNT PRICING */}
             <div className="space-y-2">
               <div className="flex items-center space-x-2 sm:space-x-3">
                 <span className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                  ₹{formatPrice(finalPrice * quantity)}
+                  ₹{formatPrice(getTotalPriceDisplay())}
                 </span>
-                {originalPrice && originalPrice !== finalPrice && (
+                {originalPrice && originalPrice !== finalPrice && !isBulkFixedPrice && (
                   <span className={`text-lg sm:text-xl line-through ${themeColors.textMuted}`}>
                     ₹{formatPrice(originalPrice * quantity)}
+                  </span>
+                )}
+                {isBulkFixedPrice && (
+                  <span className={`text-lg sm:text-xl line-through ${themeColors.textMuted}`}>
+                    ₹{formatPrice((product.offerPrice || product.normalPrice) * quantity)}
                   </span>
                 )}
                 {priceLabel && (
                   <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded ${
                     priceLabel === 'Wholesale' 
                       ? 'bg-green-100 text-green-800' 
-                      : priceLabel === 'Bulk Price'
+                      : priceLabel === 'Bulk Price' || priceLabel === 'Bulk Deal'
                       ? 'bg-orange-100 text-orange-800'
                       : 'bg-red-100 text-red-800'
                   }`}>
@@ -852,8 +975,8 @@ const ProductDetailsPage = () => {
                 )}
               </div>
               
-              {/* Save Percentage */}
-              {savePercentage > 0 && (
+              {/* Save Percentage - UPDATED FOR FIXED AMOUNT PRICING */}
+              {savePercentage > 0 && !isBulkFixedPrice && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium text-green-600 dark:text-green-400">
                     🎉 You save {savePercentage}% 
@@ -866,17 +989,52 @@ const ProductDetailsPage = () => {
                 </div>
               )}
               
+              {isBulkFixedPrice && bulkFixedTotal && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                    🎉 You save {calculateFixedAmountSavePercentage(
+                      (product.offerPrice || product.normalPrice) * quantity, 
+                      bulkFixedTotal
+                    )}% 
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    (₹{formatPrice(calculateFixedAmountSavings(
+                      (product.offerPrice || product.normalPrice) * quantity, 
+                      bulkFixedTotal
+                    ))})
+                  </span>
+                </div>
+              )}
+              
               {isWholesaleUser && (
                 <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400">
                   🏷️ Special wholesale pricing applied
                 </p>
               )}
 
-              {/* Price per item */}
+              {/* Price per item - UPDATED FOR FIXED AMOUNT PRICING */}
               {quantity > 1 && (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  ₹{formatPrice(finalPrice)} per item
+                  ₹{formatPrice(getPricePerItemDisplay())} per item
                 </p>
+              )}
+            </div>
+
+
+            {/* Rating Summary */}
+            <div className="flex items-center space-x-4 py-2 border-t border-b border-gray-200 dark:border-gray-700">
+              <RatingDisplay
+                averageRating={ratingStats?.averageRating || 0} 
+                totalReviews={ratingStats?.totalReviews || 0}
+                size="medium"
+              />
+              {(ratingStats?.totalReviews || 0) > 0 && (
+                <button
+                  onClick={() => setShowReviews(true)}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  View All Reviews
+                </button>
               )}
             </div>
 
@@ -961,192 +1119,134 @@ const ProductDetailsPage = () => {
               </div>
             )}
 
-          {/* Actions Section */}
-          <div className="space-y-5 sm:space-y-6 pt-4 w-full">
+            {/* Actions Section */}
+            <div className="space-y-5 sm:space-y-6 pt-4 w-full">
+              {/* Quantity Selector */}
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <label className={`font-semibold text-sm sm:text-base ${themeColors.textPrimary}`}>
+                  Quantity:
+                </label>
+                <div className={`flex items-center border rounded overflow-hidden ${themeColors.borderPrimary}`}>
+                  {/* Minus Button */}
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
+                      quantity <= 1
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : themeColors.btnSecondary
+                    }`}
+                  >
+                    -
+                  </button>
 
-            {/* Quantity Selector */}
-            <div className="flex items-center space-x-3 sm:space-x-4">
-              <label
-                className={`font-semibold text-sm sm:text-base ${themeColors.textPrimary}`}
-              >
-                Quantity:
-              </label>
+                  {/* Quantity Display */}
+                  <span className={`px-4 sm:px-5 py-1 min-w-10 sm:min-w-14 text-center text-sm sm:text-base ${themeColors.textPrimary}`}>
+                    {quantity}
+                  </span>
 
-              <div
-                className={`flex items-center border rounded overflow-hidden ${themeColors.borderPrimary}`}
-              >
-                {/* Minus Button */}
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                  className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
-                    quantity <= 1
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : themeColors.btnSecondary
-                  }`}
-                >
-                  -
-                </button>
-
-                {/* Quantity Display */}
-                <span
-                  className={`px-4 sm:px-5 py-1 min-w-10 sm:min-w-14 text-center text-sm sm:text-base ${themeColors.textPrimary}`}
-                >
-                  {quantity}
-                </span>
-
-                {/* Plus Button */}
-                <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  disabled={selectedVariant && quantity >= selectedVariant.stock}
-                  className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
-                    selectedVariant && quantity >= selectedVariant.stock
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : themeColors.btnSecondary
-                  }`}
-                >
-                  +
-                </button>
+                  {/* Plus Button */}
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    disabled={selectedVariant && quantity >= selectedVariant.stock}
+                    className={`px-3 py-1 sm:px-4 sm:py-2 text-sm sm:text-base transition ${
+                      selectedVariant && quantity >= selectedVariant.stock
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : themeColors.btnSecondary
+                    }`}
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div
-              className="
-                grid grid-cols-3 
-                sm:grid-cols-3
-                md:grid-cols-3
-                xl:flex lg:flex-row 
-                gap-2 sm:gap-3 
-                w-full items-stretch
-              "
-            >
+              {/* Action Buttons */}
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-3 xl:flex lg:flex-row gap-2 sm:gap-3 w-full items-stretch">
+                {/* Customize Button */}
+                {isCustomizable && !isDesignMode && (
+                  <button
+                    onClick={handleCustomize}
+                    className="col-span-3 xl:flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center space-x-2 text-sm sm:text-base"
+                  >
+                    <span>🎨</span>
+                    <span className="whitespace-nowrap">Customize Design</span>
+                  </button>
+                )}
 
-              {/* Customize Button */}
-              {isCustomizable && !isDesignMode && (
+                {/* Add to Cart */}
                 <button
-                  onClick={handleCustomize}
-                  className="
-                    col-span-3 
-                    xl:flex-1  
-                    py-2 sm:py-3 px-4 sm:px-6 
-                    rounded-lg font-semibold 
-                    bg-purple-600 hover:bg-purple-700 text-white 
-                    flex items-center justify-center space-x-2 
-                    text-sm sm:text-base
-                  "
-                >
-                  <span>🎨</span>
-                  <span className="whitespace-nowrap">Customize Design</span>
-                </button>
-              )}
-
-              {/* Add to Cart */}
-              <button
-                onClick={isDesignMode ? handleAddToCart : handleQuickAddToCart}
-                disabled={isOutOfStock || addingToCart || !selectedVariant}
-                className={`
-                  col-span-3 
-                  xl:flex-1
-                  py-2 sm:py-3 px-4 sm:px-6 
-                  rounded-lg font-semibold flex items-center justify-center space-x-2 
-                  text-sm sm:text-base transition
-                  ${
+                  onClick={isDesignMode ? handleAddToCart : handleQuickAddToCart}
+                  disabled={isOutOfStock || addingToCart || !selectedVariant}
+                  className={`col-span-3 xl:flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base transition ${
                     isOutOfStock || addingToCart || !selectedVariant
                       ? "bg-gray-400 cursor-not-allowed"
                       : isDesignMode
                       ? "bg-green-600 hover:bg-green-700 text-white"
                       : themeColors.btnPrimary
-                  }
-                `}
-              >
-                {addingToCart ? (
-                  <>
-                    <span>⏳</span>
-                    <span>Adding...</span>
-                  </>
-                ) : isOutOfStock ? (
-                  <>
-                    <span>❌</span>
-                    <span>Out of Stock</span>
-                  </>
-                ) : isDesignMode ? (
-                  <>
-                   
-                    <span>Add Custom to Cart</span>
-                  </>
-                ) : (
-                  <>
-                    
-                    <span>Add to Cart</span>
-                  </>
-                )}
-              </button>
+                  }`}
+                >
+                  {addingToCart ? (
+                    <>
+                      <span>⏳</span>
+                      <span>Adding...</span>
+                    </>
+                  ) : isOutOfStock ? (
+                    <>
+                      <span>Out of Stock</span>
+                    </>
+                  ) : isDesignMode ? (
+                    <>
+                      <span>Add Custom to Cart</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Add to Cart</span>
+                    </>
+                  )}
+                </button>
 
-              {/* Buy Now */}
-              <button
-                onClick={handleBuyNow}
-                disabled={isOutOfStock || addingToCart || !selectedVariant}
-                className={`
-                  col-span-3 
-                  lg:flex-1
-                  py-2 sm:py-3 px-4 sm:px-6 
-                  rounded-lg font-semibold flex items-center justify-center space-x-2 
-                  text-sm sm:text-base transition
-                  ${
+                {/* Buy Now */}
+                <button
+                  onClick={handleBuyNow}
+                  disabled={isOutOfStock || addingToCart || !selectedVariant}
+                  className={`col-span-3 lg:flex-1 py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-semibold flex items-center justify-center space-x-2 text-sm sm:text-base transition ${
                     isOutOfStock || addingToCart || !selectedVariant
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-orange-600 hover:bg-orange-700 text-white"
-                  }
-                `}
-              >
-                {addingToCart ? (
-                  <>
-                    <span>⏳</span>
-                    <span>Processing...</span>
-                  </>
-                ) : isOutOfStock ? (
-                  <>
-                    <span>❌</span>
-                    <span>Out of Stock</span>
-                  </>
-                ) : (
-                  <>
-                    <span>⚡</span>
-                    <span>Buy Now</span>
-                  </>
-                )}
-              </button>
+                  }`}
+                >
+                  {addingToCart ? (
+                    <>
+                      <span>⏳</span>
+                      <span>Processing...</span>
+                    </>
+                  ) : isOutOfStock ? (
+                    <>
+                      <span>Out of Stock</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⚡</span>
+                      <span>Buy Now</span>
+                    </>
+                  )}
+                </button>
 
-              {/* Wishlist */}
-              <button
-                onClick={handleWishlistToggle}
-                disabled={!user}
-                className={`
-                  p-2 sm:p-3 rounded-lg border 
-                  flex items-center justify-center  
-                  transition-all duration-200
-                  ${
+                {/* Wishlist */}
+                <button
+                  onClick={handleWishlistToggle}
+                  disabled={!user}
+                  className={`p-2 sm:p-3 rounded-lg border flex items-center justify-center transition-all duration-200 ${
                     isInWishlist
                       ? "bg-red-50 border-red-200 text-red-600"
                       : `${themeColors.bgCard} ${themeColors.borderPrimary} ${themeColors.textSecondary} hover:${themeColors.borderHover}`
-                  }
-                  ${!user ? "opacity-50 cursor-not-allowed" : ""}
-                `}
-                title={
-                  !user
-                    ? "Login to add to wishlist"
-                    : isInWishlist
-                    ? "Remove from wishlist"
-                    : "Add to wishlist"
-                }
-              >
-                {isInWishlist ? "❤️" : "🤍"}
-              </button>
+                  } ${!user ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={!user ? "Login to add to wishlist" : isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  {isInWishlist ? "❤️" : "🤍"}
+                </button>
+              </div>
             </div>
-          </div>
-
-
 
             {/* Product Specifications */}
             {product.productDetails && product.productDetails.length > 0 && (
@@ -1169,10 +1269,98 @@ const ProductDetailsPage = () => {
           </div>
         </div>
 
+
+        {/* Reviews Section */}
+        <div className="mt-12">
+          <div className={`p-6 rounded-lg border ${themeColors.borderPrimary} ${themeColors.bgCard}`}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className={`text-2xl font-bold ${themeColors.textPrimary}`}>
+                Customer Reviews ({ratingStats?.totalReviews || 0})
+              </h2>
+              <div className="flex space-x-2">
+                {(ratingStats?.totalReviews || 0) > 0 && (
+                  <button
+                    onClick={() => setShowReviews(!showReviews)}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${themeColors.borderPrimary} hover:${themeColors.borderHover}`}
+                  >
+                    {showReviews ? 'Hide Reviews' : 'Show Reviews'}
+                  </button>
+                )}
+                {/* Always show Write Review button */}
+                <button
+                  onClick={() => setShowReviews(true)}
+                  className={`px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors`}
+                >
+                  Write a Review
+                </button>
+              </div>
+            </div>
+
+            {showReviews ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Rating Summary - Only show if there are reviews */}
+                {(ratingStats?.totalReviews || 0) > 0 && (
+                  <div className="lg:col-span-1">
+                    <RatingSummary 
+                      ratingStats={ratingStats || {}}
+                      onFilterChange={setRatingFilter}
+                    />
+                  </div>
+                )}
+
+                {/* Reviews and Form - Always show when reviews section is open */}
+                <div className={ratingStats?.totalReviews > 0 ? "lg:col-span-2" : "lg:col-span-3"}>
+                  <div className="space-y-6">
+                    {/* Review Form - Always show at the top */}
+                    <ReviewForm
+                      productId={productId}
+                      onReviewSubmitted={handleReviewSubmitted}
+                    />
+
+                    {/* Reviews List - Only show if there are reviews */}
+                    {(ratingStats?.totalReviews || 0) > 0 && (
+                      <div>
+                        <h3 className={`text-lg font-semibold mb-4 ${themeColors.textPrimary}`}>
+                          Customer Reviews ({ratingStats?.totalReviews || 0})
+                        </h3>
+                        <ReviewsList 
+                          reviews={ratings.filter(rating => 
+                            ratingFilter === 0 || rating.rating === ratingFilter
+                          )}
+                          currentUser={user}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Show this when reviews section is collapsed and no reviews exist
+              (ratingStats?.totalReviews || 0) === 0 && (
+                <div className="text-center py-8">
+                  <p className={`text-lg ${themeColors.textSecondary} mb-4`}>
+                    No reviews yet for this product
+                  </p>
+                  <p className={`text-sm ${themeColors.textTertiary} mb-6`}>
+                    Be the first to share your experience!
+                  </p>
+                  <button
+                    onClick={() => setShowReviews(true)}
+                    className={`px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium`}
+                  >
+                    Write the First Review
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+
         {/* Related Products */}
         <RelatedProducts 
           currentProduct={product}
           category={product.category?.name || product.category}
+          relatedProducts={relatedProductsData?.data || []}
         />
 
         {/* Cart Sidebar */}

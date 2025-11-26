@@ -147,7 +147,7 @@ const MainHeader = () => {
             <img 
               src={getLogo()} 
               alt="Garments Logo" 
-              className="h-16 lg:h-16 xl:h-16 w-28" // Adjust height as needed
+              className="h-16 lg:h-16 xl:h-16 w-20" // Adjust height as needed
             />
             
             {/* Optional: Keep text logo as fallback or remove it */}

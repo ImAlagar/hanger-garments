@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { getCleanProductId } from "../../utils/productUtils";
+import EnhancedQuantityDiscountBadge from "../discount/EnhancedQuantityDiscountBadge";
 
 const ProductInfo = ({ product, hasStock, styles }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
   const stockStatus = hasStock ? "In Stock" : "Out of Stock";
   const stockColor = hasStock ? "text-green-500" : "text-red-500";
-  
+
   
   return (
     <>
@@ -25,6 +27,7 @@ const ProductInfo = ({ product, hasStock, styles }) => {
         {product.title}
       </h3>
     
+
         
       <div className="flex items-center gap-2 mt-1 flex-wrap">
         <p className={`${styles.textColor} font-medium font-instrument tracking-widest`}>

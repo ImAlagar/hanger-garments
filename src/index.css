@@ -93,3 +93,89 @@
     max-height: 200px;
   }
 }
+
+
+
+.animate-vertical-scroll-smooth {
+  display: flex;
+  flex-direction: column;
+  animation: scrollDownSmooth 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes scrollDownSmooth {
+  0% { 
+    transform: translateY(0); 
+  }
+  10% { 
+    transform: translateY(0); /* Brief pause at start */
+  }
+  40% { 
+    transform: translateY(-25%); /* Smooth scroll to first item */
+  }
+  50% { 
+    transform: translateY(-25%); /* Pause on first item */
+  }
+  80% { 
+    transform: translateY(-50%); /* Smooth scroll to second item */
+  }
+  90% { 
+    transform: translateY(-50%); /* Pause on second item */
+  }
+  100% { 
+    transform: translateY(-50%); /* Reset position */
+  }
+}
+
+/* Alternative simpler smooth animation */
+.animate-vertical-scroll-simple {
+  display: flex;
+  flex-direction: column;
+  animation: scrollDownSimple 6s ease-in-out infinite;
+}
+
+@keyframes scrollDownSimple {
+  0% { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+  15% { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+  35% { 
+    transform: translateY(-25%);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translateY(-25%);
+    opacity: 1;
+  }
+  65% { 
+    transform: translateY(-50%);
+    opacity: 0.8;
+  }
+  85% { 
+    transform: translateY(-50%);
+    opacity: 1;
+  }
+  100% { 
+    transform: translateY(-50%);
+    opacity: 1;
+  }
+}
+
+/* For very smooth continuous scroll */
+.animate-vertical-scroll-continuous {
+  display: flex;
+  flex-direction: column;
+  animation: scrollDownContinuous 10s linear infinite;
+}
+
+@keyframes scrollDownContinuous {
+  0% { 
+    transform: translateY(0); 
+  }
+  100% { 
+    transform: translateY(-50%); 
+  }
+}

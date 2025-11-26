@@ -49,7 +49,7 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
     <div className="relative w-full">
       {/* Discount Badge */}
       {!product.isWholesaleUser && product.offerPrice && product.offerPrice < product.normalPrice && (
-        <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 text-xs font-bold rounded z-10">
+        <div className="absolute bottom-3 right-3 bg-red-500 text-white px-2 py-1 text-xs font-bold rounded z-10">
           {discountPercentage}% OFF
         </div>
       )}

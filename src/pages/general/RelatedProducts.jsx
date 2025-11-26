@@ -391,7 +391,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
             {relatedProducts.map((product) => (
               <div
                 key={product.id}
-                className="flex-shrink-0 w-64 transition-transform duration-300 hover:scale-105"
+                className="flex-shrink-0 w-80 transition-transform duration-300 hover:scale-105"
               >
                 <ProductCard
                   product={product}
