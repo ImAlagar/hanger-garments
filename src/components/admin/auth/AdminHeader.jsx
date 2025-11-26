@@ -216,21 +216,7 @@ const AdminHeader = ({ onMenuClick, sidebarOpen }) => {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleProfileClick}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FiUser size={16} className="mr-3" />
-                  Profile
-                </button>
 
-                <button
-                  onClick={handleSettingsClick}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FiSettings size={16} className="mr-3" />
-                  Settings
-                </button>
 
                 <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                 <button

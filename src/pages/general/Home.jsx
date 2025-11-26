@@ -322,7 +322,7 @@ export default function Home() {
                       transition={{ duration: 0.3 }}
                       src={banner.image}
                       alt={banner.title || "banner"}
-                      className="rounded-xl lg:rounded-2xl shadow-2xl object-cover w-full h-auto max-h-[350px] sm:max-h-[450px] lg:max-h-[550px]"
+                      className="rounded-xl lg:rounded-2xl shadow-2xl object-cover w-96 h-96 sm:h-20 md:h-96"
                       loading="lazy"
                       onError={(e) => {
                         e.target.style.display = 'none'

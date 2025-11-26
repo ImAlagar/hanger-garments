@@ -59,13 +59,20 @@ const MainHeader = () => {
   const { scrolled, topbarVisible } = useScrollEffects();
   
   // Use only useSearch for search-related state
-  const { 
-    searchQuery, 
-    searchOpen, 
-    setSearchQuery, 
-    setSearchOpen, 
-    handleSearch 
-  } = useSearch();
+const { 
+  searchQuery, 
+  searchOpen, 
+  setSearchQuery, 
+  setSearchOpen, 
+  handleSearch,
+  searchResults,
+  isSearchLoading,
+  searchError,
+  recentSearches,
+  clearRecentSearches,
+  handleProductClick,
+  handleViewAllResults
+} = useSearch();
 
   // Get the appropriate logo based on theme
   const getLogo = () => {
@@ -143,6 +150,7 @@ const MainHeader = () => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
+
             {/* Logo Image */}
             <img 
               src={getLogo()} 
@@ -284,13 +292,20 @@ const MainHeader = () => {
         </div>
 
         {/* Search Overlay */}
-        <SearchOverlay
-          searchOpen={searchOpen}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setSearchOpen={setSearchOpen}
-          handleSearch={handleSearch}
-        />
+    <SearchOverlay
+      searchOpen={searchOpen}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      setSearchOpen={setSearchOpen}
+      handleSearch={handleSearch}
+      searchResults={searchResults}
+      isSearchLoading={isSearchLoading}
+      searchError={searchError}
+      recentSearches={recentSearches}
+      clearRecentSearches={clearRecentSearches}
+      handleProductClick={handleProductClick}
+      handleViewAllResults={handleViewAllResults}
+    />
 
         {/* Mobile Side Navigation */}
         <MobileSideNav

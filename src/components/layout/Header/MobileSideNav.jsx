@@ -78,6 +78,22 @@ const MobileSideNav = ({
   const categories = categoriesData?.data || categoriesData || [];
   const subcategories = subcategoriesData?.data || subcategoriesData || [];
 
+  // Filter out inactive categories
+  const activeCategories = categories.filter(cat => cat.isActive === true);
+
+  // Desired order for sorting
+  const desiredOrder = ['Men', 'Women', 'Kids', 'Unisex', 'Customised Design', 'Exclusive Pre Order'];
+  
+  // Sort categories according to desired order
+  const sortedCategories = [...activeCategories].sort((a, b) => {
+    const indexA = desiredOrder.indexOf(a.name);
+    const indexB = desiredOrder.indexOf(b.name);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return 0;
+  });
+
   // Group subcategories by category
   const subcategoriesByCategory = subcategories.reduce((acc, subcat) => {
     const categoryName = subcat.category?.name || subcat.category;
@@ -109,18 +125,29 @@ const MobileSideNav = ({
     setMenuOpen(false);
   };
 
-  // Create URL-safe category name
-  const createCategorySlug = (categoryName) => {
-    return categoryName.toLowerCase().replace(/\s+/g, '-');
+  // Create URL-safe category name (same as DesktopNav)
+  const createCategorySlug = (categoryName = "") => {
+    return categoryName
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, '-and-')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
   };
 
-  // Check if category is active
+  // Check if category is active (same as DesktopNav)
   const isCategoryActive = (categoryName) => {
     if (!category) return false;
     return createCategorySlug(categoryName) === category.toLowerCase();
   };
 
-  const toggleCategoryDropdown = (categoryName) => {
+  const toggleCategoryDropdown = (categoryName, e) => {
+    // Prevent navigation when clicking on dropdown arrow area
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     setCategoryDropdowns(prev => ({
       ...prev,
       [categoryName]: !prev[categoryName]
@@ -131,7 +158,18 @@ const MobileSideNav = ({
     setAuthDropdownOpen(!authDropdownOpen);
   };
 
-  const handleCategoryClick = (categoryName) => {
+  // Handle category click - navigate to category page
+  const handleCategoryClick = (categoryName, e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    const categorySlug = createCategorySlug(categoryName);
+    navigate(`/shop/${categorySlug}`);
+    setMenuOpen(false);
+  };
+
+  // Handle category title click - navigate to category page
+  const handleCategoryTitleClick = (categoryName) => {
     const categorySlug = createCategorySlug(categoryName);
     navigate(`/shop/${categorySlug}`);
     setMenuOpen(false);
@@ -139,7 +177,8 @@ const MobileSideNav = ({
 
   const handleSubcategoryClick = (categoryName, subcategoryName) => {
     const categorySlug = createCategorySlug(categoryName);
-    navigate(`/shop/${categorySlug}?subcategories=${encodeURIComponent(subcategoryName)}`);
+    const subcategorySlug = createCategorySlug(subcategoryName);
+    navigate(`/shop/${categorySlug}?subcategories=${encodeURIComponent(subcategorySlug)}`);
     setMenuOpen(false);
   };
 
@@ -358,7 +397,7 @@ const MobileSideNav = ({
                 </motion.li>
 
                 {/* Categories with Dropdowns */}
-                {categories.map((cat) => {
+                {sortedCategories.map((cat) => {
                   const categoryName = cat.name;
                   const categorySubcategories = subcategoriesByCategory[categoryName] || [];
                   const isActive = isCategoryActive(categoryName);
@@ -367,22 +406,28 @@ const MobileSideNav = ({
                   return (
                     <motion.li key={cat.id || cat._id} variants={motionVariants.item} className="mb-1">
                       <motion.div
-                        onClick={() => toggleCategoryDropdown(categoryName)}
+                        onClick={() => handleCategoryTitleClick(categoryName)}
                         className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
                           isActive
                             ? theme === "dark"
-                              ? "text-purple-400 font-semibold"
-                              : "text-purple-600 font-semibold"
+                              ? "text-purple-400 font-semibold bg-purple-900/20"
+                              : "text-purple-600 font-semibold bg-purple-50"
                             : theme === "dark"
-                            ? "text-gray-300 hover:text-purple-300"
-                            : "text-gray-700 hover:text-purple-600"
+                            ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800/50"
+                            : "text-gray-700 hover:text-purple-600 hover:bg-gray-50"
                         }`}
+                        whileHover={{ x: 4 }}
                       >
                         <div className="flex items-center">
                           <span>{categoryName}</span>
                         </div>
                         {categorySubcategories.length > 0 && (
-                          <FiChevronDown className={`size-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                          <div 
+                            onClick={(e) => toggleCategoryDropdown(categoryName, e)}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                          >
+                            <FiChevronDown className={`size-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                          </div>
                         )}
                       </motion.div>
                       
@@ -472,9 +517,10 @@ const MobileSideNav = ({
                           ? "text-purple-400 font-semibold"
                           : "text-purple-600 font-semibold"
                         : theme === "dark"
-                        ? "text-gray-300 hover:text-purple-300"
-                        : "text-gray-700 hover:text-purple-600"
+                        ? "text-gray-300 hover:text-purple-300 hover:bg-gray-800/50"
+                        : "text-gray-700 hover:text-purple-600 hover:bg-gray-50"
                     }`}
+                    whileHover={{ x: 4 }}
                   >
                     <div className="flex items-center">
                       <FiStar className="mr-3 size-4" />
@@ -812,6 +858,7 @@ const MobileSideNav = ({
           </motion.div>
         </>
       )}
+      
     </AnimatePresence>
   );
 };

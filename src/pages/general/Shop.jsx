@@ -14,12 +14,15 @@ import CartSidebar from "../../components/layout/CartSidebar";
 const createSlug = (name = "") =>
   name
     .toString()
-    .trim()
+    .trim()   
     .toLowerCase()
     .replace(/&/g, "-and-")
     .replace(/[^a-z0-9\s-]/g, "") // remove punctuation
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+
+// Pagination configuration
+const PRODUCTS_PER_PAGE = 12;
 
 export default function Shop() {
   const { category } = useParams();
@@ -42,6 +45,8 @@ export default function Shop() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   // Initialize filters from URL
   const initFiltersFromSearch = useCallback(() => {
@@ -74,6 +79,11 @@ export default function Shop() {
   useEffect(() => {
     setFilters(initFiltersFromSearch());
   }, [initFiltersFromSearch, location.search]);
+
+  // Reset to page 1 when filters or category change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, category]);
 
   // Function to update URL with current filters
   const updateURL = useCallback((newFilters) => {
@@ -315,6 +325,55 @@ export default function Shop() {
     setFilteredProducts(colorBasedProducts);
   }, [productsData, category, isWholesaleUser, filters, extractProductsArray]);
 
+  // Calculate paginated products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    const endIndex = startIndex + PRODUCTS_PER_PAGE;
+    return filteredProducts.slice(0, endIndex);
+  }, [filteredProducts, currentPage]);
+
+  // Check if there are more products to load
+  useEffect(() => {
+    const totalProducts = filteredProducts.length;
+    const currentEndIndex = currentPage * PRODUCTS_PER_PAGE;
+    setHasMore(currentEndIndex < totalProducts);
+  }, [filteredProducts, currentPage]);
+
+  // Load more products
+  const loadMoreProducts = () => {
+    setCurrentPage(prev => prev + 1);
+  };
+
+  // Handle page navigation
+  const goToPage = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    // Adjust if we're at the end
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+
   // Clear all filters (preserve main category path)
   const clearAllFilters = () => {
     const clearedFilters = {
@@ -328,6 +387,7 @@ export default function Shop() {
     };
 
     setFilters(clearedFilters);
+    setCurrentPage(1);
 
     // Clear URL params but keep route
     if (category) {
@@ -422,6 +482,14 @@ export default function Shop() {
         {category ? getCategoryDisplayName() : "All Products"}
       </h1>
 
+      {/* Results Count */}
+      <div className="text-center mb-6">
+        <p className={`text-lg ${subText}`}>
+          Showing {paginatedProducts.length} of {filteredProducts.length} products
+          {category && ` in ${getCategoryDisplayName()}`}
+        </p>
+      </div>
+
       {/* Mobile Filter Button */}
       <div className="lg:hidden flex justify-between items-center mb-6">
         <button
@@ -442,7 +510,7 @@ export default function Shop() {
         </button>
         
         <div className="text-sm text-gray-500">
-          {filteredProducts.length} products found
+          Page {currentPage} of {totalPages}
         </div>
       </div>
 
@@ -749,7 +817,7 @@ export default function Shop() {
 
         {/* Main Content */}
         <div className="flex-1">
-          {filteredProducts.length === 0 ? (
+          {paginatedProducts.length === 0 ? (
             <div className="text-center py-12">
               <svg className="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -769,8 +837,8 @@ export default function Shop() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 md:grid-cols-3 xl:grid-cols-3 gap-8">
-                {filteredProducts.map((product) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-8">
+                {paginatedProducts.map((product) => (
                   <ProductCard 
                     key={product.id} 
                     product={product} 
@@ -779,13 +847,69 @@ export default function Shop() {
                 ))}
               </div>
 
-              {filteredProducts.length > 0 && (
-                <div className="text-center mt-12">
-                  <button className="px-8 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    Load More Products
+              {/* Pagination Controls */}
+              <div className="mt-12 flex flex-col items-center gap-6">
+                {/* Load More Button (for infinite scroll style) */}
+                {hasMore && (
+                  <button
+                    onClick={loadMoreProducts}
+                    className="px-8 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+                  >
+                    Load More Products ({filteredProducts.length - paginatedProducts.length} remaining)
                   </button>
+                )}
+
+                {/* Traditional Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-lg border ${
+                        currentPage === 1
+                          ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                          : `${borderColor} ${hoverBg} transition-colors`
+                      }`}
+                    >
+                      Previous
+                    </button>
+
+                    {/* Page Numbers */}
+                    {getPageNumbers().map(page => (
+                      <button
+                        key={page}
+                        onClick={() => goToPage(page)}
+                        className={`px-4 py-2 rounded-lg border ${
+                          currentPage === page
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : `${borderColor} ${hoverBg} transition-colors`
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-lg border ${
+                        currentPage === totalPages
+                          ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                          : `${borderColor} ${hoverBg} transition-colors`
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+
+                {/* Page Info */}
+                <div className={`text-sm ${subText}`}>
+                  Page {currentPage} of {totalPages} • Showing {paginatedProducts.length} of {filteredProducts.length} products
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>

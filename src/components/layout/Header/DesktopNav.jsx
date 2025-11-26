@@ -33,7 +33,7 @@ const DesktopNav = () => {
     data: subcategoriesData, 
     isLoading: subcategoriesLoading,
     error: subcategoriesError
-  } = useGetAllSubcategoriesQuery(); // FIXED
+  } = useGetAllSubcategoriesQuery();
 
   useEffect(() => {
     setMounted(true);
@@ -42,10 +42,13 @@ const DesktopNav = () => {
   const categories = categoriesData?.data || categoriesData || [];
   const subcategories = subcategoriesData?.data || subcategoriesData || [];
 
+  // Filter out inactive categories
+  const activeCategories = categories.filter(cat => cat.isActive === true);
+
   // Desired order
   const desiredOrder = ['Men', 'Women', 'Kids', 'Unisex', 'Customised Design', 'Exclusive Pre Order'];
   
-  const sortedCategories = [...categories].sort((a, b) => {
+  const sortedCategories = [...activeCategories].sort((a, b) => {
     const indexA = desiredOrder.indexOf(a.name);
     const indexB = desiredOrder.indexOf(b.name);
     if (indexA !== -1 && indexB !== -1) return indexA - indexB;
