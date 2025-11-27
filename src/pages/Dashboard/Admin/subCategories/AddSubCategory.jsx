@@ -17,7 +17,11 @@ const AddSubCategory = () => {
 
   const [createSubcategory] = useCreateSubcategoryMutation();
   const { data: categoriesResponse } = useGetAllCategoriesQuery();
-  const categories = categoriesResponse?.data || [];
+const categories = categoriesResponse?.data?.categories || 
+                  categoriesResponse?.categories || 
+                  categoriesResponse?.data || 
+                  categoriesResponse || 
+                  [];
 
   // Form state
   const [formData, setFormData] = useState({

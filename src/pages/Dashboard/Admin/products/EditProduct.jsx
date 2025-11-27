@@ -30,8 +30,8 @@ const EditProduct = () => {
   const { theme } = useTheme();
 
   // Redux queries and mutations
-  const { data: productData, isLoading: productLoading, refetch: refetchProduct } = useGetProductByIdQuery(productId);
-  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+const { data: productData, isLoading: productLoading, refetch: refetchProduct } = useGetProductByIdQuery(productId);
+const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
   
   // Variant mutations
   const [addProductVariant] = useAddProductVariantMutation();
@@ -44,9 +44,80 @@ const EditProduct = () => {
   const { data: subcategoriesData, isLoading: subcategoriesLoading } = 
     useGetSubcategoriesByCategoryQuery(selectedCategoryId, { skip: !selectedCategoryId });
 
-  const categories = categoriesData?.data || [];
-  const subcategories = subcategoriesData?.data || [];
-  const product = productData?.data;
+
+
+
+
+const extractCategories = (data) => {
+  if (!data) {
+    return [];
+  }
+  
+  
+  // Based on your Redux structure, categories are in data.data.categories
+  if (data.data && data.data.categories && Array.isArray(data.data.categories)) {
+    return data.data.categories;
+  }
+  
+  // Fallback: try data.categories
+  if (data.categories && Array.isArray(data.categories)) {
+    return data.categories;
+  }
+  
+  // Fallback: try data.data as array
+  if (data.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  // Fallback: data itself might be array
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  return [];
+};
+
+const extractSubcategories = (data) => {
+  if (!data) {
+    return [];
+  }
+  
+  
+  // Subcategories likely follow similar structure
+  if (data.data && data.data.subcategories && Array.isArray(data.data.subcategories)) {
+    return data.data.subcategories;
+  }
+  
+  if (data.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  return [];
+};
+
+
+  const safeMapOptions = (array, valueKey = 'id', labelKey = 'name') => {
+    if (!Array.isArray(array)) return [];
+    
+    return array
+      .filter(item => item && typeof item === 'object')
+      .map(item => ({
+        value: item[valueKey] || item._id || item.id,
+        label: item[labelKey] || item.title || item.name || 'Unnamed'
+      }))
+      .filter(option => option.value && option.label);
+  };
+
+const categories = categoriesLoading ? [] : extractCategories(categoriesData);
+const subcategories = subcategoriesLoading ? [] : extractSubcategories(subcategoriesData);
+const product = productData?.data;
+
+
+
 
   // Animation variants
   const containerVariants = {
@@ -178,21 +249,21 @@ const EditProduct = () => {
       setSelectedCategoryId(product.categoryId || '');
 
       // Set product details
-    if (product.productDetails && product.productDetails.length > 0) {
-      const details = product.productDetails.map(detail => {
-        if (detail && typeof detail === 'object') {
-          return {
-            title: detail.title || detail.Title || detail.name || '',
-            description: detail.description || detail.Description || detail.desc || detail.value || ''
-          };
-        }
-        return { title: '', description: '' };
-      }).filter(detail => detail.title || detail.description);
-      
-      setProductDetails(details.length > 0 ? details : [{ title: '', description: '' }]);
-    } else {
-      setProductDetails([{ title: '', description: '' }]);
-    }
+      if (product.productDetails && product.productDetails.length > 0) {
+        const details = product.productDetails.map(detail => {
+          if (detail && typeof detail === 'object') {
+            return {
+              title: detail.title || detail.Title || detail.name || '',
+              description: detail.description || detail.Description || detail.desc || detail.value || ''
+            };
+          }
+          return { title: '', description: '' };
+        }).filter(detail => detail.title || detail.description);
+        
+        setProductDetails(details.length > 0 ? details : [{ title: '', description: '' }]);
+      } else {
+        setProductDetails([{ title: '', description: '' }]);
+      }
 
       // FIXED: Set variants - No duplicate images
       if (product.variants && product.variants.length > 0) {
@@ -771,25 +842,26 @@ const EditProduct = () => {
                         placeholder="e.g., TS001"
                       />
 
-                      {/* Category */}
+                      {/* Category - FIXED */}
                       <SelectField
                         label="Category"
                         name="categoryId"
                         value={productForm.categoryId}
                         onChange={handleProductChange}
                         required
-                        options={categories}
+                        options={safeMapOptions(categories, 'id', 'name')}
                         loading={categoriesLoading}
                       />
 
-                      {/* Subcategory */}
+                      {/* Subcategory - FIXED */}
                       <SelectField
                         label="Subcategory"
                         name="subcategoryId"
                         value={productForm.subcategoryId}
                         onChange={handleProductChange}
-                        options={subcategories}
+                        options={safeMapOptions(subcategories, 'id', 'name')}
                         loading={subcategoriesLoading}
+                        disabled={!selectedCategoryId}
                       />
 
                       {/* Normal Price */}
@@ -867,96 +939,89 @@ const EditProduct = () => {
                         loading={isLoading}
                       >
                         <Save size={18} />
-
-                        {/* Text hidden on small screens */}
                         <span className="hidden md:inline">
                           Update Product Info
                         </span>
                       </Button>
                     </motion.div>
-
-
-
                   </motion.section>
 
-                {/* Product Details Section */}
-                <motion.section
-                  variants={containerVariants}
-                  className={`border rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
-                >
-                  {/* Header */}
-                  <motion.div
-                    variants={itemVariants}
-                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"
+                  {/* Product Details Section */}
+                  <motion.section
+                    variants={containerVariants}
+                    className={`border rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
                   >
-                    <h2 className="text-lg sm:text-xl font-semibold font-instrument flex items-center">
-                      <span className="bg-green-100 text-green-800 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center mr-2 sm:mr-3 text-sm sm:text-base">
-                        2
-                      </span>
-                      Product Details
-                    </h2>
-
-                    <Button
-                      type="button"
-                      onClick={addProductDetail}
-                      variant="success"
-                      className="flex items-center justify-center gap-2 min-w-[50px] sm:min-w-[140px] text-sm sm:text-base"
+                    {/* Header */}
+                    <motion.div
+                      variants={itemVariants}
+                      className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6"
                     >
-                      <Plus size={18} />
-                      <span className="hidden sm:inline">Add Detail</span>
-                    </Button>
-                  </motion.div>
+                      <h2 className="text-lg sm:text-xl font-semibold font-instrument flex items-center">
+                        <span className="bg-green-100 text-green-800 rounded-full w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center mr-2 sm:mr-3 text-sm sm:text-base">
+                          2
+                        </span>
+                        Product Details
+                      </h2>
 
-                  {/* Product Detail Items */}
-                  <AnimatePresence>
-                    <motion.div variants={containerVariants} className="space-y-4">
-                                {/* Product Detail Items */}
-                                <div className="space-y-4">
-                                  {productDetails.map((detail, index) => (
-                                    <div
-                                      key={index}
-                                      className={`grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 border rounded-lg ${currentTheme.bg.secondary} ${currentTheme.border}`}
-                                    >
-                                      <div>
-                                        <InputField
-                                          label="Title"
-                                          value={detail.title}
-                                          onChange={(e) => handleDetailChange(index, 'title', e.target.value)}
-                                          placeholder="e.g., Material"
-                                          required
-                                        />
-                                      </div>
-
-                                      <div className="sm:col-span-2">
-                                        <InputField
-                                          label="Description"
-                                          value={detail.description}
-                                          onChange={(e) => handleDetailChange(index, 'description', e.target.value)}
-                                          placeholder="e.g., 100% Premium Cotton"
-                                          required
-                                        />
-                                      </div>
-
-                                      <div className="flex items-end">
-                                        {productDetails.length > 1 && (
-                                          <Button
-                                            type="button"
-                                            onClick={() => removeProductDetail(index)}
-                                            variant="danger"
-                                            className="w-full sm:w-auto text-sm sm:text-base flex items-center justify-center gap-1"
-                                          >
-                                            <Trash2 size={16} />
-                                            <span className="hidden sm:inline">Remove</span>
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                      <Button
+                        type="button"
+                        onClick={addProductDetail}
+                        variant="success"
+                        className="flex items-center justify-center gap-2 min-w-[50px] sm:min-w-[140px] text-sm sm:text-base"
+                      >
+                        <Plus size={18} />
+                        <span className="hidden sm:inline">Add Detail</span>
+                      </Button>
                     </motion.div>
-                  </AnimatePresence>
-                </motion.section>
 
+                    {/* Product Detail Items */}
+                    <AnimatePresence>
+                      <motion.div variants={containerVariants} className="space-y-4">
+                        <div className="space-y-4">
+                          {productDetails.map((detail, index) => (
+                            <div
+                              key={index}
+                              className={`grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 border rounded-lg ${currentTheme.bg.secondary} ${currentTheme.border}`}
+                            >
+                              <div>
+                                <InputField
+                                  label="Title"
+                                  value={detail.title}
+                                  onChange={(e) => handleDetailChange(index, 'title', e.target.value)}
+                                  placeholder="e.g., Material"
+                                  required
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <InputField
+                                  label="Description"
+                                  value={detail.description}
+                                  onChange={(e) => handleDetailChange(index, 'description', e.target.value)}
+                                  placeholder="e.g., 100% Premium Cotton"
+                                  required
+                                />
+                              </div>
+
+                              <div className="flex items-end">
+                                {productDetails.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    onClick={() => removeProductDetail(index)}
+                                    variant="danger"
+                                    className="w-full sm:w-auto text-sm sm:text-base flex items-center justify-center gap-1"
+                                  >
+                                    <Trash2 size={16} />
+                                    <span className="hidden sm:inline">Remove</span>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </motion.section>
 
                   {/* Color Variants Section */}
                   <motion.section
@@ -1075,199 +1140,192 @@ const EditProduct = () => {
                     </motion.div>
 
                     {/* Color Variants List */}
-                      <AnimatePresence>
-                        <motion.div variants={containerVariants} className="space-y-6">
-                          {Object.entries(variants).map(([color, data]) => (
-                            <motion.div
-                              key={color}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -20 }}
-                              className={`border-2 rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border}`}
-                            >
-                              {/* Header */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
-                                <div>
-                                  <h3 className="text-base sm:text-lg font-semibold font-instrument capitalize">
-                                    {color}
-                                    {data.variantId && (
-                                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                        Saved
-                                      </span>
-                                    )}
-                                  </h3>
-                                  <p className="text-xs sm:text-sm font-instrument mt-1">
-                                    {data.sizes.filter((size) => size.stock > 0).length} sizes with stock • {data.imagePreviews.length} images
-                                  </p>
-                                </div>
-
-                                {/* ---- RESPONSIVE BUTTONS (ICON ONLY ON MOBILE) ---- */}
-                                <div className="flex gap-2">
-                                  {/* SAVE / UPDATE BUTTON */}
-                                  <Button 
-                                    type="button" 
-                                    onClick={() => saveVariant(color)}
-                                    variant="primary"
-                                    loading={variantLoading[color]}
-                                    disabled={variantLoading[color]}
-                                    className="flex items-center justify-center gap-1 text-xs sm:text-sm"
-                                  >
-                                    <Save size={14} />
-
-                                    {/* Hidden on mobile */}
-                                    <span className="hidden sm:inline">
-                                      {data.variantId ? 'Update' : 'Save'} Variant
+                    <AnimatePresence>
+                      <motion.div variants={containerVariants} className="space-y-6">
+                        {Object.entries(variants).map(([color, data]) => (
+                          <motion.div
+                            key={color}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className={`border-2 rounded-xl p-4 sm:p-6 ${currentTheme.bg.card} ${currentTheme.border}`}
+                          >
+                            {/* Header */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+                              <div>
+                                <h3 className="text-base sm:text-lg font-semibold font-instrument capitalize">
+                                  {color}
+                                  {data.variantId && (
+                                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                      Saved
                                     </span>
-                                  </Button>
+                                  )}
+                                </h3>
+                                <p className="text-xs sm:text-sm font-instrument mt-1">
+                                  {data.sizes.filter((size) => size.stock > 0).length} sizes with stock • {data.imagePreviews.length} images
+                                </p>
+                              </div>
 
-                                  {/* REMOVE BUTTON */}
-                                  <Button 
-                                    type="button" 
-                                    onClick={() => removeColorVariant(color)}
-                                    variant="danger"
-                                    loading={variantLoading[color]}
-                                    disabled={variantLoading[color]}
-                                    className="flex items-center justify-center gap-1 text-xs sm:text-sm"
+                              {/* Buttons */}
+                              <div className="flex gap-2">
+                                <Button 
+                                  type="button" 
+                                  onClick={() => saveVariant(color)}
+                                  variant="primary"
+                                  loading={variantLoading[color]}
+                                  disabled={variantLoading[color]}
+                                  className="flex items-center justify-center gap-1 text-xs sm:text-sm"
+                                >
+                                  <Save size={14} />
+                                  <span className="hidden sm:inline">
+                                    {data.variantId ? 'Update' : 'Save'} Variant
+                                  </span>
+                                </Button>
+
+                                <Button 
+                                  type="button" 
+                                  onClick={() => removeColorVariant(color)}
+                                  variant="danger"
+                                  loading={variantLoading[color]}
+                                  disabled={variantLoading[color]}
+                                  className="flex items-center justify-center gap-1 text-xs sm:text-sm"
+                                >
+                                  <Trash2 size={14} />
+                                  <span className="hidden sm:inline">Remove</span>
+                                </Button>
+                              </div>
+                            </div>
+
+                            {/* Sizes */}
+                            <div className="mb-6">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
+                                <h4 className="text-sm sm:text-md font-medium font-instrument">Sizes & Stock</h4>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Custom size (e.g., 28, 30)"
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter") {
+                                        addCustomSize(color, e.target.value);
+                                        e.target.value = "";
+                                      }
+                                    }}
+                                    className={`px-3 py-1 border ${currentTheme.border} rounded text-sm ${currentTheme.bg.input} ${currentTheme.text.primary}`}
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      const input = document.querySelector(`input[placeholder="Custom size (e.g., 28, 30)"]`);
+                                      addCustomSize(color, input?.value);
+                                      if (input) input.value = "";
+                                    }}
+                                    variant="primary"
+                                    className="text-xs sm:text-sm px-3 py-1"
                                   >
-                                    <Trash2 size={14} />
-
-                                    {/* Hidden on mobile */}
-                                    <span className="hidden sm:inline">Remove</span>
+                                    Add Size
                                   </Button>
                                 </div>
                               </div>
 
-                              {/* Sizes */}
-                              <div className="mb-6">
-                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-2">
-                                  <h4 className="text-sm sm:text-md font-medium font-instrument">Sizes & Stock</h4>
-                                  <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                                {data.sizes.map((size, index) => (
+                                  <motion.div
+                                    key={size.size}
+                                    whileHover={{ scale: 1.05 }}
+                                    className={`border rounded-lg p-3 ${currentTheme.bg.secondary} ${currentTheme.border}`}
+                                  >
+                                    <div className="text-center mb-2">
+                                      <span className="font-medium text-sm sm:text-base">{size.size}</span>
+                                    </div>
                                     <input
-                                      type="text"
-                                      placeholder="Custom size (e.g., 28, 30)"
-                                      onKeyPress={(e) => {
-                                        if (e.key === "Enter") {
-                                          addCustomSize(color, e.target.value);
-                                          e.target.value = "";
-                                        }
-                                      }}
-                                      className={`px-3 py-1 border ${currentTheme.border} rounded text-sm ${currentTheme.bg.input} ${currentTheme.text.primary}`}
+                                      type="number"
+                                      value={size.stock}
+                                      onChange={(e) => updateSizeStock(color, index, e.target.value)}
+                                      onBlur={() => updateSizeStockInBackend(color, index)}
+                                      min="0"
+                                      className={`w-full px-2 py-1 border ${currentTheme.border} rounded text-center text-xs sm:text-sm mb-2 ${currentTheme.bg.input} ${currentTheme.text.primary}`}
+                                      placeholder="Stock"
                                     />
-                                    <Button
-                                      type="button"
-                                      onClick={() => {
-                                        const input = document.querySelector(`input[placeholder="Custom size (e.g., 28, 30)"]`);
-                                        addCustomSize(color, input?.value);
-                                        if (input) input.value = "";
-                                      }}
-                                      variant="primary"
-                                      className="text-xs sm:text-sm px-3 py-1"
-                                    >
-                                      Add Size
-                                    </Button>
-                                  </div>
-                                </div>
+                                    <div className="text-[10px] sm:text-xs text-center truncate" title={size.sku}>
+                                      SKU: {size.sku}
+                                    </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                                  {data.sizes.map((size, index) => (
-                                    <motion.div
-                                      key={size.size}
-                                      whileHover={{ scale: 1.05 }}
-                                      className={`border rounded-lg p-3 ${currentTheme.bg.secondary} ${currentTheme.border}`}
-                                    >
-                                      <div className="text-center mb-2">
-                                        <span className="font-medium text-sm sm:text-base">{size.size}</span>
-                                      </div>
-                                      <input
-                                        type="number"
-                                        value={size.stock}
-                                        onChange={(e) => updateSizeStock(color, index, e.target.value)}
-                                        onBlur={() => updateSizeStockInBackend(color, index)}
-                                        min="0"
-                                        className={`w-full px-2 py-1 border ${currentTheme.border} rounded text-center text-xs sm:text-sm mb-2 ${currentTheme.bg.input} ${currentTheme.text.primary}`}
-                                        placeholder="Stock"
-                                      />
-                                      <div className="text-[10px] sm:text-xs text-center truncate" title={size.sku}>
-                                        SKU: {size.sku}
-                                      </div>
+                                    {data.sizes.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        onClick={() => removeSize(color, index)}
+                                        variant="danger"
+                                        className="w-full mt-2 text-[10px] sm:text-xs px-2 py-1"
+                                      >
+                                        Remove
+                                      </Button>
+                                    )}
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </div>
 
-                                      {data.sizes.length > 1 && (
+                            {/* Images */}
+                            <div>
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+                                <h4 className="text-sm sm:text-md font-medium font-instrument">
+                                  Color Images ({data.imagePreviews.length}/10)
+                                </h4>
+                                <span className="text-xs sm:text-sm text-gray-600">
+                                  First image will be set as primary
+                                </span>
+                              </div>
+
+                              <div className="mb-4">
+                                <input
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  onChange={(e) => handleColorImages(color, e.target.files)}
+                                  className={`w-full px-3 py-2 border ${currentTheme.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTheme.bg.input}`}
+                                />
+                                <p className="text-xs sm:text-sm font-instrument mt-1">
+                                  Upload high-quality images for {color}. These images will be used for all sizes of this color.
+                                </p>
+                              </div>
+
+                              {/* Previews */}
+                              {data.imagePreviews.length > 0 && (
+                                <div>
+                                  <label className="block text-xs sm:text-sm font-medium mb-2">Image Previews</label>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {data.imagePreviews.map((preview, index) => (
+                                      <motion.div
+                                        key={index}
+                                        whileHover={{ scale: 1.05 }}
+                                        className="relative group"
+                                      >
+                                        <img
+                                          src={preview}
+                                          alt={`${color} ${index + 1}`}
+                                          className="w-full h-20 sm:h-24 object-cover rounded-lg border-2 border-gray-300 group-hover:border-blue-500 transition-colors"
+                                        />
                                         <Button
                                           type="button"
-                                          onClick={() => removeSize(color, index)}
+                                          onClick={() => removeColorImage(color, index)}
                                           variant="danger"
-                                          className="w-full mt-2 text-[10px] sm:text-xs px-2 py-1"
+                                          className="absolute -top-2 -right-2 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] sm:text-xs p-0"
                                         >
-                                          Remove
+                                          ×
                                         </Button>
-                                      )}
-                                    </motion.div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Images */}
-                              <div>
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
-                                  <h4 className="text-sm sm:text-md font-medium font-instrument">
-                                    Color Images ({data.imagePreviews.length}/10)
-                                  </h4>
-                                  <span className="text-xs sm:text-sm text-gray-600">
-                                    First image will be set as primary
-                                  </span>
-                                </div>
-
-                                <div className="mb-4">
-                                  <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={(e) => handleColorImages(color, e.target.files)}
-                                    className={`w-full px-3 py-2 border ${currentTheme.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentTheme.bg.input}`}
-                                  />
-                                  <p className="text-xs sm:text-sm font-instrument mt-1">
-                                    Upload high-quality images for {color}. These images will be used for all sizes of this color.
-                                  </p>
-                                </div>
-
-                                {/* Previews */}
-                                {data.imagePreviews.length > 0 && (
-                                  <div>
-                                    <label className="block text-xs sm:text-sm font-medium mb-2">Image Previews</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                      {data.imagePreviews.map((preview, index) => (
-                                        <motion.div
-                                          key={index}
-                                          whileHover={{ scale: 1.05 }}
-                                          className="relative group"
-                                        >
-                                          <img
-                                            src={preview}
-                                            alt={`${color} ${index + 1}`}
-                                            className="w-full h-20 sm:h-24 object-cover rounded-lg border-2 border-gray-300 group-hover:border-blue-500 transition-colors"
-                                          />
-                                          <Button
-                                            type="button"
-                                            onClick={() => removeColorImage(color, index)}
-                                            variant="danger"
-                                            className="absolute -top-2 -right-2 rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] sm:text-xs p-0"
-                                          >
-                                            ×
-                                          </Button>
-                                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-[10px] sm:text-xs p-1 text-center rounded-b-lg">
-                                            {index === 0 ? "Primary" : `Image ${index + 1}`}
-                                          </div>
-                                        </motion.div>
-                                      ))}
-                                    </div>
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-[10px] sm:text-xs p-1 text-center rounded-b-lg">
+                                          {index === 0 ? "Primary" : `Image ${index + 1}`}
+                                        </div>
+                                      </motion.div>
+                                    ))}
                                   </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          ))}
-                        </motion.div>
-                      </AnimatePresence>
-
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </motion.div>
+                    </AnimatePresence>
                   </motion.section>
                 </form>
               </motion.div>

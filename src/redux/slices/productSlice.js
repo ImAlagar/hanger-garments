@@ -1,3 +1,4 @@
+// redux/slices/productSlice.js - UPDATED
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -6,8 +7,10 @@ const initialState = {
   filters: {
     search: '',
     category: '',
+    subcategory: '', // Make sure this exists
     status: '',
     stockStatus: '',
+    merchandising: '', // featured, bestSeller, newArrival
     sortBy: 'createdAt',
     sortOrder: 'desc'
   },
@@ -58,6 +61,12 @@ const productSlice = createSlice({
       state.filters = initialState.filters;
       state.pagination.currentPage = 1;
     },
+    
+    // ADD THIS: Set subcategory filter
+    setSubcategoryFilter: (state, action) => {
+      state.filters.subcategory = action.payload;
+      state.pagination.currentPage = 1;
+    },
 
     // Pagination management
     setPagination: (state, action) => {
@@ -99,6 +108,7 @@ export const {
   clearSelection,
   setFilters,
   clearFilters,
+  setSubcategoryFilter, // ADD THIS
   setPagination,
   setCurrentPage,
   openDeleteModal,

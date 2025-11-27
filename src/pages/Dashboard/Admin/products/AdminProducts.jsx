@@ -1,5 +1,5 @@
-// components/admin/products/AdminProducts.jsx - THEME SUPPORT VERSION
-import React, { useState, useEffect } from 'react';
+// components/admin/products/AdminProducts.jsx - WITH CLIENT-SIDE FILTERING
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiPlus, 
@@ -12,9 +12,7 @@ import {
   FiTrendingUp,
   FiClock,
   FiPackage,
-  FiAlertCircle,
-  FiSun,
-  FiMoon
+  FiAlertCircle
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -50,11 +48,9 @@ import ProductFilters from '../../../../components/admin/products/ProductFilters
 import BulkActions from '../../../../components/admin/products/BulkActions';
 import { useTheme } from '../../../../context/ThemeContext';
 
-// Theme Context
-
 const AdminProducts = () => {
   const dispatch = useDispatch();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   
   // Redux state
   const { 
@@ -64,7 +60,7 @@ const AdminProducts = () => {
     deleteModal 
   } = useSelector((state) => state.product);
 
-  // RTK Query hooks
+  // Get all products without filtering (for client-side filtering)
   const {
     data: productsResponse,
     isLoading: productsLoading,
@@ -73,12 +69,14 @@ const AdminProducts = () => {
   } = useGetAdminProductsQuery({
     page: pagination.currentPage,
     limit: pagination.pageSize,
-    ...filters
+    subcategory: filters.subcategory || undefined,
+      status: filters.status || undefined,
+
   });
 
   const { data: statsResponse } = useGetProductStatsQuery();
   
-  // Mutations - WITH LOADING STATES
+  // Mutations
   const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation();
   const [toggleStatus, { isLoading: isStatusLoading }] = useToggleProductStatusMutation();
   const [bulkDelete, { isLoading: isBulkDeleting }] = useBulkDeleteProductsMutation();
@@ -98,10 +96,81 @@ const AdminProducts = () => {
 
   const navigate = useNavigate();
 
-  // Extract data from responses
-  const products = productsResponse?.data?.products || [];
-  const totalProducts = productsResponse?.data?.pagination?.total || 0;
+    const serverPagination = productsResponse?.data?.pagination || {};
+const serverTotalPages = serverPagination.pages || 1;
+  // Extract all products from response
+  const allProducts = productsResponse?.data?.products || [];
+const totalProducts = serverPagination.total || 0;
   const stats = statsResponse?.data || {};
+
+
+
+    // Helper function to get total stock from variants
+  const getTotalStock = (product) => {
+    if (!product.variants || product.variants.length === 0) return 0;
+    return product.variants.reduce((total, variant) => total + (variant.stock || 0), 0);
+  };
+
+  // CLIENT-SIDE FILTERING FUNCTION
+  const filteredProducts = useMemo(() => {
+    if (!allProducts.length) return [];
+
+
+    let filtered = allProducts;
+
+    // Search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(product => 
+        product.name?.toLowerCase().includes(searchTerm) ||
+        product.productCode?.toLowerCase().includes(searchTerm) ||
+        product.description?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Category filter
+    if (filters.category) {
+      filtered = filtered.filter(product => 
+        product.category?.id === filters.category
+      );
+    }
+
+    // Subcategory filter
+    if (filters.subcategory) {
+      filtered = filtered.filter(product => 
+        product.subcategory?.id === filters.subcategory
+      );
+    }
+
+    // Status filter
+    if (filters.status) {
+      filtered = filtered.filter(product => 
+        product.status === filters.status
+      );
+    }
+
+    // Stock Status filter
+    if (filters.stockStatus) {
+      filtered = filtered.filter(product => {
+        const totalStock = getTotalStock(product);
+        switch (filters.stockStatus) {
+          case 'in_stock':
+            return totalStock > 10;
+          case 'low_stock':
+            return totalStock > 0 && totalStock <= 10;
+          case 'out_of_stock':
+            return totalStock === 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+
+  }, [allProducts, filters]);
+
+
 
   // Theme-based styles
   const themeStyles = {
@@ -156,6 +225,20 @@ const AdminProducts = () => {
     refetchProducts();
     dispatch(clearSelection());
   };
+
+
+  const handleServerPageChange = (page) => {
+  dispatch(setPagination({ 
+    currentPage: page 
+  }));
+};
+
+const handlePageSizeChange = (newSize) => {
+  dispatch(setPagination({ 
+    pageSize: newSize,
+    currentPage: 1
+  }));
+};
 
   const handleDeleteConfirm = async () => {
     try {
@@ -240,11 +323,6 @@ const AdminProducts = () => {
     return Object.values(loadingStates).some(state => state[productId]);
   };
 
-  // Helper function to get total stock from variants
-  const getTotalStock = (product) => {
-    if (!product.variants || product.variants.length === 0) return 0;
-    return product.variants.reduce((total, variant) => total + (variant.stock || 0), 0);
-  };
 
   // Helper function to get primary image
   const getPrimaryImage = (product) => {
@@ -254,7 +332,7 @@ const AdminProducts = () => {
     return variantWithImage?.variantImages?.[0]?.imageUrl || null;
   };
 
-  // Table columns configuration - UPDATED WITH THEME SUPPORT
+  // Table columns configuration
   const columns = [
     {
       key: 'image',
@@ -336,6 +414,7 @@ const AdminProducts = () => {
         </span>
       )
     },
+
     {
       key: 'price',
       title: 'Price',
@@ -407,7 +486,6 @@ const AdminProducts = () => {
                   ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            data-action-button="true" // ADD THIS
           >
             {isLoading ? (
               <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" />
@@ -443,7 +521,6 @@ const AdminProducts = () => {
                     : 'text-gray-400 hover:bg-gray-100'
               } ${isFeaturedLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               title={record.featured ? 'Remove from Featured' : 'Add to Featured'}
-              data-action-button="true" // ADD THIS
             >
               {isFeaturedLoading ? (
                 <FiRefreshCw className="w-4 h-4 animate-spin" />
@@ -466,7 +543,6 @@ const AdminProducts = () => {
                     : 'text-gray-400 hover:bg-gray-100'
               } ${isBestSellerLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               title={record.isBestSeller ? 'Remove from Best Sellers' : 'Add to Best Sellers'}
-              data-action-button="true" // ADD THIS
             >
               {isBestSellerLoading ? (
                 <FiRefreshCw className="w-4 h-4 animate-spin" />
@@ -489,7 +565,6 @@ const AdminProducts = () => {
                     : 'text-gray-400 hover:bg-gray-100'
               } ${isNewArrivalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               title={record.isNewArrival ? 'Remove from New Arrivals' : 'Add to New Arrivals'}
-              data-action-button="true" // ADD THIS
             >
               {isNewArrivalLoading ? (
                 <FiRefreshCw className="w-4 h-4 animate-spin" />
@@ -507,7 +582,6 @@ const AdminProducts = () => {
                   : 'text-blue-600 hover:bg-blue-50'
               }`}
               title="View Details"
-              data-action-button="true" // ADD THIS
             >
               <FiEye className="w-4 h-4" />
             </Link>
@@ -521,7 +595,6 @@ const AdminProducts = () => {
                   : 'text-green-600 hover:bg-green-50'
               }`}
               title="Edit Product"
-              data-action-button="true" // ADD THIS
             >
               <FiEdit2 className="w-4 h-4" />
             </Link>
@@ -536,7 +609,6 @@ const AdminProducts = () => {
               }`}
               title="Delete Product"
               disabled={isDeleting || isAnyActionLoading}
-              data-action-button="true" // ADD THIS
             >
               <FiTrash2 className="w-4 h-4" />
             </button>
@@ -546,7 +618,7 @@ const AdminProducts = () => {
     }
   ];
 
-  // Mobile card renderer - UPDATED WITH THEME SUPPORT
+  // Mobile card renderer
   const renderProductCard = (product) => {
     const imageUrl = getPrimaryImage(product);
     const totalStock = getTotalStock(product);
@@ -643,7 +715,6 @@ const AdminProducts = () => {
                         ? 'bg-gray-700 text-gray-300'
                         : 'bg-gray-100 text-gray-800'
                   } ${isStatusLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                  data-action-button="true" // ADD THIS
                 >
                   {isStatusLoading && (
                     <FiRefreshCw className="w-3 h-3 animate-spin" />
@@ -679,7 +750,6 @@ const AdminProducts = () => {
                     } ${
                       isFeaturedLoading ? "opacity-50 cursor-not-allowed" : ""
                     }`}
-                    data-action-button="true" // ADD THIS
                   >
                     {isFeaturedLoading ? (
                       <FiRefreshCw className="w-3 h-3 animate-spin" />
@@ -707,7 +777,6 @@ const AdminProducts = () => {
                     } ${
                       isBestSellerLoading ? "opacity-50 cursor-not-allowed" : ""
                     }`}
-                    data-action-button="true" // ADD THIS
                   >
                     {isBestSellerLoading ? (
                       <FiRefreshCw className="w-3 h-3 animate-spin" />
@@ -749,11 +818,20 @@ const AdminProducts = () => {
             <div className={`flex flex-wrap justify-between items-center mt-3 pt-3 ${
               theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
-              } mb-2 sm:mb-0`}>
-                {product.category?.name || "Uncategorized"}
-              </span>
+              <div className="flex flex-col">
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                  theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
+                } mb-1`}>
+                  {product.category?.name || "Uncategorized"}
+                </span>
+                {product.subcategory?.name && (
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    theme === 'dark' ? 'bg-green-900 text-green-200' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {product.subcategory.name}
+                  </span>
+                )}
+              </div>
               <div className="flex space-x-2">
                 <Link
                   to={`/dashboard/products/view/${product.id}`}
@@ -762,7 +840,6 @@ const AdminProducts = () => {
                       ? 'text-blue-400 hover:bg-blue-900' 
                       : 'text-blue-600 hover:bg-blue-50'
                   }`}
-                  data-action-button="true" // ADD THIS
                 >
                   <FiEye className="w-4 h-4" />
                 </Link>
@@ -773,7 +850,6 @@ const AdminProducts = () => {
                       ? 'text-green-400 hover:bg-green-900' 
                       : 'text-green-600 hover:bg-green-50'
                   }`}
-                  data-action-button="true" // ADD THIS
                 >
                   <FiEdit2 className="w-4 h-4" />
                 </Link>
@@ -785,7 +861,6 @@ const AdminProducts = () => {
                       : 'text-red-600 hover:bg-red-50'
                   }`}
                   disabled={isDeleting || isAnyActionLoading}
-                  data-action-button="true" // ADD THIS
                 >
                   <FiTrash2 className="w-4 h-4" />
                 </button>
@@ -812,9 +887,9 @@ const AdminProducts = () => {
               <h1 className={`text-2xl font-italiana sm:text-3xl font-bold truncate ${themeStyles.text.primary}`}>
                 Products Management
               </h1>
-              <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage your product inventory • {totalProducts} total products
-              </p>
+            <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
+              Manage your product inventory • {totalProducts} total products
+            </p>
             </div>
             
             <div className="flex flex-col xs:flex-row gap-3">              
@@ -885,29 +960,39 @@ const AdminProducts = () => {
 
         {/* Products Display */}
         <div className={`rounded-xl shadow-sm border overflow-hidden ${themeStyles.card}`}>
-          {isMobile ? (
-            <div className="p-4">
-              <DataCard
-                data={products}
-                renderItem={renderProductCard}
-                onItemClick={(product) => navigate(`/dashboard/products/view/${product.id}`)}
-                emptyMessage="No products found"
-                emptyAction={
-                  <Link
-                    to="/dashboard/products/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add Your First Product</span>
-                  </Link>
-                }
-                theme={theme}
-              />
-            </div>
+      {isMobile ? (
+        <div className="p-4">
+          <DataCard
+            data={filteredProducts}
+            renderItem={renderProductCard}
+            onItemClick={(product) => navigate(`/dashboard/products/view/${product.id}`)}
+            emptyMessage="No products found"
+            emptyAction={
+              <Link
+                to="/dashboard/products/add"
+                className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <FiPlus className="w-4 h-4" />
+                <span>Add Your First Product</span>
+              </Link>
+            }
+            theme={theme}
+            // NEW: Add pagination props
+            pagination={{
+              serverTotalItems: totalProducts,
+              serverTotalPages: serverTotalPages,
+              serverCurrentPage: pagination.currentPage,
+              serverPageSize: pagination.pageSize,
+              onServerPageChange: handleServerPageChange,
+              onPageSizeChange: handlePageSizeChange,
+              pageSizeOptions: [10, 20, 50]
+            }}
+          />
+        </div>
           ) : (
             <DataTable
               columns={columns}
-              data={products}
+              data={filteredProducts}
               keyField="id"
               loading={productsLoading}
               onRowClick={(product) => navigate(`/dashboard/products/view/${product.id}`)}
@@ -926,12 +1011,16 @@ const AdminProducts = () => {
                   </Link>
                 </div>
               }
+
               pagination={{
-                currentPage: pagination.currentPage,
-                pageSize: pagination.pageSize,
-                totalItems: totalProducts,
-                onPageChange: (page) => dispatch(setPagination({ currentPage: page }))
-              }}
+                  serverTotalItems: totalProducts,
+                  serverTotalPages: serverTotalPages,
+                  serverCurrentPage: pagination.currentPage,
+                  serverPageSize: pagination.pageSize,
+                  onServerPageChange: handleServerPageChange,
+                  onPageSizeChange: handlePageSizeChange,
+                  pageSizeOptions: [10, 20, 50]
+                }}
               className="border-0"
               theme={theme}
             />

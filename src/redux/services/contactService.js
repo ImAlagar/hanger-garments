@@ -1,3 +1,4 @@
+// redux/services/contactService.js
 import { toast } from 'react-toastify';
 import { apiSlice } from './api';
 
@@ -19,21 +20,74 @@ export const contactService = apiSlice.injectEndpoints({
       providesTags: ['Contact'],
     }),
 
-    // Admin endpoints
+    // Admin endpoints - UPDATED with pagination
     getAllContacts: builder.query({
-      query: (params = {}) => ({
-        url: '/contacts/admin',
-        params,
-      }),
+      query: (params = {}) => {
+        const { page = 1, limit = 10, status } = params;
+        const queryParams = new URLSearchParams();
+        
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+        
+        if (status && status !== 'ALL') {
+          queryParams.append('status', status);
+        }
+        
+        return {
+          url: `/contacts/admin?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Contact'],
+      // Transform the response to match our expected structure
+      transformResponse: (response) => {
+        // Handle different response structures
+        if (response.data && response.data.contacts) {
+          // If response already has the expected structure
+          return response;
+        } else if (Array.isArray(response.data)) {
+          // If response.data is an array, wrap it in the expected structure
+          return {
+            data: {
+              contacts: response.data,
+              pagination: response.pagination || {
+                currentPage: 1,
+                pages: 1,
+                total: response.data.length
+              }
+            }
+          };
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          return {
+            data: {
+              contacts: response,
+              pagination: {
+                currentPage: 1,
+                pages: 1,
+                total: response.length
+              }
+            }
+          };
+        }
+        
+        // Fallback structure
+        return {
+          data: {
+            contacts: response.data || response || [],
+            pagination: response.pagination || {
+              currentPage: 1,
+              pages: 1,
+              total: (response.data || response || []).length
+            }
+          }
+        };
+      },
     }),
-
 
     getContactById: builder.query({
       query: (contactId) => `/contacts/admin/${contactId}`,
       providesTags: (result, error, id) => [{ type: 'Contact', id }],
     }),
-
 
     updateContactStatus: builder.mutation({
       query: ({ contactId, status }) => ({
@@ -104,7 +158,6 @@ export const contactService = apiSlice.injectEndpoints({
         }
       },
     }),
-
 
     getContactStats: builder.query({
       query: () => '/contacts/admin/stats',

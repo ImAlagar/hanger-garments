@@ -1,4 +1,4 @@
-// redux/services/subcategoryService.js
+// redux/services/subcategoryService.js - UPDATED WITH PAGINATION
 import { apiSlice } from './api';
 import { toast } from 'react-toastify';
 
@@ -14,6 +14,7 @@ export const subcategoryService = apiSlice.injectEndpoints({
       query: (quantityPriceId) => `/admin/subcategory-quantity-prices/${quantityPriceId}`,
       providesTags: (result, error, id) => [{ type: 'SubcategoryQuantityPricing', id }],
     }),
+    
     // ✅ UPDATED: Correct endpoints for admin quantity pricing
     addSubcategoryQuantityPrice: builder.mutation({
       query: ({ subcategoryId, quantityPriceData }) => ({
@@ -56,15 +57,72 @@ export const subcategoryService = apiSlice.injectEndpoints({
       providesTags: ['SubcategoryQuantityPricing'],
     }),
 
-
-
-    // Existing endpoints remain the same...
+    // UPDATED: Get all subcategories with pagination
     getAllSubcategories: builder.query({
-      query: (categoryId = '') => ({
-        url: '/subcategory',
-        params: categoryId ? { category: categoryId } : {}
-      }),
+      query: (params = {}) => {
+        const { page = 1, limit = 10, category, status } = params;
+        const queryParams = new URLSearchParams();
+        
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+        
+        if (category && category !== 'ALL') {
+          queryParams.append('category', category);
+        }
+        
+        if (status && status !== 'ALL') {
+          queryParams.append('isActive', status === 'ACTIVE' ? 'true' : 'false');
+        }
+        
+        return {
+          url: `/subcategory?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Subcategory'],
+      // Transform the response to match our expected structure
+      transformResponse: (response) => {
+        // Handle different response structures
+        if (response.data && response.data.subcategories) {
+          // If response already has the expected structure
+          return response;
+        } else if (Array.isArray(response.data)) {
+          // If response.data is an array, wrap it in the expected structure
+          return {
+            data: {
+              subcategories: response.data,
+              pagination: response.pagination || {
+                currentPage: 1,
+                pages: 1,
+                total: response.data.length
+              }
+            }
+          };
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          return {
+            data: {
+              subcategories: response,
+              pagination: {
+                currentPage: 1,
+                pages: 1,
+                total: response.length
+              }
+            }
+          };
+        }
+        
+        // Fallback structure
+        return {
+          data: {
+            subcategories: response.data || response || [],
+            pagination: response.pagination || {
+              currentPage: 1,
+              pages: 1,
+              total: (response.data || response || []).length
+            }
+          }
+        };
+      },
     }),
 
     getSubcategoryById: builder.query({
@@ -172,13 +230,13 @@ export const {
   useGetSubcategoryByIdQuery,
   useGetSubcategoriesByCategoryQuery,
   useGetAllSubcategoriesWithQuantityPricingQuery,
-  useGetQuantityPriceByIdQuery, // ✅ ADD THIS EXPORT
+  useGetQuantityPriceByIdQuery,
 
   useAddSubcategoryQuantityPriceMutation,
   useUpdateSubcategoryQuantityPriceMutation,
   useDeleteSubcategoryQuantityPriceMutation,
   useToggleSubcategoryQuantityPriceStatusMutation,
-  useGetSubcategoryQuantityPricesQuery, // ✅ ADDED
+  useGetSubcategoryQuantityPricesQuery,
   
   useCreateSubcategoryMutation,
   useUpdateSubcategoryMutation,

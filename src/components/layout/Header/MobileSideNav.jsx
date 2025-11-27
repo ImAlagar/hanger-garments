@@ -37,6 +37,61 @@ import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategory
 import logowhite from "../../../assets/images/logowhite.png";
 import logoblack from "../../../assets/images/logo.png";
 
+// Helper functions (same as DesktopNav)
+// Helper function to safely extract and validate categories
+const getCategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.categories)) {
+    return data.data.categories;
+  }
+  if (Array.isArray(data.categories)) {
+    return data.categories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected categories data structure:', data);
+  return [];
+};
+
+// Helper function to safely extract and validate subcategories
+const getSubcategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.subcategories)) {
+    return data.data.subcategories;
+  }
+  if (Array.isArray(data.subcategories)) {
+    return data.subcategories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected subcategories data structure:', data);
+  return [];
+};
+
+const createSlug = (name = "") =>
+  name
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, '-and-')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
 const MobileSideNav = ({
   theme,
   menuOpen,
@@ -75,11 +130,14 @@ const MobileSideNav = ({
     error: subcategoriesError
   } = useGetAllSubcategoriesQuery();
 
-  const categories = categoriesData?.data || categoriesData || [];
-  const subcategories = subcategoriesData?.data || subcategoriesData || [];
+  // Safely get categories and subcategories with fallbacks
+  const categories = getCategoriesFromData(categoriesData);
+  const subcategories = getSubcategoriesFromData(subcategoriesData);
 
-  // Filter out inactive categories
-  const activeCategories = categories.filter(cat => cat.isActive === true);
+  // Filter out inactive categories - with array validation
+  const activeCategories = Array.isArray(categories) 
+    ? categories.filter(cat => cat && cat.isActive === true)
+    : [];
 
   // Desired order for sorting
   const desiredOrder = ['Men', 'Women', 'Kids', 'Unisex', 'Customised Design', 'Exclusive Pre Order'];
@@ -95,16 +153,20 @@ const MobileSideNav = ({
   });
 
   // Group subcategories by category
-  const subcategoriesByCategory = subcategories.reduce((acc, subcat) => {
-    const categoryName = subcat.category?.name || subcat.category;
-    if (categoryName) {
-      if (!acc[categoryName]) {
-        acc[categoryName] = [];
-      }
-      acc[categoryName].push(subcat);
-    }
-    return acc;
-  }, {});
+  const subcategoriesByCategory = Array.isArray(subcategories) 
+    ? subcategories.reduce((acc, subcat) => {
+        if (!subcat) return acc;
+        
+        const categoryName = subcat.category?.name || subcat.category;
+        if (categoryName) {
+          if (!acc[categoryName]) {
+            acc[categoryName] = [];
+          }
+          acc[categoryName].push(subcat);
+        }
+        return acc;
+      }, {})
+    : {};
 
   // Get the appropriate logo based on theme
   const getLogo = () => {
@@ -125,26 +187,18 @@ const MobileSideNav = ({
     setMenuOpen(false);
   };
 
-  // Create URL-safe category name (same as DesktopNav)
+  // Create URL-safe category name
   const createCategorySlug = (categoryName = "") => {
-    return categoryName
-      .toString()
-      .trim()
-      .toLowerCase()
-      .replace(/&/g, '-and-')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
+    return createSlug(categoryName);
   };
 
-  // Check if category is active (same as DesktopNav)
+  // Check if category is active
   const isCategoryActive = (categoryName) => {
     if (!category) return false;
     return createCategorySlug(categoryName) === category.toLowerCase();
   };
 
   const toggleCategoryDropdown = (categoryName, e) => {
-    // Prevent navigation when clicking on dropdown arrow area
     if (e && e.stopPropagation) {
       e.stopPropagation();
     }
@@ -225,7 +279,6 @@ const MobileSideNav = ({
 
     if (menuOpen) {
       document.addEventListener('keydown', handleEscapeKey);
-      // Prevent body scroll when sidebar is open
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -317,7 +370,7 @@ const MobileSideNav = ({
                 ? 'bg-gray-900 text-white' 
                 : 'bg-white text-gray-900'
             }`}
-            onClick={(e) => e.stopPropagation()} // Prevent backdrop click when clicking inside sidebar
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header with Logo */}
             <div className={`p-6 border-b ${
@@ -397,14 +450,16 @@ const MobileSideNav = ({
                 </motion.li>
 
                 {/* Categories with Dropdowns */}
-                {sortedCategories.map((cat) => {
+                {Array.isArray(sortedCategories) && sortedCategories.map((cat) => {
+                  if (!cat || !cat.name) return null;
+                  
                   const categoryName = cat.name;
                   const categorySubcategories = subcategoriesByCategory[categoryName] || [];
                   const isActive = isCategoryActive(categoryName);
                   const isDropdownOpen = categoryDropdowns[categoryName];
 
                   return (
-                    <motion.li key={cat.id || cat._id} variants={motionVariants.item} className="mb-1">
+                    <motion.li key={cat.id || cat._id || categoryName} variants={motionVariants.item} className="mb-1">
                       <motion.div
                         onClick={() => handleCategoryTitleClick(categoryName)}
                         className={`flex items-center justify-between px-4 py-3 rounded-xl text-base transition-all duration-200 cursor-pointer ${
@@ -463,18 +518,20 @@ const MobileSideNav = ({
                                 Subcategories
                               </div>
                               {categorySubcategories.map((subcat) => (
-                                <motion.div
-                                  key={subcat.id || subcat._id}
-                                  onClick={() => handleSubcategoryClick(categoryName, subcat.name)}
-                                  className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
-                                    theme === "dark"
-                                      ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
-                                      : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
-                                  }`}
-                                  whileHover={{ x: 4 }}
-                                >
-                                  {subcat.name}
-                                </motion.div>
+                                subcat && subcat.name && (
+                                  <motion.div
+                                    key={subcat.id || subcat._id || subcat.name}
+                                    onClick={() => handleSubcategoryClick(categoryName, subcat.name)}
+                                    className={`px-4 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-200 ${
+                                      theme === "dark"
+                                        ? "text-gray-400 hover:text-purple-300 hover:bg-gray-800/50"
+                                        : "text-gray-600 hover:text-purple-600 hover:bg-gray-50"
+                                    }`}
+                                    whileHover={{ x: 4 }}
+                                  >
+                                    {subcat.name}
+                                  </motion.div>
+                                )
                               ))}
                             </div>
 
@@ -506,6 +563,17 @@ const MobileSideNav = ({
                     </motion.li>
                   );
                 })}
+
+                {/* Show message if no categories */}
+                {(!Array.isArray(sortedCategories) || sortedCategories.length === 0) && (
+                  <motion.li variants={motionVariants.item} className="mb-1">
+                    <div className={`px-4 py-3 rounded-xl text-sm ${
+                      theme === "dark" ? "text-gray-400" : "text-gray-500"
+                    }`}>
+                      No categories available
+                    </div>
+                  </motion.li>
+                )}
 
                 {/* Collections Dropdown */}
                 <motion.li variants={motionVariants.item} className="mb-1">
@@ -558,6 +626,7 @@ const MobileSideNav = ({
                   </AnimatePresence>
                 </motion.li>
 
+                {/* Rest of the component remains the same */}
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between px-4 py-4 mt-2 border-y border-gray-200 dark:border-gray-800">
                   <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
@@ -842,6 +911,7 @@ const MobileSideNav = ({
                     </motion.a>
                   ))}
                 </div>
+
               </motion.ul>
 
               {/* Footer */}

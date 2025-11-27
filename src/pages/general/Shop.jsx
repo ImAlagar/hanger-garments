@@ -71,9 +71,55 @@ export default function Shop() {
 
   const [filters, setFilters] = useState(initFiltersFromSearch);
 
-  // Extract categories and subcategories arrays
-  const categories = categoriesData?.data || categoriesData || [];
-  const subcategories = subcategoriesData?.data || subcategoriesData || [];
+
+  // Helper function to safely extract and validate categories
+const getCategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.categories)) {
+    return data.data.categories;
+  }
+  if (Array.isArray(data.categories)) {
+    return data.categories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected categories data structure:', data);
+  return [];
+};
+
+// Helper function to safely extract and validate subcategories
+const getSubcategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.subcategories)) {
+    return data.data.subcategories;
+  }
+  if (Array.isArray(data.subcategories)) {
+    return data.subcategories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected subcategories data structure:', data);
+  return [];
+};
+
+
+// Extract categories and subcategories arrays using helper functions
+const categories = getCategoriesFromData(categoriesData);
+const subcategories = getSubcategoriesFromData(subcategoriesData);
 
   // Keep filters state in sync when URL/searchParams changes
   useEffect(() => {
@@ -425,16 +471,22 @@ export default function Shop() {
   const hoverBg = isDark ? "hover:bg-gray-800" : "hover:bg-gray-50";
 
   // Category display name helper
-  const getCategoryDisplayName = () => {
-    if (!category) return "All Products";
+const getCategoryDisplayName = () => {
+  if (!category) return "All Products";
 
-    const foundCategory = categories.find(cat => {
-      const categorySlug = cat.name.toLowerCase().replace(/\s+/g, '-');
-      return categorySlug === category.toLowerCase();
-    });
+  // Ensure categories is an array before calling find
+  if (!Array.isArray(categories) || categories.length === 0) {
+    return `${category.replace(/-/g, ' ')}'s Collections`;
+  }
 
-    return foundCategory ? `${foundCategory.name}'s Collections` : `${category.replace('-', ' ')}'s Collections`;
-  };
+  const foundCategory = categories.find(cat => {
+    if (!cat || !cat.name) return false;
+    const categorySlug = createSlug(cat.name);
+    return categorySlug === category.toLowerCase();
+  });
+
+  return foundCategory ? `${foundCategory.name}'s Collections` : `${category.replace(/-/g, ' ')}'s Collections`;
+};
 
   // Loading state
   if (isLoading) {

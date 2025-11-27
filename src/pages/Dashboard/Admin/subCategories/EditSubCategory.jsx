@@ -18,10 +18,17 @@ const EditSubCategory = () => {
 
   const { data: subcategoryData, isLoading: subcategoryLoading, error: subcategoryError } = useGetSubcategoryByIdQuery(subcategoryId);
   const { data: categoriesResponse } = useGetAllCategoriesQuery();
+
+
+
   const [updateSubcategory] = useUpdateSubcategoryMutation();
 
   const subcategory = subcategoryData?.data;
-  const categories = categoriesResponse?.data || [];
+const categories = categoriesResponse?.data?.categories || 
+                  categoriesResponse?.categories || 
+                  categoriesResponse?.data || 
+                  categoriesResponse || 
+                  [];
 
   // Form state
   const [formData, setFormData] = useState({

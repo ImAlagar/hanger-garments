@@ -1,4 +1,4 @@
-// components/admin/categories/AdminCategories.jsx
+// components/admin/categories/AdminCategories.jsx - UPDATED WITH PAGINATION
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -22,6 +22,10 @@ import {
   useToggleCategoryStatusMutation,
   useGetCategoryStatsQuery,
 } from '../../../../redux/services/categoryService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/categorySlice';
 
 // Component imports
 import CategoryStats from '../../../../components/admin/stats/CategoryStats';
@@ -35,6 +39,12 @@ const AdminCategories = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.category);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -42,13 +52,17 @@ const AdminCategories = () => {
     category: null
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: categoriesResponse,
     isLoading: categoriesLoading,
     error: categoriesError,
     refetch: refetchCategories
-  } = useGetAllCategoriesQuery();
+  } = useGetAllCategoriesQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status
+  });
 
   const { data: statsResponse } = useGetCategoryStatsQuery();
   
@@ -56,8 +70,16 @@ const AdminCategories = () => {
   const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation();
   const [toggleStatus, { isLoading: isStatusLoading }] = useToggleCategoryStatusMutation();
 
-  // Extract data
-  const categories = categoriesResponse?.data || [];
+  // Extract data with pagination
+  const categoriesData = categoriesResponse?.data || {};
+  const categories = Array.isArray(categoriesData) ? categoriesData : 
+                    Array.isArray(categoriesData.categories) ? categoriesData.categories : 
+                    Array.isArray(categoriesData.data) ? categoriesData.data : 
+                    Array.isArray(categoriesData.items) ? categoriesData.items : [];
+  
+  const serverPagination = categoriesResponse?.data?.pagination || {};
+  const totalCategories = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
 
   // Theme-based styles
@@ -102,16 +124,35 @@ const AdminCategories = () => {
     }
   };
 
-const handleStatusToggle = async (categoryId, currentStatus) => {
-  try {
-    await toggleStatus({ 
-      categoryId, 
-      currentStatus 
-    }).unwrap();
-  } catch (error) {
-    console.error('Status toggle failed:', error);
-  }
-};
+  const handleStatusToggle = async (categoryId, currentStatus) => {
+    try {
+      await toggleStatus({ 
+        categoryId, 
+        currentStatus 
+      }).unwrap();
+    } catch (error) {
+      console.error('Status toggle failed:', error);
+    }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
+  };
 
   const openDeleteModal = (category) => {
     setDeleteModal({ isOpen: true, category });
@@ -177,36 +218,36 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
         </span>
       )
     },
-{
-  key: 'status',
-  title: 'Status',
-  dataIndex: 'isActive',
-  render: (isActive, record) => (
-    <button
-      onClick={() => handleStatusToggle(record.id, isActive)}
-      disabled={isStatusLoading}
-      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-        isActive
-          ? theme === 'dark' 
-            ? 'bg-green-900 text-green-200 hover:bg-green-800' 
-            : 'bg-green-100 text-green-800 hover:bg-green-200'
-          : theme === 'dark'
-            ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-      } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      data-action-button="true" // ADD THIS
-    >
-      {isStatusLoading ? (
-        <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" />
-      ) : isActive ? (
-        <FiToggleRight className="w-3 h-3 mr-1" />
-      ) : (
-        <FiToggleLeft className="w-3 h-3 mr-1" />
-      )}
-      {isStatusLoading ? 'Updating...' : isActive ? 'Active' : 'Inactive'}
-    </button>
-  )
-},
+    {
+      key: 'status',
+      title: 'Status',
+      dataIndex: 'isActive',
+      render: (isActive, record) => (
+        <button
+          onClick={() => handleStatusToggle(record.id, isActive)}
+          disabled={isStatusLoading}
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+            isActive
+              ? theme === 'dark' 
+                ? 'bg-green-900 text-green-200 hover:bg-green-800' 
+                : 'bg-green-100 text-green-800 hover:bg-green-200'
+              : theme === 'dark'
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+          } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          data-action-button="true"
+        >
+          {isStatusLoading ? (
+            <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" />
+          ) : isActive ? (
+            <FiToggleRight className="w-3 h-3 mr-1" />
+          ) : (
+            <FiToggleLeft className="w-3 h-3 mr-1" />
+          )}
+          {isStatusLoading ? 'Updating...' : isActive ? 'Active' : 'Inactive'}
+        </button>
+      )
+    },
     {
       key: 'createdAt',
       title: 'Created',
@@ -217,183 +258,181 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
         </span>
       )
     },
-{
-  key: 'actions',
-  title: 'Actions',
-  dataIndex: 'id',
-  render: (value, record) => (
-    <div className="flex items-center space-x-2">
-      {/* View Button */}
-      <Link
-        to={`/dashboard/categories/view/${value}`}
-        className={`p-2 rounded-lg transition-colors ${
-          theme === 'dark'
-            ? 'text-blue-400 hover:bg-blue-900'
-            : 'text-blue-600 hover:bg-blue-50'
-        }`}
-        title="View Details"
-        data-action-button="true"
-      >
-        <FiEye className="w-4 h-4" />
-      </Link>
-      
-      {/* Edit Button - ADD THIS */}
-      <Link
-        to={`/dashboard/categories/edit/${value}`}
-        className={`p-2 rounded-lg transition-colors ${
-          theme === 'dark'
-            ? 'text-green-400 hover:bg-green-900'
-            : 'text-green-600 hover:bg-green-50'
-        }`}
-        title="Edit Category"
-        data-action-button="true"
-      >
-        <FiEdit2 className="w-4 h-4" />
-      </Link>
-      
-      {/* Delete Button */}
-      <button
-        onClick={() => openDeleteModal(record)}
-        className={`p-2 rounded-lg transition-colors ${
-          theme === 'dark'
-            ? 'text-red-400 hover:bg-red-900'
-            : 'text-red-600 hover:bg-red-50'
-        }`}
-        title="Delete Category"
-        disabled={isDeleting}
-        data-action-button="true"
-      >
-        <FiTrash2 className="w-4 h-4" />
-      </button>
-    </div>
-  )
-}
+    {
+      key: 'actions',
+      title: 'Actions',
+      dataIndex: 'id',
+      render: (value, record) => (
+        <div className="flex items-center space-x-2">
+          {/* View Button */}
+          <Link
+            to={`/dashboard/categories/view/${value}`}
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'text-blue-400 hover:bg-blue-900'
+                : 'text-blue-600 hover:bg-blue-50'
+            }`}
+            title="View Details"
+            data-action-button="true"
+          >
+            <FiEye className="w-4 h-4" />
+          </Link>
+          
+          {/* Edit Button */}
+          <Link
+            to={`/dashboard/categories/edit/${value}`}
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'text-green-400 hover:bg-green-900'
+                : 'text-green-600 hover:bg-green-50'
+            }`}
+            title="Edit Category"
+            data-action-button="true"
+          >
+            <FiEdit2 className="w-4 h-4" />
+          </Link>
+          
+          {/* Delete Button */}
+          <button
+            onClick={() => openDeleteModal(record)}
+            className={`p-2 rounded-lg transition-colors ${
+              theme === 'dark'
+                ? 'text-red-400 hover:bg-red-900'
+                : 'text-red-600 hover:bg-red-50'
+            }`}
+            title="Delete Category"
+            disabled={isDeleting}
+            data-action-button="true"
+          >
+            <FiTrash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    }
   ];
 
-    const renderCategoryCard = (category) => {
-      return (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`rounded-lg border p-4 shadow-sm hover:shadow-md transition-all ${themeStyles.card}`}
-        >
-          <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-4 space-y-4 sm:space-y-0">
+  const renderCategoryCard = (category) => {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-lg border p-4 shadow-sm hover:shadow-md transition-all ${themeStyles.card}`}
+      >
+        <div className="flex flex-col sm:flex-row items-center sm:items-start sm:space-x-4 space-y-4 sm:space-y-0">
+          
+          {/* Category Image */}
+          <div className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center ${
+            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+          }`}>
+            {category.image ? (
+              <img
+                src={category.image}
+                alt={category.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = "none";
+                  e.target.nextSibling.style.display = "flex";
+                }}
+              />
+            ) : null}
+            <div className={`w-full h-full flex items-center justify-center ${category.image ? "hidden" : "flex"}`}>
+              <FiImage className={`w-6 h-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+            </div>
+          </div>
+
+          {/* Category Details */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between">
             
-            {/* Category Image */}
-            <div className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center ${
-              theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
-            }`}>
-              {category.image ? (
-                <img
-                  src={category.image}
-                  alt={category.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    e.target.nextSibling.style.display = "flex";
-                  }}
-                />
-              ) : null}
-              <div className={`w-full h-full flex items-center justify-center ${category.image ? "hidden" : "flex"}`}>
-                <FiImage className={`w-6 h-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+            {/* Top section: Name, Description, Status */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2 w-full">
+              <div className="min-w-0">
+                <h3 className={`font-medium truncate text-ellipsis overflow-hidden ${themeStyles.text.primary}`}>
+                  {category.name}
+                </h3>
+                <p className={`text-sm line-clamp-2 overflow-hidden text-ellipsis ${themeStyles.text.muted}`}>
+                  {category.description || 'No description'}
+                </p>
               </div>
+
+              {/* Status toggle */}
+              <button
+                onClick={() => handleStatusToggle(category.id, category.isActive)}
+                disabled={isStatusLoading}
+                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 mt-2 sm:mt-0 whitespace-nowrap ${
+                  category.isActive
+                    ? theme === 'dark' 
+                      ? 'bg-green-900 text-green-200' 
+                      : 'bg-green-100 text-green-800'
+                    : theme === 'dark'
+                      ? 'bg-gray-700 text-gray-300'
+                      : 'bg-gray-100 text-gray-800'
+                } ${isStatusLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                data-action-button="true"
+              >
+                {isStatusLoading && <FiRefreshCw className="w-3 h-3 animate-spin" />}
+                <span>
+                  {isStatusLoading
+                    ? "Updating..."
+                    : category.isActive
+                    ? "Active"
+                    : "Inactive"}
+                </span>
+              </button>
             </div>
 
-            {/* Category Details */}
-            <div className="flex-1 min-w-0 flex flex-col justify-between">
+            {/* Bottom section: Count + Action buttons */}
+            <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 pt-3 border-t ${
+              theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+            } gap-2 sm:gap-0 w-full`}>
               
-              {/* Top section: Name, Description, Status */}
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2 w-full">
-                <div className="min-w-0">
-                  <h3 className={`font-medium truncate text-ellipsis overflow-hidden ${themeStyles.text.primary}`}>
-                    {category.name}
-                  </h3>
-                  <p className={`text-sm line-clamp-2 overflow-hidden text-ellipsis ${themeStyles.text.muted}`}>
-                    {category.description || 'No description'}
-                  </p>
-                </div>
-
-                {/* Status toggle */}
-                <button
-                  onClick={() => handleStatusToggle(category.id, category.isActive)}
-                  disabled={isStatusLoading}
-                  className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 mt-2 sm:mt-0 whitespace-nowrap ${
-                    category.isActive
-                      ? theme === 'dark' 
-                        ? 'bg-green-900 text-green-200' 
-                        : 'bg-green-100 text-green-800'
-                      : theme === 'dark'
-                        ? 'bg-gray-700 text-gray-300'
-                        : 'bg-gray-100 text-gray-800'
-                  } ${isStatusLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+              {/* Product count */}
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
+              }`}>
+                <FiPackage className="w-3 h-3 mr-1" />
+                {category._count?.products || 0} products
+              </span>
+              
+              {/* Action buttons */}
+              <div className="flex flex-wrap sm:flex-nowrap space-x-2 mt-2 sm:mt-0">
+                <Link
+                  to={`/dashboard/categories/view/${category.id}`}
+                  className={`p-1 rounded transition-colors ${
+                    theme === 'dark' ? 'text-blue-400 hover:bg-blue-900' : 'text-blue-600 hover:bg-blue-50'
+                  }`}
                   data-action-button="true"
                 >
-                  {isStatusLoading && <FiRefreshCw className="w-3 h-3 animate-spin" />}
-                  <span>
-                    {isStatusLoading
-                      ? "Updating..."
-                      : category.isActive
-                      ? "Active"
-                      : "Inactive"}
-                  </span>
+                  <FiEye className="w-4 h-4" />
+                </Link>
+                
+                <Link
+                  to={`/dashboard/categories/edit/${category.id}`}
+                  className={`p-1 rounded transition-colors ${
+                    theme === 'dark' ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'
+                  }`}
+                  data-action-button="true"
+                >
+                  <FiEdit2 className="w-4 h-4" />
+                </Link>
+                
+                <button
+                  onClick={() => openDeleteModal(category)}
+                  className={`p-1 rounded transition-colors ${
+                    theme === 'dark' ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'
+                  }`}
+                  disabled={isDeleting}
+                  data-action-button="true"
+                >
+                  <FiTrash2 className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Bottom section: Count + Action buttons */}
-              <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 pt-3 border-t ${
-                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-              } gap-2 sm:gap-0 w-full`}>
-                
-                {/* Product count */}
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                  theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
-                }`}>
-                  <FiPackage className="w-3 h-3 mr-1" />
-                  {category._count?.products || 0} products
-                </span>
-                
-                {/* Action buttons */}
-                <div className="flex flex-wrap sm:flex-nowrap space-x-2 mt-2 sm:mt-0">
-                  <Link
-                    to={`/dashboard/categories/view/${category.id}`}
-                    className={`p-1 rounded transition-colors ${
-                      theme === 'dark' ? 'text-blue-400 hover:bg-blue-900' : 'text-blue-600 hover:bg-blue-50'
-                    }`}
-                    data-action-button="true"
-                  >
-                    <FiEye className="w-4 h-4" />
-                  </Link>
-                  
-                  <Link
-                    to={`/dashboard/categories/edit/${category.id}`}
-                    className={`p-1 rounded transition-colors ${
-                      theme === 'dark' ? 'text-green-400 hover:bg-green-900' : 'text-green-600 hover:bg-green-50'
-                    }`}
-                    data-action-button="true"
-                  >
-                    <FiEdit2 className="w-4 h-4" />
-                  </Link>
-                  
-                  <button
-                    onClick={() => openDeleteModal(category)}
-                    className={`p-1 rounded transition-colors ${
-                      theme === 'dark' ? 'text-red-400 hover:bg-red-900' : 'text-red-600 hover:bg-red-50'
-                    }`}
-                    disabled={isDeleting}
-                    data-action-button="true"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-              </div>
             </div>
           </div>
-        </motion.div>
-      );
-    };
-
-
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 ${themeStyles.background}`}>
@@ -411,7 +450,7 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
                 Categories Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage your product categories • {categories.length} total categories
+                Manage your product categories • {totalCategories} total categories
               </p>
             </div>
             
@@ -443,6 +482,29 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
           <div className="mb-6 lg:mb-8">
             <CategoryStats stats={stats} />
           </div>
+
+          {/* Status Filter */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {['ALL', 'ACTIVE', 'INACTIVE'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusFilterChange(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filters.status === status
+                      ? theme === 'dark' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-blue-600 text-white'
+                      : theme === 'dark'
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {status === 'ALL' ? 'All Status' : status}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Categories Display */}
@@ -455,14 +517,40 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
                 onItemClick={(category) => navigate(`/dashboard/categories/view/${category.id}`)}
                 emptyMessage="No categories found"
                 emptyAction={
-                  <Link
-                    to="/dashboard/categories/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add Your First Category</span>
-                  </Link>
+                  <div className="text-center">
+                    <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
+                      {filters.status === 'ALL' 
+                        ? 'Get started by creating your first category' 
+                        : `No categories with status: ${filters.status}`
+                      }
+                    </p>
+                    {filters.status !== 'ALL' ? (
+                      <button
+                        onClick={() => handleStatusFilterChange('ALL')}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <span>Show All Categories</span>
+                      </button>
+                    ) : (
+                      <Link
+                        to="/dashboard/categories/add"
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        <span>Add Your First Category</span>
+                      </Link>
+                    )}
+                  </div>
                 }
+                              pagination={{
+                serverTotalItems: totalCategories,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -477,17 +565,38 @@ const handleStatusToggle = async (categoryId, currentStatus) => {
                 <div className="text-center py-12">
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No categories found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Get started by creating your first category
+                    {filters.status === 'ALL' 
+                      ? 'Get started by creating your first category' 
+                      : `No categories with status: ${filters.status}`
+                    }
                   </p>
-                  <Link
-                    to="/dashboard/categories/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add New Category</span>
-                  </Link>
+                  {filters.status !== 'ALL' ? (
+                    <button
+                      onClick={() => handleStatusFilterChange('ALL')}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Categories</span>
+                    </button>
+                  ) : (
+                    <Link
+                      to="/dashboard/categories/add"
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FiPlus className="w-4 h-4" />
+                      <span>Add New Category</span>
+                    </Link>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalCategories,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

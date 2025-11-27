@@ -262,7 +262,7 @@ const AddCoupon = () => {
                           onChange={handleInputChange}
                           options={[
                             { value: 'PERCENTAGE', label: 'Percentage' },
-                            { value: 'FIXED', label: 'Fixed Amount' }
+                            { value: 'FIXED_AMOUNT', label: 'Fixed Amount' }
                           ]}
                         />
                       </motion.div>

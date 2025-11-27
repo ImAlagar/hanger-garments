@@ -1,3 +1,4 @@
+// redux/slices/categorySlice.js
 import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
@@ -6,6 +7,16 @@ const initialState = {
   loading: false,
   error: null,
   stats: null,
+  // ADDED: Pagination state
+  pagination: {
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1
+  },
+  filters: {
+    status: 'ALL' // ALL, ACTIVE, INACTIVE
+  }
 };
 
 const categorySlice = createSlice({
@@ -20,9 +31,17 @@ const categorySlice = createSlice({
 
     // Set all categories
     setCategories: (state, action) => {
-      state.categories = action.payload;
+      state.categories = action.payload.categories || action.payload;
       state.loading = false;
       state.error = null;
+      
+      // If response includes pagination data, update it
+      if (action.payload.pagination) {
+        state.pagination = {
+          ...state.pagination,
+          ...action.payload.pagination
+        };
+      }
     },
 
     // Set current category
@@ -109,6 +128,18 @@ const categorySlice = createSlice({
       }
     },
 
+    // ADDED: Set pagination
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
+
+    // ADDED: Set filters
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      // Reset to first page when filters change
+      state.pagination.currentPage = 1;
+    },
+
     // Set error
     setError: (state, action) => {
       state.error = action.payload;
@@ -132,6 +163,16 @@ const categorySlice = createSlice({
       state.loading = false;
       state.error = null;
       state.stats = null;
+      // ADDED: Clear pagination too
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
     },
   },
 });
@@ -147,6 +188,8 @@ export const {
   setCategoryStats,
   updateCategoryImage,
   removeCategoryImage,
+  setPagination,
+  setFilters,
   setError,
   clearError,
   clearCurrentCategory,

@@ -79,7 +79,7 @@ export default function Categories() {
                                 <h2 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
                                     {cat.title}
                                 </h2>
-                                <Link to={'/shop'} className="mt-4 w-fit px-6 py-2 border border-white text-white uppercase tracking-wider text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                <Link to={'/shop?newArrival=true'} className="mt-4 w-fit px-6 py-2 border border-white text-white uppercase tracking-wider text-sm hover:bg-white hover:text-black transition-all duration-500">
                                     Explore
                                 </Link>
                             </div>

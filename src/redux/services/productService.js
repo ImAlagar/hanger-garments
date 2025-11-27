@@ -6,18 +6,29 @@ export const productService = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     // Admin product endpoints
     getAdminProducts: builder.query({
-      query: (params = {}) => ({
-        url: '/products',
-        params: {
-          page: params.page || 1,
-          limit: params.limit || 10,
-          search: params.search || '',
-          status: params.status || '', // Send as-is: "active", "inactive"
-          category: params.category || '',
-          sortBy: params.sortBy || 'createdAt',
-          sortOrder: params.sortOrder || 'desc'
-        },
-      }),
+      query: (params = {}) => {
+        const queryParams = new URLSearchParams();
+        
+        // Add pagination
+        queryParams.append('page', params.page || 1);
+        queryParams.append('limit', params.limit || 10);
+        
+        // Add filters
+        if (params.search) queryParams.append('search', params.search);
+        if (params.status) queryParams.append('status', params.status);
+        if (params.category) queryParams.append('category', params.category);
+        if (params.subcategory) queryParams.append('subcategory', params.subcategory); // Make sure this is included
+        if (params.stockStatus) queryParams.append('stockStatus', params.stockStatus);
+        
+        // Add sorting
+        queryParams.append('sortBy', params.sortBy || 'createdAt');
+        queryParams.append('sortOrder', params.sortOrder || 'desc');
+
+
+        return {
+          url: `/products?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Product'],
     }),
 

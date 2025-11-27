@@ -1,9 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../../../context/ThemeContext';
 import { useGetProductByIdQuery } from '../../../../redux/services/productService';
-import { ArrowLeft, Edit, Trash2, Tag, Package, Layers, Image as ImageIcon } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Edit, 
+  Tag, 
+  Package, 
+  Layers, 
+  Image as ImageIcon,
+  ZoomIn,
+  ZoomOut,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2
+} from 'lucide-react';
 
 const ViewProduct = () => {
   const { productId } = useParams();
@@ -11,11 +24,15 @@ const ViewProduct = () => {
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('details');
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
 
   const { data: productData, isLoading, error } = useGetProductByIdQuery(productId);
   const product = productData?.data;
 
-  // Theme-based styling - FIXED TEXT COLORS
+  // Theme-based styling
   const themeClasses = {
     light: {
       bg: {
@@ -40,9 +57,9 @@ const ViewProduct = () => {
       },
       text: {
         primary: 'text-white',
-        secondary: 'text-gray-200', // Changed from gray-300 to gray-200 for better contrast
-        muted: 'text-gray-300', // Changed from gray-400 to gray-300 for better visibility
-        label: 'text-gray-300', // Added specific label color
+        secondary: 'text-gray-200',
+        muted: 'text-gray-300',
+        label: 'text-gray-300',
       },
       border: 'border-gray-700',
       shadow: 'shadow-lg shadow-gray-900',
@@ -73,6 +90,120 @@ const ViewProduct = () => {
       }
     }
   };
+
+  // Get all product images
+  const getAllImages = () => {
+    const images = [];
+    
+    if (product?.images && product.images.length > 0) {
+      images.push(...product.images);
+    }
+    
+    if (product?.variants) {
+      product.variants.forEach(variant => {
+        if (variant.variantImages && variant.variantImages.length > 0) {
+          images.push(...variant.variantImages);
+        }
+      });
+    }
+    
+    return images;
+  };
+
+  const allImages = getAllImages();
+  const primaryImage = allImages.find(img => img.isPrimary) || allImages[0];
+
+  // Lightbox controls
+  const openLightbox = (index = 0) => {
+    setSelectedImage(index);
+    setIsLightboxOpen(true);
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const closeLightbox = () => {
+    setIsLightboxOpen(false);
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const nextImage = () => {
+    setSelectedImage((prev) => (prev + 1) % allImages.length);
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const prevImage = () => {
+    setSelectedImage((prev) => (prev - 1 + allImages.length) % allImages.length);
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 0.5, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 0.5, 1));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  // Mouse drag for zoomed image
+  const handleMouseDown = (e) => {
+    if (zoomLevel > 1) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || zoomLevel <= 1) return;
+
+    setPosition(prev => ({
+      x: prev.x + e.movementX,
+      y: prev.y + e.movementY
+    }));
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isLightboxOpen) return;
+
+      switch (e.key) {
+        case 'Escape':
+          closeLightbox();
+          break;
+        case 'ArrowRight':
+          nextImage();
+          break;
+        case 'ArrowLeft':
+          prevImage();
+          break;
+        case '+':
+        case '=':
+          handleZoomIn();
+          break;
+        case '-':
+          handleZoomOut();
+          break;
+        case '0':
+          handleResetZoom();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen]);
 
   if (isLoading) {
     return (
@@ -114,30 +245,6 @@ const ViewProduct = () => {
     );
   }
 
-  // Get all product images (primary images + variant images)
-  const getAllImages = () => {
-    const images = [];
-    
-    // Add primary product images
-    if (product.images && product.images.length > 0) {
-      images.push(...product.images);
-    }
-    
-    // Add variant images
-    if (product.variants) {
-      product.variants.forEach(variant => {
-        if (variant.variantImages && variant.variantImages.length > 0) {
-          images.push(...variant.variantImages);
-        }
-      });
-    }
-    
-    return images;
-  };
-
-  const allImages = getAllImages();
-  const primaryImage = allImages.find(img => img.isPrimary) || allImages[0];
-
   return (
     <motion.div
       initial="hidden"
@@ -145,76 +252,88 @@ const ViewProduct = () => {
       variants={containerVariants}
       className="min-h-screen"
     >
-    {/* Header */}
-    <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
-        
-        {/* Left Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-            <button
-            onClick={() => navigate(-1)}
-            className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
-            >
-            <ArrowLeft size={20} />
-            </button>
-            <div>
-            <h1 className={`text-xl sm:text-2xl font-bold font-italiana ${currentTheme.text.primary}`}>
-                {product.name}
-            </h1>
-            <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
-                Product Code: {product.productCode}
-            </p>
+      {/* Header */}
+      <div className={`border-b ${currentTheme.border} ${currentTheme.bg.primary}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+            
+            {/* Left Section */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <button
+                onClick={() => navigate(-1)}
+                className={`p-2 rounded-lg ${currentTheme.bg.secondary} ${currentTheme.text.primary} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h1 className={`text-xl sm:text-2xl font-bold font-italiana ${currentTheme.text.primary}`}>
+                  {product.name}
+                </h1>
+                <p className={`${currentTheme.text.muted} font-instrument text-sm sm:text-base`}>
+                  Product Code: {product.productCode}
+                </p>
+              </div>
             </div>
-        </div>
 
-        {/* Right Section */}
-        <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
-            <Link
-            to={`/dashboard/products/edit/${product.id}`}
-            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-            <Edit size={16} className="mr-2" />
-            Edit
-            </Link>
-        </div>
+            {/* Right Section */}
+            <div className="flex sm:flex-row flex-col sm:space-x-3 space-y-2 sm:space-y-0">
+              <Link
+                to={`/dashboard/products/edit/${product.id}`}
+                className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Edit size={16} className="mr-2" />
+                Edit
+              </Link>
+            </div>
 
+          </div>
         </div>
-    </div>
-    </div>
-
+      </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Images */}
           <motion.div variants={itemVariants} className="space-y-4">
-            {/* Main Image */}
-            <div className={`rounded-xl ${currentTheme.shadow} overflow-hidden`}>
-              {primaryImage ? (
-                <img
-                  src={primaryImage.imageUrl}
-                  alt={product.name}
-                  className="w-full h-96 object-cover"
-                />
+            {/* Main Image with Zoom */}
+            <div className={`rounded-xl ${currentTheme.shadow} overflow-hidden relative group cursor-zoom-in`}>
+              {allImages.length > 0 ? (
+                <>
+                  <img
+                    src={allImages[selectedImage]?.imageUrl}
+                    alt={product.name}
+                    className="w-full h-96 object-cover transition-transform duration-300"
+                    onClick={() => openLightbox(selectedImage)}
+                  />
+                  <button
+                    onClick={() => openLightbox(selectedImage)}
+                    className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/70"
+                    title="Expand image"
+                  >
+                    <Maximize2 size={20} />
+                  </button>
+                </>
               ) : (
-                <div className={`w-full h-96 flex items-center justify-center ${
+                <div className={`w-full h-96 flex flex-col items-center justify-center ${
                   theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
                 }`}>
                   <ImageIcon size={48} className={currentTheme.text.muted} />
+                  <p className={`mt-2 ${currentTheme.text.muted}`}>No images available</p>
                 </div>
               )}
             </div>
 
-            {/* Thumbnail Images */}
+            {/* Thumbnail Gallery */}
             {allImages.length > 1 && (
               <div className="flex space-x-2 overflow-x-auto pb-2">
                 {allImages.map((image, index) => (
                   <button
                     key={image.id}
                     onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                      selectedImage === index ? 'border-blue-500' : currentTheme.border
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      selectedImage === index 
+                        ? 'border-blue-500 ring-2 ring-blue-300 shadow-md' 
+                        : `${currentTheme.border} hover:border-gray-400 dark:hover:border-gray-500 hover:shadow-sm`
                     }`}
                   >
                     <img
@@ -404,6 +523,14 @@ const ViewProduct = () => {
                                   src={image.imageUrl}
                                   alt={`${variant.color} ${variant.size}`}
                                   className="w-16 h-16 object-cover rounded border"
+                                  onClick={() => {
+                                    const allVariantImages = getAllImages();
+                                    const imageIndex = allVariantImages.findIndex(img => img.id === image.id);
+                                    if (imageIndex !== -1) {
+                                      openLightbox(imageIndex);
+                                    }
+                                  }}
+                                  style={{ cursor: 'pointer' }}
                                 />
                               </div>
                             ))}
@@ -420,6 +547,144 @@ const ViewProduct = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {isLightboxOpen && allImages.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+            onClick={closeLightbox}
+          >
+            <div 
+              className="relative max-w-7xl max-h-full w-full h-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={closeLightbox}
+                className="absolute top-4 right-4 z-10 p-3 text-white hover:bg-white/20 rounded-lg transition-colors duration-200"
+              >
+                <X size={24} />
+              </button>
+
+              {/* Navigation Arrows */}
+              {allImages.length > 1 && (
+                <>
+                  <button
+                    onClick={prevImage}
+                    className="absolute left-4 z-10 p-3 text-white hover:bg-white/20 rounded-full transition-colors duration-200"
+                  >
+                    <ChevronLeft size={32} />
+                  </button>
+                  <button
+                    onClick={nextImage}
+                    className="absolute right-4 z-10 p-3 text-white hover:bg-white/20 rounded-full transition-colors duration-200"
+                  >
+                    <ChevronRight size={32} />
+                  </button>
+                </>
+              )}
+
+              {/* Zoom Controls */}
+              <div className="absolute top-4 left-4 z-10 flex items-center space-x-2 bg-black/70 rounded-lg p-2 backdrop-blur-sm">
+                <button
+                  onClick={handleZoomOut}
+                  disabled={zoomLevel <= 1}
+                  className="p-2 text-white hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+                  title="Zoom Out"
+                >
+                  <ZoomOut size={20} />
+                </button>
+                <span className="text-white text-sm min-w-12 text-center font-medium">
+                  {Math.round(zoomLevel * 100)}%
+                </span>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={zoomLevel >= 3}
+                  className="p-2 text-white hover:bg-white/20 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+                  title="Zoom In"
+                >
+                  <ZoomIn size={20} />
+                </button>
+                {zoomLevel > 1 && (
+                  <button
+                    onClick={handleResetZoom}
+                    className="p-2 text-white hover:bg-white/20 rounded text-sm font-medium transition-colors duration-200"
+                    title="Reset Zoom"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+
+              {/* Image Counter */}
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
+                {selectedImage + 1} / {allImages.length}
+              </div>
+
+              {/* Main Image Container */}
+              <div 
+                className="relative overflow-hidden max-w-full max-h-full cursor-grab active:cursor-grabbing"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              >
+                <motion.img
+                  key={selectedImage}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.1 }}
+                  src={allImages[selectedImage].imageUrl}
+                  alt={`${product.name} - Image ${selectedImage + 1}`}
+                  className="max-w-full max-h-full object-contain select-none"
+                  style={{
+                    transform: `scale(${zoomLevel}) translate(${position.x}px, ${position.y}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                  draggable={false}
+                />
+              </div>
+
+              {/* Thumbnail Strip */}
+              {allImages.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex space-x-3 max-w-full overflow-x-auto px-4 py-2 bg-black/50 rounded-xl backdrop-blur-sm">
+                  {allImages.map((image, index) => (
+                    <button
+                      key={image.id}
+                      onClick={() => {
+                        setSelectedImage(index);
+                        setZoomLevel(1);
+                        setPosition({ x: 0, y: 0 });
+                      }}
+                      className={`flex-shrink-0 w-14 h-14 rounded-lg border-2 transition-all duration-200 ${
+                        selectedImage === index 
+                          ? 'border-blue-500 ring-2 ring-blue-400 shadow-lg' 
+                          : 'border-white/30 hover:border-white/60 hover:shadow-md'
+                      }`}
+                    >
+                      <img
+                        src={image.imageUrl}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover rounded-md"
+                        draggable={false}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Help Text */}
+              <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-10 text-white/70 text-sm text-center">
+                Use mouse wheel or +/- to zoom • Drag to pan • ESC to close
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

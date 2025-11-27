@@ -1,3 +1,4 @@
+// components/admin/subcategories/AdminSubCategories.jsx - UPDATED WITH PAGINATION
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -21,6 +22,10 @@ import {
   useDeleteSubcategoryMutation,
   useToggleSubcategoryStatusMutation,
 } from '../../../../redux/services/subcategoryService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/subcategorySlice';
 
 // Component imports
 import DeleteConfirmationModal from '../../../../shared/DeleteConfirmationModal';
@@ -33,6 +38,12 @@ const AdminSubCategories = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.subcategory);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -40,20 +51,33 @@ const AdminSubCategories = () => {
     subcategory: null
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: subcategoriesResponse,
     isLoading: subcategoriesLoading,
     error: subcategoriesError,
     refetch: refetchSubcategories
-  } = useGetAllSubcategoriesQuery();
+  } = useGetAllSubcategoriesQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status,
+    category: filters.category === 'ALL' ? undefined : filters.category
+  });
 
   // Mutations
   const [deleteSubcategory, { isLoading: isDeleting }] = useDeleteSubcategoryMutation();
   const [toggleStatus, { isLoading: isStatusLoading }] = useToggleSubcategoryStatusMutation();
 
-  // Extract data
-  const subcategories = subcategoriesResponse?.data || [];
+  // Extract data with pagination
+  const subcategoriesData = subcategoriesResponse?.data || {};
+  const subcategories = Array.isArray(subcategoriesData) ? subcategoriesData : 
+                       Array.isArray(subcategoriesData.subcategories) ? subcategoriesData.subcategories : 
+                       Array.isArray(subcategoriesData.data) ? subcategoriesData.data : 
+                       Array.isArray(subcategoriesData.items) ? subcategoriesData.items : [];
+  
+  const serverPagination = subcategoriesResponse?.data?.pagination || {};
+  const totalSubcategories = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
 
   // Theme-based styles
   const themeStyles = {
@@ -97,16 +121,36 @@ const AdminSubCategories = () => {
     }
   };
 
-const handleStatusToggle = async (subcategoryId, currentStatus) => {
-  try {
-    await toggleStatus({ 
-      subcategoryId, 
-      currentStatus 
-    }).unwrap();
-  } catch (error) {
-    console.error('Status toggle failed:', error);
-  }
-};
+  const handleStatusToggle = async (subcategoryId, currentStatus) => {
+    try {
+      await toggleStatus({ 
+        subcategoryId, 
+        currentStatus 
+      }).unwrap();
+    } catch (error) {
+      console.error('Status toggle failed:', error);
+    }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
+  };
+
   const openDeleteModal = (subcategory) => {
     setDeleteModal({ isOpen: true, subcategory });
   };
@@ -189,34 +233,34 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
       )
     },
     {
-    key: 'status',
-    title: 'Status',
-    dataIndex: 'isActive',
-    render: (isActive, record) => (
+      key: 'status',
+      title: 'Status',
+      dataIndex: 'isActive',
+      render: (isActive, record) => (
         <button
-        onClick={() => handleStatusToggle(record.id, isActive)} // ADD isActive parameter
-        disabled={isStatusLoading}
-        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+          onClick={() => handleStatusToggle(record.id, isActive)}
+          disabled={isStatusLoading}
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
             isActive
-            ? theme === 'dark' 
+              ? theme === 'dark' 
                 ? 'bg-green-900 text-green-200 hover:bg-green-800' 
                 : 'bg-green-100 text-green-800 hover:bg-green-200'
-            : theme === 'dark'
+              : theme === 'dark'
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-        } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-        data-action-button="true"
+          } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          data-action-button="true"
         >
-        {isStatusLoading ? (
+          {isStatusLoading ? (
             <FiRefreshCw className="w-3 h-3 mr-1 animate-spin" />
-        ) : isActive ? (
+          ) : isActive ? (
             <FiToggleRight className="w-3 h-3 mr-1" />
-        ) : (
+          ) : (
             <FiToggleLeft className="w-3 h-3 mr-1" />
-        )}
-        {isStatusLoading ? 'Updating...' : isActive ? 'Active' : 'Inactive'}
+          )}
+          {isStatusLoading ? 'Updating...' : isActive ? 'Active' : 'Inactive'}
         </button>
-    )
+      )
     },
     {
       key: 'createdAt',
@@ -333,31 +377,31 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
               </div>
 
               {/* Status toggle */}
-                <button
-                onClick={() => handleStatusToggle(subcategory.id, subcategory.isActive)} // ADD isActive parameter
+              <button
+                onClick={() => handleStatusToggle(subcategory.id, subcategory.isActive)}
                 disabled={isStatusLoading}
                 className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${
-                    subcategory.isActive
+                  subcategory.isActive
                     ? theme === 'dark' 
-                        ? 'bg-green-900 text-green-200' 
-                        : 'bg-green-100 text-green-800'
+                      ? 'bg-green-900 text-green-200' 
+                      : 'bg-green-100 text-green-800'
                     : theme === 'dark'
-                        ? 'bg-gray-700 text-gray-300'
-                        : 'bg-gray-100 text-gray-800'
+                      ? 'bg-gray-700 text-gray-300'
+                      : 'bg-gray-100 text-gray-800'
                 } ${isStatusLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                 data-action-button="true"
-                >
+              >
                 {isStatusLoading && (
-                    <FiRefreshCw className="w-3 h-3 animate-spin" />
+                  <FiRefreshCw className="w-3 h-3 animate-spin" />
                 )}
                 <span>
-                    {isStatusLoading
+                  {isStatusLoading
                     ? "Updating..."
                     : subcategory.isActive
                     ? "Active"
                     : "Inactive"}
                 </span>
-                </button>
+              </button>
             </div>
 
             {/* Bottom section */}
@@ -435,7 +479,7 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
                 Subcategories Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage your product subcategories • {subcategories.length} total subcategories
+                Manage your product subcategories • {totalSubcategories} total subcategories
               </p>
             </div>
             
@@ -462,6 +506,29 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
               </Link>
             </div>
           </div>
+
+          {/* Status Filter */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {['ALL', 'ACTIVE', 'INACTIVE'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusFilterChange(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filters.status === status
+                      ? theme === 'dark' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-blue-600 text-white'
+                      : theme === 'dark'
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {status === 'ALL' ? 'All Status' : status}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Subcategories Display */}
@@ -474,14 +541,40 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
                 onItemClick={(subcategory) => navigate(`/dashboard/subcategories/view/${subcategory.id}`)}
                 emptyMessage="No subcategories found"
                 emptyAction={
-                  <Link
-                    to="/dashboard/subcategories/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add Your First Subcategory</span>
-                  </Link>
+                  <div className="text-center">
+                    <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
+                      {filters.status === 'ALL' 
+                        ? 'Get started by creating your first subcategory' 
+                        : `No subcategories with status: ${filters.status}`
+                      }
+                    </p>
+                    {filters.status !== 'ALL' ? (
+                      <button
+                        onClick={() => handleStatusFilterChange('ALL')}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <span>Show All Subcategories</span>
+                      </button>
+                    ) : (
+                      <Link
+                        to="/dashboard/subcategories/add"
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        <span>Add Your First Subcategory</span>
+                      </Link>
+                    )}
+                  </div>
                 }
+                              pagination={{
+                serverTotalItems: totalSubcategories,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -496,17 +589,38 @@ const handleStatusToggle = async (subcategoryId, currentStatus) => {
                 <div className="text-center py-12">
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No subcategories found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Get started by creating your first subcategory
+                    {filters.status === 'ALL' 
+                      ? 'Get started by creating your first subcategory' 
+                      : `No subcategories with status: ${filters.status}`
+                    }
                   </p>
-                  <Link
-                    to="/dashboard/subcategories/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Add New Subcategory</span>
-                  </Link>
+                  {filters.status !== 'ALL' ? (
+                    <button
+                      onClick={() => handleStatusFilterChange('ALL')}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Subcategories</span>
+                    </button>
+                  ) : (
+                    <Link
+                      to="/dashboard/subcategories/add"
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FiPlus className="w-4 h-4" />
+                      <span>Add New Subcategory</span>
+                    </Link>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalSubcategories,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

@@ -1,12 +1,71 @@
-// redux/services/categoryService.js - FIXED TOGGLE STATUS WITH PROPER HEADERS
+// redux/services/categoryService.js - UPDATED WITH PAGINATION
 import { apiSlice } from './api';
 import { toast } from 'react-toastify';
 
 export const categoryService = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    // UPDATED: Get all categories with pagination
     getAllCategories: builder.query({
-      query: () => '/category',
+      query: (params = {}) => {
+        const { page = 1, limit = 10, status } = params;
+        const queryParams = new URLSearchParams();
+        
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+        
+        if (status && status !== 'ALL') {
+          queryParams.append('isActive', status === 'ACTIVE' ? 'true' : 'false');
+        }
+        
+        return {
+          url: `/category?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Category'],
+      // Transform the response to match our expected structure
+      transformResponse: (response) => {
+        // Handle different response structures
+        if (response.data && response.data.categories) {
+          // If response already has the expected structure
+          return response;
+        } else if (Array.isArray(response.data)) {
+          // If response.data is an array, wrap it in the expected structure
+          return {
+            data: {
+              categories: response.data,
+              pagination: response.pagination || {
+                currentPage: 1,
+                pages: 1,
+                total: response.data.length
+              }
+            }
+          };
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          return {
+            data: {
+              categories: response,
+              pagination: {
+                currentPage: 1,
+                pages: 1,
+                total: response.length
+              }
+            }
+          };
+        }
+        
+        // Fallback structure
+        return {
+          data: {
+            categories: response.data || response || [],
+            pagination: response.pagination || {
+              currentPage: 1,
+              pages: 1,
+              total: (response.data || response || []).length
+            }
+          }
+        };
+      },
     }),
 
     getCategoryById: builder.query({
@@ -92,7 +151,7 @@ export const categoryService = apiSlice.injectEndpoints({
           isActive: !currentStatus
         },
         headers: {
-          'Content-Type': 'application/json', // ADD THIS HEADER
+          'Content-Type': 'application/json',
         },
       }),
       invalidatesTags: ['Category'],

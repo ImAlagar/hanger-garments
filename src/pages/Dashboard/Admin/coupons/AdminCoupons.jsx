@@ -22,11 +22,15 @@ import {
   useGetCouponsQuery,
   useDeleteCouponMutation,
   useToggleCouponStatusMutation,
-  useGetCouponStatsQuery, // Add this import
+  useGetCouponStatsQuery,
 } from '../../../../redux/services/couponService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/couponSlice';
 
 // Component imports
-import CouponStats from '../../../../components/admin/stats/CouponStats'; // Add this import
+import CouponStats from '../../../../components/admin/stats/CouponStats';
 import DeleteConfirmationModal from '../../../../shared/DeleteConfirmationModal';
 import DataCard from '../../../../shared/DataCard';
 import DataTable from '../../../../shared/DataTable';
@@ -37,6 +41,12 @@ const AdminCoupons = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.coupon);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -44,23 +54,30 @@ const AdminCoupons = () => {
     coupon: null
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: couponsResponse,
     isLoading: couponsLoading,
     error: couponsError,
     refetch: refetchCoupons
-  } = useGetCouponsQuery();
+  } = useGetCouponsQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status
+  });
 
-  const { data: statsResponse } = useGetCouponStatsQuery(); // Add stats query
+  const { data: statsResponse } = useGetCouponStatsQuery();
 
   // Mutations
   const [deleteCoupon, { isLoading: isDeleting }] = useDeleteCouponMutation();
   const [toggleStatus, { isLoading: isStatusLoading }] = useToggleCouponStatusMutation();
 
   // Extract data
-  const coupons = couponsResponse?.data || [];
-  const stats = statsResponse?.data || {}; // Extract stats data
+  const coupons = couponsResponse?.data?.coupons || [];
+  const serverPagination = couponsResponse?.data?.pagination || {};
+  const totalCoupons = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
+  const stats = statsResponse?.data || {};
 
   // Theme-based styles
   const themeStyles = {
@@ -116,6 +133,25 @@ const AdminCoupons = () => {
       console.error('Status toggle failed:', error);
       toast.error(error.data?.message || 'Failed to update coupon status');
     }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
   };
 
   const openDeleteModal = (coupon) => {
@@ -481,7 +517,7 @@ const AdminCoupons = () => {
                 Coupons Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage your discount coupons • {coupons.length} total coupons
+                Manage your discount coupons • {totalCoupons} total coupons
               </p>
             </div>
             
@@ -533,6 +569,15 @@ const AdminCoupons = () => {
                     <span>Create Your First Coupon</span>
                   </Link>
                 }
+                              pagination={{
+                serverTotalItems: totalCoupons,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -547,17 +592,38 @@ const AdminCoupons = () => {
                 <div className="text-center py-12">
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No coupons found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Get started by creating your first coupon
+                    {filters.status === 'ALL' 
+                      ? 'Get started by creating your first coupon' 
+                      : `No coupons with status: ${filters.status}`
+                    }
                   </p>
-                  <Link
-                    to="/dashboard/coupons/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Create New Coupon</span>
-                  </Link>
+                  {filters.status !== 'ALL' ? (
+                    <button
+                      onClick={() => handleStatusFilterChange('ALL')}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Coupons</span>
+                    </button>
+                  ) : (
+                    <Link
+                      to="/dashboard/coupons/add"
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FiPlus className="w-4 h-4" />
+                      <span>Create New Coupon</span>
+                    </Link>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalCoupons,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

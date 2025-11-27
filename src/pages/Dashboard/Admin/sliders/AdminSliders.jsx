@@ -11,7 +11,8 @@ import {
   FiToggleRight,
   FiCalendar,
   FiImage,
-  FiLayout
+  FiLayout,
+  FiSearch
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -24,6 +25,11 @@ import {
   useToggleSliderStatusMutation,
   useGetSliderStatsQuery,
 } from '../../../../redux/services/sliderService';
+import {
+  setPagination,
+  setFilters,
+  searchSliders
+} from '../../../../redux/slices/sliderSlice';
 
 // Component imports
 import SliderStats from '../../../../components/admin/stats/SliderStats';
@@ -37,20 +43,33 @@ const AdminSliders = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.slider);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     slider: null
   });
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: slidersResponse,
     isLoading: slidersLoading,
     error: slidersError,
     refetch: refetchSliders
-  } = useGetAllSlidersQuery();
+  } = useGetAllSlidersQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status,
+    layout: filters.layout === 'ALL' ? undefined : filters.layout,
+    search: searchTerm || undefined
+  });
 
   const { data: statsResponse } = useGetSliderStatsQuery();
 
@@ -58,8 +77,16 @@ const AdminSliders = () => {
   const [deleteSlider, { isLoading: isDeleting }] = useDeleteSliderMutation();
   const [toggleStatus, { isLoading: isStatusLoading }] = useToggleSliderStatusMutation();
 
-  // Extract data
-  const sliders = slidersResponse?.data?.sliders || [];
+  // Extract data with pagination
+  const slidersData = slidersResponse?.data || {};
+  const sliders = Array.isArray(slidersData) ? slidersData : 
+                 Array.isArray(slidersData.sliders) ? slidersData.sliders : 
+                 Array.isArray(slidersData.data) ? slidersData.data : 
+                 Array.isArray(slidersData.items) ? slidersData.items : [];
+  
+  const serverPagination = slidersResponse?.data?.pagination || {};
+  const totalSliders = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
 
   // Theme-based styles
@@ -93,6 +120,7 @@ const AdminSliders = () => {
   // Handlers
   const handleRefresh = () => {
     refetchSliders();
+    toast.success('Sliders refreshed!');
   };
 
   const handleDeleteConfirm = async () => {
@@ -116,6 +144,46 @@ const AdminSliders = () => {
       console.error('Status toggle failed:', error);
       toast.error(error.data?.message || 'Failed to update slider status');
     }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
+  };
+
+  const handleLayoutFilterChange = (layout) => {
+    dispatch(setFilters({ 
+      layout 
+    }));
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    dispatch(searchSliders(searchTerm));
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    // Optional: Implement debounced search
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    dispatch(searchSliders(''));
   };
 
   const openDeleteModal = (slider) => {
@@ -152,8 +220,11 @@ const AdminSliders = () => {
 
   // Format layout name
   const formatLayout = (layout) => {
-    return layout.charAt(0).toUpperCase() + layout.slice(1);
+    return layout ? layout.charAt(0).toUpperCase() + layout.slice(1) : 'Default';
   };
+
+  // Available layout options (you can customize this based on your app)
+  const layoutOptions = ['ALL', 'hero', 'banner', 'featured', 'promo'];
 
   // Table columns configuration
   const columns = [
@@ -359,7 +430,8 @@ const AdminSliders = () => {
     }
   ];
 
-    const renderSliderCard = (slider) => {
+  // Mobile card renderer
+  const renderSliderCard = (slider) => {
     const isActiveWithDates = isSliderActive(slider);
     const isExpired = isSliderExpired(slider);
     const isScheduled = isSliderScheduled(slider);
@@ -556,8 +628,7 @@ const AdminSliders = () => {
         </div>
         </motion.div>
     );
-    };
-
+  };
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 ${themeStyles.background}`}>
@@ -575,7 +646,7 @@ const AdminSliders = () => {
                 Sliders Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage your home page sliders • {sliders.length} total sliders
+                Manage your home page sliders • {totalSliders} total sliders
               </p>
             </div>
             
@@ -607,6 +678,9 @@ const AdminSliders = () => {
           <div className="mb-6 lg:mb-8">
             <SliderStats stats={stats} />
           </div>
+
+
+
         </div>
 
         {/* Sliders Display */}
@@ -619,14 +693,44 @@ const AdminSliders = () => {
                 onItemClick={(slider) => navigate(`/dashboard/sliders/view/${slider.id}`)}
                 emptyMessage="No sliders found"
                 emptyAction={
-                  <Link
-                    to="/dashboard/sliders/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Create Your First Slider</span>
-                  </Link>
+                  <div className="text-center">
+                    <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
+                      {filters.status === 'ALL' && filters.layout === 'ALL' && !searchTerm
+                        ? 'Get started by creating your first slider' 
+                        : `No sliders found with current filters`
+                      }
+                    </p>
+                    {filters.status !== 'ALL' || filters.layout !== 'ALL' || searchTerm ? (
+                      <button
+                        onClick={() => {
+                          handleStatusFilterChange('ALL');
+                          handleLayoutFilterChange('ALL');
+                          clearSearch();
+                        }}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <span>Clear Filters</span>
+                      </button>
+                    ) : (
+                      <Link
+                        to="/dashboard/sliders/add"
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        <span>Add Your First Slider</span>
+                      </Link>
+                    )}
+                  </div>
                 }
+                              pagination={{
+                serverTotalItems: totalSliders,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -641,17 +745,42 @@ const AdminSliders = () => {
                 <div className="text-center py-12">
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No sliders found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Get started by creating your first slider
+                    {filters.status === 'ALL' && filters.layout === 'ALL' && !searchTerm
+                      ? 'Get started by creating your first slider' 
+                      : `No sliders found with current filters`
+                    }
                   </p>
-                  <Link
-                    to="/dashboard/sliders/add"
-                    className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                    <span>Create New Slider</span>
-                  </Link>
+                  {filters.status !== 'ALL' || filters.layout !== 'ALL' || searchTerm ? (
+                    <button
+                      onClick={() => {
+                        handleStatusFilterChange('ALL');
+                        handleLayoutFilterChange('ALL');
+                        clearSearch();
+                      }}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Clear Filters</span>
+                    </button>
+                  ) : (
+                    <Link
+                      to="/dashboard/sliders/add"
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <FiPlus className="w-4 h-4" />
+                      <span>Add New Slider</span>
+                    </Link>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalSliders,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

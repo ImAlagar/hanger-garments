@@ -1,4 +1,4 @@
-// components/CustomizationModal.js - UPDATED WITH EXPORT FUNCTIONALITY
+// components/CustomizationModal.js - FULLY RESPONSIVE WITH FIXED IMAGE SHRINKING
 import React, { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
@@ -35,13 +35,17 @@ const CustomizationModal = ({
   const [fontFamily, setFontFamily] = useState('Arial');
   const [fontSize, setFontSize] = useState(24);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [canvasReady, setCanvasReady] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState(0);
   const [totalImages, setTotalImages] = useState(0);
-  const [exportFormat, setExportFormat] = useState('png'); // png, jpeg, svg
-  const [exportQuality, setExportQuality] = useState(1.0); // 0.1 to 1.0
-  const [exportSize, setExportSize] = useState('original'); // original, high, medium, low
+  const [exportFormat, setExportFormat] = useState('png');
+  const [exportQuality, setExportQuality] = useState(1.0);
+  const [exportSize, setExportSize] = useState('original');
+  const [activeMobileTab, setActiveMobileTab] = useState('tools');
+  const [mobileView, setMobileView] = useState('canvas'); // 'canvas', 'tools', 'layers'
 
   // Available fonts and colors from customization
   const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
@@ -61,7 +65,6 @@ const CustomizationModal = ({
       return url;
     }
     
-    // Use proxy for S3 URLs to avoid CORS issues
     if (url.includes('s3.amazonaws.com') || url.includes('velan-ecom-images.s3.ap-south-1.amazonaws.com')) {
       return `http://localhost:5000/api/images/proxy?url=${encodeURIComponent(url)}`;
     }
@@ -73,8 +76,6 @@ const CustomizationModal = ({
   const loadImage = (src) => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      
-      // Use proxied URL for external images
       const proxiedSrc = getProxiedImageUrl(src);
       
       img.crossOrigin = 'Anonymous';
@@ -87,7 +88,6 @@ const CustomizationModal = ({
       img.onerror = (err) => {
         console.error('❌ Failed to load image:', src, err);
         
-        // Try without proxy as fallback
         if (proxiedSrc !== src) {
           const fallbackImg = new Image();
           fallbackImg.onload = () => {
@@ -96,9 +96,7 @@ const CustomizationModal = ({
           };
           fallbackImg.onerror = () => {
             setImagesLoaded(prev => prev + 1);
-            // Create a placeholder image
             createPlaceholderImage().then(resolve).catch(() => {
-              // Final fallback - basic placeholder
               const basicImg = new Image();
               basicImg.onload = () => {
                 setImagesLoaded(prev => prev + 1);
@@ -202,8 +200,6 @@ const CustomizationModal = ({
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     try {
@@ -213,7 +209,6 @@ const CustomizationModal = ({
         const baseImage = await loadImage(baseImageUrl);
         ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
       } else {
-        // Draw a placeholder if no base image
         ctx.fillStyle = '#f0f0f0';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#666';
@@ -230,7 +225,6 @@ const CustomizationModal = ({
       }
     } catch (error) {
       console.error('Error drawing canvas:', error);
-      // Draw error state
       ctx.fillStyle = '#ffebee';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#d32f2f';
@@ -247,7 +241,6 @@ const CustomizationModal = ({
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     
-    // Measure text for selection
     const metrics = ctx.measureText(layer.text);
     const width = metrics.width;
     const height = layer.fontSize;
@@ -262,7 +255,6 @@ const CustomizationModal = ({
       const img = await loadImage(layer.src);
       ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
     } catch (error) {
-      // Draw placeholder for failed image
       ctx.fillStyle = '#e0e0e0';
       ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
       ctx.fillStyle = '#999';
@@ -270,44 +262,6 @@ const CustomizationModal = ({
       ctx.textAlign = 'center';
       ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2);
     }
-  };
-
-  // Update drawLayer function
-  const drawLayer = async (ctx, layer) => {
-    ctx.save();
-    
-    try {
-      let dimensions;
-      switch (layer.type) {
-        case 'text':
-          dimensions = drawTextLayer(ctx, layer);
-          break;
-        case 'image':
-          await drawImageLayer(ctx, layer);
-          break;
-        case 'shape':
-          drawShapeLayer(ctx, layer);
-          break;
-      }
-      
-      // Draw selection border if layer is selected
-      if (selectedLayer === layer.id) {
-        ctx.strokeStyle = '#007bff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        
-        // Use actual dimensions or fallback to layer properties
-        const width = dimensions?.width || layer.width || 100;
-        const height = dimensions?.height || layer.height || 50;
-        
-        ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
-        ctx.setLineDash([]);
-      }
-    } catch (error) {
-      console.error('Error drawing layer:', layer, error);
-    }
-    
-    ctx.restore();
   };
 
   // Draw shape layer
@@ -326,6 +280,59 @@ const CustomizationModal = ({
     }
   };
 
+  // Update drawLayer function with resize handles
+  const drawLayer = async (ctx, layer) => {
+    ctx.save();
+    
+    try {
+      let dimensions;
+      switch (layer.type) {
+        case 'text':
+          dimensions = drawTextLayer(ctx, layer);
+          break;
+        case 'image':
+          await drawImageLayer(ctx, layer);
+          break;
+        case 'shape':
+          drawShapeLayer(ctx, layer);
+          break;
+      }
+      
+      // Draw selection border and resize handles if layer is selected
+      if (selectedLayer === layer.id) {
+        const width = dimensions?.width || layer.width || 100;
+        const height = dimensions?.height || layer.height || 50;
+        
+        // Selection border
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
+        ctx.setLineDash([]);
+        
+        // Resize handles (only for images and shapes)
+        if (layer.type === 'image' || layer.type === 'shape') {
+          ctx.fillStyle = '#007bff';
+          const handleSize = 8;
+          const handles = [
+            { x: layer.x - handleSize/2, y: layer.y - handleSize/2 }, // top-left
+            { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2 }, // top-right
+            { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2 }, // bottom-left
+            { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2 }, // bottom-right
+          ];
+          
+          handles.forEach(handle => {
+            ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error drawing layer:', layer, error);
+    }
+    
+    ctx.restore();
+  };
+
   // Generate preview image
   const generatePreview = () => {
     const canvas = canvasRef.current;
@@ -335,16 +342,11 @@ const CustomizationModal = ({
     }
     
     try {
-      // Test if canvas can be exported
       canvas.toDataURL('image/png');
-      
-      // If no error, generate the preview
       const preview = canvas.toDataURL('image/png');
       return preview;
     } catch (error) {
       console.warn('⚠️ Canvas export blocked, creating safe preview:', error);
-      
-      // Create a clean canvas without external images
       return createSafePreview();
     }
   };
@@ -357,16 +359,13 @@ const CustomizationModal = ({
     cleanCanvas.height = canvas.height;
     const cleanCtx = cleanCanvas.getContext('2d');
     
-    // Draw white background
     cleanCtx.fillStyle = '#ffffff';
     cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
     
-    // Draw product outline
     cleanCtx.strokeStyle = '#e0e0e0';
     cleanCtx.lineWidth = 2;
     cleanCtx.strokeRect(10, 10, cleanCanvas.width - 20, cleanCanvas.height - 20);
     
-    // Only draw text and shape layers (skip external image layers)
     designData.layers.forEach(layer => {
       if (layer.visible !== false) {
         if (layer.type === 'text') {
@@ -385,7 +384,6 @@ const CustomizationModal = ({
             cleanCtx.fill();
           }
         } else if (layer.type === 'image' && layer.src.startsWith('data:')) {
-          // Only include data URL images (uploaded by user)
           const img = new Image();
           img.onload = () => {
             cleanCtx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
@@ -395,7 +393,6 @@ const CustomizationModal = ({
       }
     });
     
-    // Add watermark indicating limitations
     cleanCtx.fillStyle = 'rgba(0,0,0,0.3)';
     cleanCtx.font = '10px Arial';
     cleanCtx.textAlign = 'center';
@@ -419,7 +416,6 @@ const CustomizationModal = ({
     }
 
     try {
-      // Create a high-quality canvas for export
       const exportCanvas = document.createElement('canvas');
       const scale = exportSizes[exportSize].scale;
       
@@ -428,15 +424,12 @@ const CustomizationModal = ({
       
       const exportCtx = exportCanvas.getContext('2d');
       
-      // Set higher quality for export
       exportCtx.imageSmoothingEnabled = true;
       exportCtx.imageSmoothingQuality = 'high';
       
-      // Draw white background for export
       exportCtx.fillStyle = '#ffffff';
       exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
       
-      // Draw product base image
       const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
       if (baseImageUrl) {
         try {
@@ -444,25 +437,20 @@ const CustomizationModal = ({
           exportCtx.drawImage(baseImage, 0, 0, exportCanvas.width, exportCanvas.height);
         } catch (error) {
           console.warn('Could not load base image for export:', error);
-          // Continue without base image
         }
       }
       
-      // Draw all visible layers
       for (const layer of designData.layers) {
         if (layer.visible !== false) {
           await drawLayerForExport(exportCtx, layer, scale);
         }
       }
       
-      // Generate export data URL
       let dataUrl;
       const mimeType = exportFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
       const quality = exportFormat === 'jpeg' ? exportQuality : undefined;
       
       dataUrl = exportCanvas.toDataURL(mimeType, quality);
-      
-      // Download the file
       downloadImage(dataUrl, mimeType);
       
       return dataUrl;
@@ -499,7 +487,6 @@ const CustomizationModal = ({
               layer.height * scale
             );
           } catch (error) {
-            // Skip failed images in export
             console.warn('Skipping image in export:', layer.src);
           }
           break;
@@ -544,78 +531,7 @@ const CustomizationModal = ({
     link.click();
     document.body.removeChild(link);
     
-    // Show success message
     alert(`✅ Design exported successfully as ${fileName}`);
-  };
-
-  // Export as SVG (alternative format)
-  const exportAsSVG = () => {
-    if (designData.layers.length === 0) {
-      alert('Please add at least one design element before exporting.');
-      return;
-    }
-
-    try {
-      // Create SVG content
-      let svgContent = `
-        <svg width="${designData.canvasSize.width}" height="${designData.canvasSize.height}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="100%" height="100%" fill="#ffffff"/>
-      `;
-      
-      // Add design layers as SVG elements
-      designData.layers.forEach(layer => {
-        if (layer.visible !== false) {
-          switch (layer.type) {
-            case 'text':
-              svgContent += `
-                <text x="${layer.x}" y="${layer.y + layer.fontSize}" 
-                      font-family="${layer.fontFamily}" font-size="${layer.fontSize}" 
-                      fill="${layer.color}">
-                  ${layer.text}
-                </text>
-              `;
-              break;
-              
-            case 'shape':
-              if (layer.shape === 'rectangle') {
-                svgContent += `
-                  <rect x="${layer.x}" y="${layer.y}" 
-                        width="${layer.width}" height="${layer.height}" 
-                        fill="${layer.fillColor}"/>
-                `;
-              } else if (layer.shape === 'circle') {
-                svgContent += `
-                  <circle cx="${layer.x + layer.width / 2}" cy="${layer.y + layer.height / 2}" 
-                          r="${layer.width / 2}" fill="${layer.fillColor}"/>
-                `;
-              }
-              break;
-              
-            // Note: Images in SVG are complex due to data URL conversion
-            // For simplicity, we're skipping images in SVG export
-          }
-        }
-      });
-      
-      svgContent += '</svg>';
-      
-      // Create and download SVG file
-      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `design-${product?.name || 'custom'}-${Date.now()}.svg`;
-      link.href = url;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      alert('✅ SVG design exported successfully!');
-      
-    } catch (error) {
-      console.error('SVG export failed:', error);
-      alert('SVG export failed. Please try image export instead.');
-    }
   };
 
   // Save design to server
@@ -637,11 +553,9 @@ const CustomizationModal = ({
         throw new Error('Failed to generate preview image');
       }
 
-      // Clean design data for storage
       const cleanDesignData = {
         layers: designData.layers.map(layer => ({
           ...layer,
-          // Remove any temporary properties and handle external images
           src: layer.type === 'image' && layer.src.startsWith('http') ? 
                `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
         })),
@@ -659,11 +573,7 @@ const CustomizationModal = ({
       };
 
       const result = await createDesign(designDataToSave).unwrap();
-      
-      // Set preview image in Redux state
       dispatch(setPreviewImage(previewImage));
-      
-      // Show success message
       alert('🎉 Design saved successfully! You can now add it to your cart.');
       
       return result;
@@ -689,12 +599,8 @@ const CustomizationModal = ({
   // Handle save and export
   const handleSaveAndExport = async () => {
     try {
-      // First save the design
       await handleSaveDesign();
-      
-      // Then export it
       await exportDesign();
-      
     } catch (error) {
       console.error('Save and export failed:', error);
     }
@@ -708,9 +614,6 @@ const CustomizationModal = ({
       console.error('Export failed:', error);
     }
   };
-
-  // Rest of your existing functions (addText, addImage, etc.) remain the same...
-  // [Keep all your existing functions like handleAddText, handleAddImage, etc.]
 
   // Add text layer
   const handleAddText = () => {
@@ -740,13 +643,11 @@ const CustomizationModal = ({
     const file = event.target.files[0];
     if (!file) return;
 
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('❌ Image size should be less than 5MB');
       return;
     }
 
-    // Check file type
     if (!file.type.startsWith('image/')) {
       alert('❌ Please select a valid image file (JPEG, PNG, GIF, etc.)');
       return;
@@ -759,19 +660,19 @@ const CustomizationModal = ({
         const newLayer = {
           id: `image_${Date.now()}`,
           type: 'image',
-          src: e.target.result, // This is a data URL, so no CORS issues
+          src: e.target.result,
           x: 50,
           y: 50,
           width: Math.min(img.width, 200),
           height: Math.min(img.height, 200),
+          originalWidth: img.width,
+          originalHeight: img.height,
           visible: true,
           createdAt: new Date().toISOString()
         };
 
         dispatch(addDesignLayer(newLayer));
         setSelectedLayer(newLayer.id);
-        
-        // Redraw canvas with new image
         drawCanvas().catch(console.error);
       };
       img.onerror = () => {
@@ -784,7 +685,6 @@ const CustomizationModal = ({
     };
     reader.readAsDataURL(file);
 
-    // Reset file input
     event.target.value = '';
   };
 
@@ -807,29 +707,62 @@ const CustomizationModal = ({
     setSelectedLayer(newLayer.id);
   };
 
-  // Handle canvas click for layer selection
+  // Handle canvas click for layer selection and resize
   const handleCanvasClick = (event) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    // Find clicked layer (check from top to bottom)
     const clickedLayer = [...designData.layers]
       .reverse()
       .find(layer => {
         if (!layer.visible) return false;
         
+        // Check if click is on resize handle
+        if (selectedLayer === layer.id && (layer.type === 'image' || layer.type === 'shape')) {
+          const width = layer.width || 100;
+          const height = layer.height || 50;
+          const handleSize = 8;
+          
+          const handles = [
+            { x: layer.x - handleSize/2, y: layer.y - handleSize/2, dir: 'nw' },
+            { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2, dir: 'ne' },
+            { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2, dir: 'sw' },
+            { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2, dir: 'se' },
+          ];
+          
+          const clickedHandle = handles.find(handle => 
+            x >= handle.x && x <= handle.x + handleSize && 
+            y >= handle.y && y <= handle.y + handleSize
+          );
+          
+          if (clickedHandle) {
+            setIsResizing(true);
+            setResizeDirection(clickedHandle.dir);
+            setDragOffset({
+              x: x - layer.x,
+              y: y - layer.y
+            });
+            return true;
+          }
+        }
+        
+        // Check if click is on layer body
         return x >= layer.x && 
-               x <= layer.x + layer.width && 
+               x <= layer.x + (layer.width || 100) && 
                y >= layer.y && 
-               y <= layer.y + layer.height;
+               y <= layer.y + (layer.height || 50);
       });
 
-    setSelectedLayer(clickedLayer ? clickedLayer.id : null);
+    if (clickedLayer && !isResizing) {
+      setSelectedLayer(clickedLayer.id);
+    } else if (!clickedLayer) {
+      setSelectedLayer(null);
+    }
   };
 
-  // Handle layer drag
+  // Handle layer drag and resize
   const handleMouseDown = (event) => {
     if (!selectedLayer) return;
 
@@ -839,7 +772,39 @@ const CustomizationModal = ({
     const y = event.clientY - rect.top;
 
     const layer = designData.layers.find(l => l.id === selectedLayer);
-    if (layer && x >= layer.x && x <= layer.x + layer.width && y >= layer.y && y <= layer.y + layer.height) {
+    if (!layer) return;
+
+    const width = layer.width || 100;
+    const height = layer.height || 50;
+
+    // Check if click is on resize handle
+    if (layer.type === 'image' || layer.type === 'shape') {
+      const handleSize = 8;
+      const handles = [
+        { x: layer.x - handleSize/2, y: layer.y - handleSize/2, dir: 'nw' },
+        { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2, dir: 'ne' },
+        { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2, dir: 'sw' },
+        { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2, dir: 'se' },
+      ];
+      
+      const clickedHandle = handles.find(handle => 
+        x >= handle.x && x <= handle.x + handleSize && 
+        y >= handle.y && y <= handle.y + handleSize
+      );
+      
+      if (clickedHandle) {
+        setIsResizing(true);
+        setResizeDirection(clickedHandle.dir);
+        setDragOffset({
+          x: x - layer.x,
+          y: y - layer.y
+        });
+        return;
+      }
+    }
+
+    // Regular drag
+    if (x >= layer.x && x <= layer.x + width && y >= layer.y && y <= layer.y + height) {
       setIsDragging(true);
       setDragOffset({
         x: x - layer.x,
@@ -849,24 +814,79 @@ const CustomizationModal = ({
   };
 
   const handleMouseMove = (event) => {
-    if (!isDragging || !selectedLayer) return;
-
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left - dragOffset.x;
-    const y = event.clientY - rect.top - dragOffset.y;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
-    const layer = designData.layers.find(l => l.id === selectedLayer);
-    if (layer) {
+    if (isDragging && selectedLayer) {
+      const newX = x - dragOffset.x;
+      const newY = y - dragOffset.y;
+
       dispatch(updateDesignLayer({
         layerId: selectedLayer,
-        updates: { x, y }
+        updates: { x: newX, y: newY }
+      }));
+    } else if (isResizing && selectedLayer) {
+      const layer = designData.layers.find(l => l.id === selectedLayer);
+      if (!layer) return;
+
+      const currentWidth = layer.width || 100;
+      const currentHeight = layer.height || 50;
+      let newWidth = currentWidth;
+      let newHeight = currentHeight;
+      let newX = layer.x;
+      let newY = layer.y;
+
+      switch (resizeDirection) {
+        case 'se': // bottom-right
+          newWidth = Math.max(20, x - layer.x);
+          newHeight = Math.max(20, y - layer.y);
+          break;
+        case 'sw': // bottom-left
+          newWidth = Math.max(20, layer.x + currentWidth - x);
+          newHeight = Math.max(20, y - layer.y);
+          newX = x;
+          break;
+        case 'ne': // top-right
+          newWidth = Math.max(20, x - layer.x);
+          newHeight = Math.max(20, layer.y + currentHeight - y);
+          newY = y;
+          break;
+        case 'nw': // top-left
+          newWidth = Math.max(20, layer.x + currentWidth - x);
+          newHeight = Math.max(20, layer.y + currentHeight - y);
+          newX = x;
+          newY = y;
+          break;
+      }
+
+      // Maintain aspect ratio for images if Shift key is pressed
+      if (event.shiftKey && layer.type === 'image' && layer.originalWidth && layer.originalHeight) {
+        const aspectRatio = layer.originalWidth / layer.originalHeight;
+        if (resizeDirection === 'se' || resizeDirection === 'nw') {
+          newHeight = newWidth / aspectRatio;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+      }
+
+      dispatch(updateDesignLayer({
+        layerId: selectedLayer,
+        updates: {
+          x: newX,
+          y: newY,
+          width: newWidth,
+          height: newHeight
+        }
       }));
     }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setIsResizing(false);
+    setResizeDirection(null);
   };
 
   // Update selected layer properties
@@ -937,7 +957,6 @@ const CustomizationModal = ({
     if (window.confirm('Are you sure you want to reset your design? This cannot be undone.')) {
       dispatch(resetDesign());
       setSelectedLayer(null);
-      // Redraw empty canvas
       drawCanvas().catch(console.error);
     }
   };
@@ -949,7 +968,6 @@ const CustomizationModal = ({
       onClose();
     } catch (error) {
       console.error('Save and close failed:', error);
-      // Don't close on error
     }
   };
 
@@ -959,35 +977,41 @@ const CustomizationModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-6xl h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-white rounded-lg w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl h-[85vh] sm:h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold">Customize {product?.name}</h2>
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-wrap gap-2">
+          <h2 className="text-base sm:text-lg lg:text-xl font-bold leading-snug max-w-[70%] sm:max-w-[80%]">
+            Customize {product?.name}
+          </h2>
+
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
+            className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl lg:text-3xl p-1"
           >
             ×
           </button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
           {/* Left Sidebar - Tools */}
-          <div className="w-64 bg-gray-50 border-r p-4 overflow-y-auto">
-            <h3 className="font-semibold mb-4">Design Tools</h3>
+          <div className="w-full lg:w-64 bg-gray-50 border-b lg:border-b-0 lg:border-r p-3 sm:p-4 overflow-y-auto order-2 lg:order-1">
+            <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Design Tools</h3>
             
             {/* Loading indicator */}
             {!canvasReady && (
-              <div className="mb-4 p-2 bg-blue-100 text-blue-800 text-sm rounded flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-800 mr-2"></div>
+              <div className="mb-3 sm:mb-4 p-2 bg-blue-100 text-blue-800 text-xs sm:text-sm rounded flex items-center">
+                <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-800 mr-2"></div>
                 Loading design editor...
               </div>
             )}
 
             {totalImages > 0 && imagesLoaded < totalImages && (
-              <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 text-sm rounded">
-                📸 Loading images... ({imagesLoaded}/{totalImages})
+              <div className="mb-3 sm:mb-4 p-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded">
+                <div className="flex items-center">
+                  <span className="mr-2">📸</span>
+                  <span>Loading images... ({imagesLoaded}/{totalImages})</span>
+                </div>
                 <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
                   <div 
                     className="bg-yellow-600 h-1 rounded-full transition-all duration-300"
@@ -997,251 +1021,515 @@ const CustomizationModal = ({
               </div>
             )}
 
-            {/* Export Settings */}
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
-              <h4 className="font-semibold text-sm mb-2">Export Settings</h4>
-              
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-xs mb-1">Format</label>
-                  <select
-                    value={exportFormat}
-                    onChange={(e) => setExportFormat(e.target.value)}
-                    className="w-full p-1 border border-gray-300 rounded text-xs"
+            {/* Mobile Tool Tabs */}
+            <div className="lg:hidden mb-4 border-b">
+              <div className="flex space-x-1 overflow-x-auto pb-1">
+                {['tools', 'text', 'images', 'shapes', 'export', 'layers'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveMobileTab(tab)}
+                    className={`px-3 py-2 text-xs font-medium rounded-t-lg whitespace-nowrap flex-shrink-0 ${
+                      activeMobileTab === tab
+                        ? 'bg-white border-t border-l border-r border-gray-300 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700 bg-gray-100'
+                    }`}
                   >
-                    <option value="png">PNG (High Quality)</option>
-                    <option value="jpeg">JPEG (Smaller Size)</option>
-                  </select>
+                    {tab === 'tools' && '🛠️ Tools'}
+                    {tab === 'text' && '📝 Text'}
+                    {tab === 'images' && '🖼️ Images'}
+                    {tab === 'shapes' && '⬜ Shapes'}
+                    {tab === 'export' && '📤 Export'}
+                    {tab === 'layers' && '📋 Layers'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Tools Content */}
+            <div className="space-y-4">
+              {/* Tools Tab Content - Mobile */}
+              {(activeMobileTab === 'tools' || !activeMobileTab) && (
+                <div className="lg:hidden">
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <button
+                      onClick={() => setActiveMobileTab('text')}
+                      className="p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 text-sm flex flex-col items-center transition-all duration-200 active:scale-95"
+                    >
+                      <span className="text-2xl mb-2">📝</span>
+                      <span>Add Text</span>
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 text-sm flex flex-col items-center transition-all duration-200 active:scale-95"
+                    >
+                      <span className="text-2xl mb-2">🖼️</span>
+                      <span>Add Image</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveMobileTab('shapes')}
+                      className="p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 text-sm flex flex-col items-center transition-all duration-200 active:scale-95"
+                    >
+                      <span className="text-2xl mb-2">⬜</span>
+                      <span>Shapes</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveMobileTab('export')}
+                      className="p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 text-sm flex flex-col items-center transition-all duration-200 active:scale-95"
+                    >
+                      <span className="text-2xl mb-2">📤</span>
+                      <span>Export</span>
+                    </button>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-sm mb-2 text-blue-800">Quick Tips</h4>
+                    <ul className="text-xs text-blue-700 space-y-1">
+                      <li>• Tap and drag to move elements</li>
+                      <li>• Use corners to resize images</li>
+                      <li>• Hold Shift to maintain proportions</li>
+                      <li>• Upload images for best quality</li>
+                    </ul>
+                  </div>
                 </div>
-                
-                <div>
-                  <label className="block text-xs mb-1">Size</label>
-                  <select
-                    value={exportSize}
-                    onChange={(e) => setExportSize(e.target.value)}
-                    className="w-full p-1 border border-gray-300 rounded text-xs"
-                  >
-                    <option value="original">Original Size</option>
-                    <option value="high">High Resolution (2x)</option>
-                    <option value="medium">Medium Resolution (1.5x)</option>
-                    <option value="low">Low Resolution (0.75x)</option>
-                  </select>
-                </div>
-                
-                {exportFormat === 'jpeg' && (
+              )}
+
+              {/* Text Tab - Mobile */}
+              {activeMobileTab === 'text' && (
+                <div className="lg:hidden space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Text Tool</h4>
+                    <button
+                      onClick={() => setActiveMobileTab('tools')}
+                      className="text-xs text-blue-600 hover:text-blue-800 bg-blue-100 px-2 py-1 rounded"
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                  
                   <div>
-                    <label className="block text-xs mb-1">Quality: {Math.round(exportQuality * 100)}%</label>
+                    <label className="block text-sm font-medium mb-1">Your Text</label>
+                    <textarea
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="Enter your text here..."
+                      className="w-full p-3 border border-gray-300 rounded text-sm"
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Font</label>
+                      <select
+                        value={fontFamily}
+                        onChange={(e) => setFontFamily(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded text-sm"
+                      >
+                        {availableFonts.map(font => (
+                          <option key={font} value={font}>{font}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Size: {fontSize}px</label>
+                      <input
+                        type="range"
+                        min="12"
+                        max="72"
+                        value={fontSize}
+                        onChange={(e) => setFontSize(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Color</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {availableColors.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setTextColor(color)}
+                          className={`w-8 h-8 rounded border-2 ${
+                            textColor === color ? 'border-blue-500' : 'border-gray-300'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleAddText}
+                    disabled={!textInput.trim()}
+                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm font-medium transition-all duration-200 active:scale-95"
+                  >
+                    Add Text to Canvas
+                  </button>
+                </div>
+              )}
+
+              {/* Images Tab - Mobile */}
+              {activeMobileTab === 'images' && (
+                <div className="lg:hidden space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Image Tool</h4>
+                    <button
+                      onClick={() => setActiveMobileTab('tools')}
+                      className="text-xs text-blue-600 hover:text-blue-800 bg-blue-100 px-2 py-1 rounded"
+                    >
+                      ← Back
+                    </button>
+                  </div>
+
+                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                    <p className="text-xs text-yellow-800">
+                      <strong>💡 Tip:</strong> Upload images from your device for full functionality and better quality.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 text-sm font-medium transition-all duration-200 active:scale-95 flex items-center justify-center space-x-2"
+                  >
+                    <span>📁</span>
+                    <span>Choose Image from Device</span>
+                  </button>
+
+                  <div className="bg-gray-50 p-3 rounded border">
+                    <h5 className="font-medium text-xs mb-2">Image Guidelines:</h5>
+                    <ul className="text-xs text-gray-600 space-y-1">
+                      <li>• Max file size: 5MB</li>
+                      <li>• Supported: JPG, PNG, GIF</li>
+                      <li>• Use corners to resize after adding</li>
+                      <li>• Hold Shift to maintain proportions</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Export Tab - Mobile */}
+              {activeMobileTab === 'export' && (
+                <div className="lg:hidden space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Export Settings</h4>
+                    <button
+                      onClick={() => setActiveMobileTab('tools')}
+                      className="text-xs text-blue-600 hover:text-blue-800 bg-blue-100 px-2 py-1 rounded"
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Format</label>
+                      <select
+                        value={exportFormat}
+                        onChange={(e) => setExportFormat(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="png">PNG (High Quality)</option>
+                        <option value="jpeg">JPEG (Smaller Size)</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Size</label>
+                      <select
+                        value={exportSize}
+                        onChange={(e) => setExportSize(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="original">Original Size</option>
+                        <option value="high">High Resolution (2x)</option>
+                        <option value="medium">Medium Resolution (1.5x)</option>
+                        <option value="low">Low Resolution (0.75x)</option>
+                      </select>
+                    </div>
+                    
+                    {exportFormat === 'jpeg' && (
+                      <div>
+                        <label className="block text-xs font-medium mb-1">
+                          Quality: {Math.round(exportQuality * 100)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1"
+                          step="0.1"
+                          value={exportQuality}
+                          onChange={(e) => setExportQuality(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <button
+                        onClick={handleExportOnly}
+                        disabled={!canvasReady || designData.layers.length === 0}
+                        className="bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs transition-all duration-200 active:scale-95"
+                      >
+                        Export Only
+                      </button>
+                      <button
+                        onClick={handleSaveAndExport}
+                        disabled={!canvasReady || designData.layers.length === 0}
+                        className="bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs transition-all duration-200 active:scale-95"
+                      >
+                        Save & Export
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Desktop Tool Selection */}
+              <div className="hidden lg:block mb-4">
+                <label className="block text-sm font-medium mb-2">Tools</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setActiveTool('text')}
+                    className={`p-2 border rounded text-sm transition-all duration-200 ${
+                      activeTool === 'text' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    📝 Text
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-all duration-200"
+                  >
+                    🖼️ Image
+                  </button>
+                  <button
+                    onClick={() => setActiveTool('shapes')}
+                    className={`p-2 border rounded text-sm transition-all duration-200 ${
+                      activeTool === 'shapes' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    ⬜ Shapes
+                  </button>
+                  <button
+                    onClick={() => setActiveTool('arrange')}
+                    className={`p-2 border rounded text-sm transition-all duration-200 ${
+                      activeTool === 'arrange' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'border-gray-300 hover:bg-gray-100'
+                    }`}
+                  >
+                    🔄 Arrange
+                  </button>
+                </div>
+              </div>
+
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleAddImage}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {/* Text Tool - Desktop */}
+              {activeTool === 'text' && (
+                <div className="hidden lg:block space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Text</label>
+                    <textarea
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="Enter your text here..."
+                      className="w-full p-2 border border-gray-300 rounded text-sm"
+                      rows="3"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Font</label>
+                    <select
+                      value={fontFamily}
+                      onChange={(e) => setFontFamily(e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded text-sm"
+                    >
+                      {availableFonts.map(font => (
+                        <option key={font} value={font}>{font}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Size: {fontSize}px</label>
                     <input
                       type="range"
-                      min="0.1"
-                      max="1"
-                      step="0.1"
-                      value={exportQuality}
-                      onChange={(e) => setExportQuality(parseFloat(e.target.value))}
+                      min="12"
+                      max="72"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(parseInt(e.target.value))}
                       className="w-full"
                     />
                   </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-2 pt-2">
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Color</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {availableColors.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setTextColor(color)}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 ${
+                            textColor === color ? 'border-blue-500 scale-110' : 'border-gray-300 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
                   <button
-                    onClick={handleExportOnly}
-                    disabled={!canvasReady || designData.layers.length === 0}
-                    className="text-xs bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    onClick={handleAddText}
+                    disabled={!textInput.trim()}
+                    className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm transition-all duration-200"
                   >
-                    Export
-                  </button>
-                  <button
-                    onClick={handleSaveAndExport}
-                    disabled={!canvasReady || designData.layers.length === 0}
-                    className="text-xs bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    Save & Export
+                    Add Text to Canvas
                   </button>
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* CORS Warning */}
-            <div className="mb-4 p-2 bg-orange-100 text-orange-800 text-xs rounded">
-              <strong>💡 Tip:</strong> Upload images from your computer for full functionality. External images may have restrictions.
-            </div>
-
-            {/* Tool Selection */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">Tools</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setActiveTool('text')}
-                  className={`p-2 border rounded ${
-                    activeTool === 'text' ? 'bg-blue-100 border-blue-500' : 'border-gray-300'
-                  }`}
-                >
-                  📝 Text
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 border border-gray-300 rounded hover:bg-gray-100"
-                >
-                  🖼️ Image
-                </button>
-                <button
-                  onClick={() => setActiveTool('shapes')}
-                  className={`p-2 border rounded ${
-                    activeTool === 'shapes' ? 'bg-blue-100 border-blue-500' : 'border-gray-300'
-                  }`}
-                >
-                  ⬜ Shapes
-                </button>
-                <button
-                  onClick={() => setActiveTool('arrange')}
-                  className={`p-2 border rounded ${
-                    activeTool === 'arrange' ? 'bg-blue-100 border-blue-500' : 'border-gray-300'
-                  }`}
-                >
-                  🔄 Arrange
-                </button>
-              </div>
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleAddImage}
-              accept="image/*"
-              className="hidden"
-            />
-
-            {/* Text Tool */}
-            {activeTool === 'text' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Text</label>
-                  <textarea
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="Enter your text here..."
-                    className="w-full p-2 border border-gray-300 rounded text-sm"
-                    rows="3"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Font</label>
-                  <select
-                    value={fontFamily}
-                    onChange={(e) => setFontFamily(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded text-sm"
-                  >
-                    {availableFonts.map(font => (
-                      <option key={font} value={font}>{font}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Size</label>
-                  <input
-                    type="range"
-                    min="12"
-                    max="72"
-                    value={fontSize}
-                    onChange={(e) => setFontSize(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="text-center text-sm">{fontSize}px</div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Color</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {availableColors.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setTextColor(color)}
-                        className={`w-8 h-8 rounded border-2 ${
-                          textColor === color ? 'border-blue-500' : 'border-gray-300'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
+              {/* Shapes Tool - Desktop */}
+              {activeTool === 'shapes' && (
+                <div className="hidden lg:block space-y-4">
+                  <label className="block text-sm font-medium mb-2">Shapes</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleAddShape('rectangle')}
+                      className="p-3 border border-gray-300 rounded hover:bg-gray-100 text-sm transition-all duration-200"
+                    >
+                      ▭ Rectangle
+                    </button>
+                    <button
+                      onClick={() => handleAddShape('circle')}
+                      className="p-3 border border-gray-300 rounded hover:bg-gray-100 text-sm transition-all duration-200"
+                    >
+                      ⚪ Circle
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Shape Color</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {availableColors.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setTextColor(color)}
+                          className={`w-8 h-8 rounded border-2 transition-all duration-200 ${
+                            textColor === color ? 'border-blue-500 scale-110' : 'border-gray-300 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <button
-                  onClick={handleAddText}
-                  disabled={!textInput.trim()}
-                  className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Add Text
-                </button>
-              </div>
-            )}
-
-            {/* Shapes Tool */}
-            {activeTool === 'shapes' && (
-              <div className="space-y-4">
-                <label className="block text-sm font-medium mb-2">Shapes</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleAddShape('rectangle')}
-                    className="p-3 border border-gray-300 rounded hover:bg-gray-100"
-                  >
-                    ▭ Rectangle
-                  </button>
-                  <button
-                    onClick={() => handleAddShape('circle')}
-                    className="p-3 border border-gray-300 rounded hover:bg-gray-100"
-                  >
-                    ⚪ Circle
-                  </button>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">Shape Color</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {availableColors.map(color => (
-                      <button
-                        key={color}
-                        onClick={() => setTextColor(color)}
-                        className={`w-8 h-8 rounded border-2 ${
-                          textColor === color ? 'border-blue-500' : 'border-gray-300'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        title={color}
+              {/* Desktop Export Settings */}
+              <div className="hidden lg:block mb-4 p-3 bg-green-50 border border-green-200 rounded">
+                <h4 className="font-semibold text-sm mb-2">Export Settings</h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs mb-1">Format</label>
+                    <select
+                      value={exportFormat}
+                      onChange={(e) => setExportFormat(e.target.value)}
+                      className="w-full p-1 border border-gray-300 rounded text-xs"
+                    >
+                      <option value="png">PNG (High Quality)</option>
+                      <option value="jpeg">JPEG (Smaller Size)</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs mb-1">Size</label>
+                    <select
+                      value={exportSize}
+                      onChange={(e) => setExportSize(e.target.value)}
+                      className="w-full p-1 border border-gray-300 rounded text-xs"
+                    >
+                      <option value="original">Original Size</option>
+                      <option value="high">High Resolution (2x)</option>
+                      <option value="medium">Medium Resolution (1.5x)</option>
+                      <option value="low">Low Resolution (0.75x)</option>
+                    </select>
+                  </div>
+                  
+                  {exportFormat === 'jpeg' && (
+                    <div>
+                      <label className="block text-xs mb-1">Quality: {Math.round(exportQuality * 100)}%</label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.1"
+                        value={exportQuality}
+                        onChange={(e) => setExportQuality(parseFloat(e.target.value))}
+                        className="w-full"
                       />
-                    ))}
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-2 pt-2">
+                    <button
+                      onClick={handleExportOnly}
+                      disabled={!canvasReady || designData.layers.length === 0}
+                      className="text-xs bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Export
+                    </button>
+                    <button
+                      onClick={handleSaveAndExport}
+                      disabled={!canvasReady || designData.layers.length === 0}
+                      className="text-xs bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
+                    >
+                      Save & Export
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
+
+              {/* CORS Warning */}
+              <div className="p-2 bg-orange-100 text-orange-800 text-xs rounded">
+                <strong>💡 Tip:</strong> Upload images from your computer for full functionality.
+              </div>
+            </div>
 
             {/* Layer Properties */}
             {selectedLayerData && (
-              <div className="mt-6 p-4 bg-white border rounded">
-                <h4 className="font-semibold mb-3">Layer Properties</h4>
+              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-white border rounded">
+                <h4 className="font-semibold mb-3 text-sm sm:text-base">Layer Properties</h4>
                 
                 <div className="space-y-3">
-                  {/* Common properties */}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Visible</span>
+                    <span className="text-xs sm:text-sm">Visible</span>
                     <button
                       onClick={handleToggleVisibility}
-                      className={`w-10 h-6 rounded-full ${
+                      className={`w-10 h-6 rounded-full transition-all duration-200 ${
                         selectedLayerData.visible ? 'bg-blue-600' : 'bg-gray-300'
                       } relative`}
                     >
                       <span
-                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
                           selectedLayerData.visible ? 'transform translate-x-5' : 'transform translate-x-1'
                         }`}
                       />
                     </button>
                   </div>
 
-                  {/* Text-specific properties */}
                   {selectedLayerData.type === 'text' && (
                     <>
                       <div>
@@ -1276,8 +1564,8 @@ const CustomizationModal = ({
                             <button
                               key={color}
                               onClick={() => updateSelectedLayer({ color })}
-                              className={`w-6 h-6 rounded border-1 ${
-                                selectedLayerData.color === color ? 'border-blue-500' : 'border-gray-300'
+                              className={`w-6 h-6 rounded border-1 transition-all duration-200 ${
+                                selectedLayerData.color === color ? 'border-blue-500 scale-110' : 'border-gray-300 hover:scale-105'
                               }`}
                               style={{ backgroundColor: color }}
                             />
@@ -1287,26 +1575,29 @@ const CustomizationModal = ({
                     </>
                   )}
 
-                  {/* Image-specific properties */}
                   {selectedLayerData.type === 'image' && (
                     <div className="text-xs text-gray-600">
                       {selectedLayerData.src.startsWith('data:') ? 
                         '📱 Uploaded image' : '🌐 External image'}
+                      <div className="mt-1 text-green-600">
+                        • Drag corners to resize
+                        <br/>
+                        • Hold Shift for proportions
+                      </div>
                     </div>
                   )}
 
-                  {/* Layer Actions */}
                   <div className="pt-2 border-t">
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={handleDuplicateLayer}
-                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded"
+                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded transition-all duration-200"
                       >
                         Duplicate
                       </button>
                       <button
                         onClick={handleDeleteLayer}
-                        className="text-xs bg-red-100 hover:bg-red-200 text-red-700 py-1 px-2 rounded"
+                        className="text-xs bg-red-100 hover:bg-red-200 text-red-700 py-1 px-2 rounded transition-all duration-200"
                       >
                         Delete
                       </button>
@@ -1315,13 +1606,13 @@ const CustomizationModal = ({
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       <button
                         onClick={() => handleReorderLayer('up')}
-                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded"
+                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded transition-all duration-200"
                       >
                         Move Up
                       </button>
                       <button
                         onClick={() => handleReorderLayer('down')}
-                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded"
+                        className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-2 rounded transition-all duration-200"
                       >
                         Move Down
                       </button>
@@ -1333,25 +1624,25 @@ const CustomizationModal = ({
           </div>
 
           {/* Main Canvas Area */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col order-1 lg:order-2">
             {/* Canvas Controls */}
-            <div className="p-4 border-b bg-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+            <div className="p-3 sm:p-4 border-b bg-white">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center space-x-2 sm:space-x-4">
                   <button
                     onClick={handleResetDesign}
-                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                    className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded hover:bg-gray-100 text-xs sm:text-sm transition-all duration-200"
                   >
                     🔄 Reset
                   </button>
                   <button
                     onClick={handleSaveDesign}
                     disabled={isCreatingDesign || designData.layers.length === 0 || !canvasReady}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="px-3 py-2 sm:px-4 sm:py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 text-xs sm:text-sm transition-all duration-200"
                   >
                     {isCreatingDesign ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                         <span>Saving...</span>
                       </>
                     ) : (
@@ -1363,7 +1654,7 @@ const CustomizationModal = ({
                   </button>
                 </div>
                 
-                <div className="text-sm text-gray-600">
+                <div className="text-xs sm:text-sm text-gray-600">
                   {designData.layers.length} layer{designData.layers.length !== 1 ? 's' : ''}
                   {!canvasReady && ' • Loading...'}
                   {totalImages > 0 && ` • Images: ${imagesLoaded}/${totalImages}`}
@@ -1372,7 +1663,7 @@ const CustomizationModal = ({
             </div>
 
             {/* Canvas */}
-            <div className="flex-1 bg-gray-100 flex items-center justify-center p-8 overflow-auto">
+            <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-auto">
               <div className="relative">
                 <canvas
                   ref={canvasRef}
@@ -1383,19 +1674,21 @@ const CustomizationModal = ({
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
-                  className="bg-white border-2 border-gray-300 shadow-lg cursor-crosshair"
+                  className="bg-white border-2 border-gray-300 shadow-lg cursor-crosshair max-w-full max-h-[50vh] sm:max-h-[60vh]"
                   style={{
                     maxWidth: '100%',
-                    maxHeight: '60vh'
+                    maxHeight: '50vh',
+                    width: 'auto',
+                    height: 'auto'
                   }}
                 />
                 
                 {/* Canvas Instructions */}
                 {designData.layers.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center text-gray-500 bg-white bg-opacity-90 p-6 rounded-lg border">
-                      <p className="text-lg font-semibold mb-2">Start Designing!</p>
-                      <p className="text-sm mb-2">Use the tools on the left to add:</p>
+                    <div className="text-center text-gray-500 bg-white bg-opacity-90 p-4 sm:p-6 rounded-lg border max-w-[90%] sm:max-w-md">
+                      <p className="text-base sm:text-lg font-semibold mb-2">Start Designing!</p>
+                      <p className="text-xs sm:text-sm mb-2">Use the tools to add:</p>
                       <ul className="text-xs text-left space-y-1 mb-3">
                         <li>• 📝 Text with custom fonts and colors</li>
                         <li>• 🖼️ Images from your computer</li>
@@ -1407,12 +1700,19 @@ const CustomizationModal = ({
                     </div>
                   </div>
                 )}
+
+                {/* Resize Instructions */}
+                {selectedLayerData && (selectedLayerData.type === 'image' || selectedLayerData.type === 'shape') && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white text-xs px-3 py-1 rounded pointer-events-none">
+                    Drag corners to resize • Hold Shift for proportions
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Sidebar - Layers */}
-          <div className="w-64 bg-gray-50 border-l p-4 overflow-y-auto">
+          {/* Right Sidebar - Layers - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:block w-64 bg-gray-50 border-l p-4 overflow-y-auto order-3">
             <h3 className="font-semibold mb-4">Layers</h3>
             
             {designData.layers.length === 0 ? (
@@ -1423,7 +1723,7 @@ const CustomizationModal = ({
                   <div
                     key={layer.id}
                     onClick={() => setSelectedLayer(layer.id)}
-                    className={`p-3 border rounded cursor-pointer transition-colors ${
+                    className={`p-3 border rounded cursor-pointer transition-all duration-200 ${
                       selectedLayer === layer.id
                         ? 'bg-blue-100 border-blue-500'
                         : 'bg-white border-gray-300 hover:bg-gray-50'
@@ -1447,7 +1747,7 @@ const CustomizationModal = ({
                           e.stopPropagation();
                           handleToggleVisibility();
                         }}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-gray-400 hover:text-gray-600 transition-all duration-200"
                         title={layer.visible ? 'Hide layer' : 'Show layer'}
                       >
                         {layer.visible ? '👁️' : '👁️‍🗨️'}
@@ -1471,28 +1771,87 @@ const CustomizationModal = ({
           </div>
         </div>
 
+        {/* Mobile Layers Panel */}
+        {(activeMobileTab === 'layers' || designData.layers.length > 0) && (
+          <div className="lg:hidden border-t bg-gray-50 p-3 order-3">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setActiveMobileTab(activeMobileTab === 'layers' ? 'tools' : 'layers')}
+            >
+              <h3 className="font-semibold text-sm">Layers ({designData.layers.length})</h3>
+              <span className={`transition-transform duration-200 ${activeMobileTab === 'layers' ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </div>
+            
+            {activeMobileTab === 'layers' && (
+              <div className="mt-3 max-h-32 overflow-y-auto space-y-2">
+                {designData.layers.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-2">No layers yet</p>
+                ) : (
+                  [...designData.layers].reverse().map(layer => (
+                    <div
+                      key={layer.id}
+                      onClick={() => setSelectedLayer(layer.id)}
+                      className={`p-2 border rounded cursor-pointer transition-all duration-200 ${
+                        selectedLayer === layer.id
+                          ? 'bg-blue-100 border-blue-500'
+                          : 'bg-white border-gray-300 hover:bg-gray-50'
+                      } ${!layer.visible ? 'opacity-50' : ''}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 flex-1 min-w-0">
+                          <span className="text-xs flex-shrink-0">
+                            {layer.type === 'text' && '📝'}
+                            {layer.type === 'image' && (layer.src.startsWith('data:') ? '📱' : '🌐')}
+                            {layer.type === 'shape' && '⬜'}
+                          </span>
+                          <span className="text-xs font-medium truncate">
+                            {layer.type === 'text' ? 
+                              (layer.text.length > 20 ? `${layer.text.substring(0, 20)}...` : layer.text) : 
+                              layer.type}
+                          </span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleVisibility();
+                          }}
+                          className="text-gray-400 hover:text-gray-600 text-xs flex-shrink-0 ml-2 transition-all duration-200"
+                        >
+                          {layer.visible ? '👁️' : '👁️‍🗨️'}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
-          <div className="text-sm text-gray-600">
+        <div className="p-3 sm:p-4 border-t bg-gray-50 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div className="text-xs sm:text-sm text-gray-600">
             Max {customization?.maxTextLength || 100} characters • Max {customization?.maxImages || 5} images
             {!canvasReady && ' • Canvas loading...'}
             {totalImages > 0 && imagesLoaded < totalImages && ` • Loading images... (${imagesLoaded}/${totalImages})`}
           </div>
-          <div className="flex space-x-3">
+          <div className="flex space-x-2 sm:space-x-3 self-end sm:self-auto">
             <button
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              className="px-4 py-2 sm:px-6 sm:py-2 border border-gray-300 rounded hover:bg-gray-100 text-xs sm:text-sm transition-all duration-200"
             >
               Cancel
             </button>
             <button
               onClick={handleSaveAndClose}
               disabled={isCreatingDesign || designData.layers.length === 0 || !canvasReady}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-4 py-2 sm:px-6 sm:py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 text-xs sm:text-sm transition-all duration-200"
             >
               {isCreatingDesign ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                   <span>Saving...</span>
                 </>
               ) : (

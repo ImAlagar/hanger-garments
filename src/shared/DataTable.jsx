@@ -1,4 +1,4 @@
-// shared/DataTable.jsx (Fixed Action & Status Button Issue)
+// shared/DataTable.jsx - SIMPLIFIED SERVER PAGINATION
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
@@ -14,19 +14,25 @@ const DataTable = ({
   rowClassName = '',
   headerClassName = '',
   bodyClassName = '',
-  pagination = true,
-  pageSize = 5,
-  showSizeChanger = true,
-  onPageChange,
-  theme: propTheme, // Optional prop to override context theme
-  disableRowClickForActions = true // NEW: Add this prop to fix action button issue
+  pagination = null, // Expect server pagination props
+  theme: propTheme,
+  disableRowClickForActions = true
 }) => {
   const { theme: contextTheme } = useTheme();
   const theme = propTheme || contextTheme;
   
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [currentPageSize, setCurrentPageSize] = useState(pageSize);
+
+  // Server pagination props
+  const {
+    serverTotalItems = 0,
+    serverTotalPages = 1,
+    serverCurrentPage = 1,
+    serverPageSize = 10,
+    onServerPageChange,
+    onPageSizeChange,
+    pageSizeOptions = [10, 20, 50]
+  } = pagination || {};
 
   // Theme-based styles
   const themeStyles = {
@@ -88,10 +94,9 @@ const DataTable = ({
       direction = 'asc';
     }
     setSortConfig({ key, direction });
-    setCurrentPage(1);
   };
 
-  // Sort data
+  // Sort data (client-side only)
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return data;
 
@@ -113,31 +118,22 @@ const DataTable = ({
     });
   }, [data, sortConfig]);
 
-  // Paginate data
-  const paginatedData = useMemo(() => {
-    if (!pagination) return sortedData;
-    
-    const startIndex = (currentPage - 1) * currentPageSize;
-    return sortedData.slice(startIndex, startIndex + currentPageSize);
-  }, [sortedData, currentPage, currentPageSize, pagination]);
-
-  // Calculate total pages
-  const totalPages = Math.ceil(sortedData.length / currentPageSize);
-
-  // Page size options
-  const pageSizeOptions = [5, 10, 20, 50];
-
   // Handle page change
   const handlePageChange = (page) => {
-    setCurrentPage(page);
-    if (onPageChange) {
-      onPageChange(page);
+    if (onServerPageChange) {
+      onServerPageChange(page);
     }
   };
 
-  // NEW: Handle row click with action column check
+  // Handle page size change
+  const handlePageSizeChange = (newSize) => {
+    if (onPageSizeChange) {
+      onPageSizeChange(newSize);
+    }
+  };
+
+  // Handle row click with action column check
   const handleRowClick = (row, event) => {
-    // Check if the click came from an action column or status column
     const isActionColumnClick = event.target.closest('[data-action-cell="true"]');
     const isStatusColumnClick = event.target.closest('[data-status-cell="true"]');
     
@@ -151,19 +147,17 @@ const DataTable = ({
     try {
       if (typeof render === 'function') {
         const result = render(value, record, index);
-        // Ensure we return a valid React child
         if (result === null || result === undefined) {
           return '-';
         }
         if (typeof result === 'object' && !React.isValidElement(result)) {
-          return JSON.stringify(result); // Fallback for objects
+          return JSON.stringify(result);
         }
         return result;
       }
-      // Default rendering for primitive values
       if (value == null) return '-';
       if (typeof value === 'object') {
-        return JSON.stringify(value); // Fallback for objects
+        return JSON.stringify(value);
       }
       return String(value);
     } catch (error) {
@@ -212,6 +206,7 @@ const DataTable = ({
       animate="visible"
       className="space-y-4"
     >
+      {/* Data Table */}
       <motion.div
         className={`rounded-xl shadow-sm border overflow-hidden transition-all duration-300 hover:shadow-md ${themeStyles.container} ${className}`}
       >
@@ -262,7 +257,7 @@ const DataTable = ({
             </thead>
             <tbody className={`divide-y transition-all duration-300 ${themeStyles.body} ${bodyClassName}`}>
               <AnimatePresence mode="popLayout">
-                {paginatedData.length === 0 ? (
+                {sortedData.length === 0 ? (
                   <motion.tr
                     key="empty-state"
                     initial={{ opacity: 0 }}
@@ -305,7 +300,7 @@ const DataTable = ({
                     </td>
                   </motion.tr>
                 ) : (
-                  paginatedData.map((row, rowIndex) => (
+                  sortedData.map((row, rowIndex) => (
                     <motion.tr
                       key={row[keyField] || rowIndex}
                       initial={{ opacity: 0, x: -20 }}
@@ -325,7 +320,6 @@ const DataTable = ({
                         <motion.td
                           key={colIndex}
                           layout="position"
-                          // NEW: Add data attributes for action and status columns
                           data-action-cell={column.key === 'actions' ? "true" : undefined}
                           data-status-cell={column.key === 'status' ? "true" : undefined}
                           className={`px-4 py-4 transition-all duration-200 ${
@@ -335,7 +329,6 @@ const DataTable = ({
                               ? `sm:px-6 font-medium ${themeStyles.text.primary}` 
                               : `sm:px-4 ${themeStyles.text.secondary}`
                           } ${
-                            // NEW: Prevent pointer events on action and status cells to fix click issue
                             column.key === 'actions' || column.key === 'status' ? 'pointer-events-auto' : ''
                           }`}
                         >
@@ -358,35 +351,30 @@ const DataTable = ({
         </div>
       </motion.div>
 
-      {/* Pagination */}
-      {pagination && data.length > 0 && (
+      {/* Server Pagination */}
+      {pagination && serverTotalItems > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className={`flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 px-4 py-3 rounded-xl shadow-sm border transition-all duration-300 ${themeStyles.pagination}`}
         >
           <div className="flex items-center space-x-2">
-            {showSizeChanger && (
-              <>
-                <span className={`text-sm ${themeStyles.text.secondary}`}>Show:</span>
-                <motion.select
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  value={currentPageSize}
-                  onChange={(e) => {
-                    const newSize = Number(e.target.value);
-                    setCurrentPageSize(newSize);
-                    setCurrentPage(1);
-                  }}
-                  className={`border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${themeStyles.input}`}
-                >
-                  {pageSizeOptions.map(size => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </motion.select>
-                <span className={`text-sm ${themeStyles.text.secondary}`}>entries</span>
-              </>
-            )}
+            <span className={`text-sm ${themeStyles.text.secondary}`}>Show:</span>
+            <motion.select
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              value={serverPageSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value);
+                handlePageSizeChange(newSize);
+              }}
+              className={`border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${themeStyles.input}`}
+            >
+              {pageSizeOptions.map(size => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </motion.select>
+            <span className={`text-sm ${themeStyles.text.secondary}`}>entries</span>
           </div>
 
           <div className="flex items-center space-x-6">
@@ -396,11 +384,13 @@ const DataTable = ({
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
             >
-              Showing <span className="font-semibold">{(currentPage - 1) * currentPageSize + 1}</span> to{' '}
+              Showing <span className="font-semibold">
+                {Math.min((serverCurrentPage - 1) * serverPageSize + 1, serverTotalItems)}
+              </span> to{' '}
               <span className="font-semibold">
-                {Math.min(currentPage * currentPageSize, sortedData.length)}
+                {Math.min(serverCurrentPage * serverPageSize, serverTotalItems)}
               </span>{' '}
-              of <span className="font-semibold">{sortedData.length}</span> entries
+              of <span className="font-semibold">{serverTotalItems}</span> entries
             </motion.div>
 
             <div className="flex items-center space-x-1">
@@ -411,7 +401,7 @@ const DataTable = ({
                 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
+                disabled={serverCurrentPage === 1}
                 className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${themeStyles.text.secondary}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,8 +415,8 @@ const DataTable = ({
                   backgroundColor: theme === 'dark' ? "rgba(55, 65, 81, 1)" : "rgba(243, 244, 246, 1)" 
                 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
+                onClick={() => handlePageChange(serverCurrentPage - 1)}
+                disabled={serverCurrentPage === 1}
                 className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${themeStyles.text.secondary}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -434,16 +424,16 @@ const DataTable = ({
                 </svg>
               </motion.button>
 
-              {[...Array(Math.min(5, totalPages))].map((_, index) => {
+              {[...Array(Math.min(5, serverTotalPages))].map((_, index) => {
                 let pageNum;
-                if (totalPages <= 5) {
+                if (serverTotalPages <= 5) {
                   pageNum = index + 1;
-                } else if (currentPage <= 3) {
+                } else if (serverCurrentPage <= 3) {
                   pageNum = index + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + index;
+                } else if (serverCurrentPage >= serverTotalPages - 2) {
+                  pageNum = serverTotalPages - 4 + index;
                 } else {
-                  pageNum = currentPage - 2 + index;
+                  pageNum = serverCurrentPage - 2 + index;
                 }
 
                 return (
@@ -453,7 +443,7 @@ const DataTable = ({
                     whileTap={{ scale: 0.9 }}
                     onClick={() => handlePageChange(pageNum)}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      currentPage === pageNum
+                      serverCurrentPage === pageNum
                         ? 'bg-blue-600 text-white shadow-sm'
                         : `${themeStyles.text.secondary} ${themeStyles.hover.button}`
                     }`}
@@ -469,8 +459,8 @@ const DataTable = ({
                   backgroundColor: theme === 'dark' ? "rgba(55, 65, 81, 1)" : "rgba(243, 244, 246, 1)" 
                 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(serverCurrentPage + 1)}
+                disabled={serverCurrentPage === serverTotalPages}
                 className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${themeStyles.text.secondary}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -484,8 +474,8 @@ const DataTable = ({
                   backgroundColor: theme === 'dark' ? "rgba(55, 65, 81, 1)" : "rgba(243, 244, 246, 1)" 
                 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
+                onClick={() => handlePageChange(serverTotalPages)}
+                disabled={serverCurrentPage === serverTotalPages}
                 className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${themeStyles.text.secondary}`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

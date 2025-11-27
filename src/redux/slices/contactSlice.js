@@ -7,6 +7,16 @@ const initialState = {
   loading: false,
   error: null,
   stats: null,
+  // ADDED: Pagination state
+  pagination: {
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1
+  },
+  filters: {
+    status: 'ALL' // ALL, PENDING, IN_PROGRESS, RESOLVED, CLOSED
+  }
 };
 
 const contactSlice = createSlice({
@@ -21,9 +31,17 @@ const contactSlice = createSlice({
 
     // Set all contacts
     setContacts: (state, action) => {
-      state.contacts = action.payload;
+      state.contacts = action.payload.contacts || action.payload;
       state.loading = false;
       state.error = null;
+      
+      // If response includes pagination data, update it
+      if (action.payload.pagination) {
+        state.pagination = {
+          ...state.pagination,
+          ...action.payload.pagination
+        };
+      }
     },
 
     // Set current contact
@@ -77,6 +95,31 @@ const contactSlice = createSlice({
       state.error = null;
     },
 
+    // ADDED: Set pagination
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
+
+    // ADDED: Set filters
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      // Reset to first page when filters change
+      state.pagination.currentPage = 1;
+    },
+
+    // ADDED: Clear pagination
+    clearPagination: (state) => {
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
+    },
+
     // Set error
     setError: (state, action) => {
       state.error = action.payload;
@@ -100,6 +143,16 @@ const contactSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.stats = null;
+      // ADDED: Clear pagination too
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
     },
   },
 });
@@ -112,6 +165,9 @@ export const {
   deleteContact,
   updateContactStatus,
   setContactStats,
+  setPagination,
+  setFilters,
+  clearPagination,
   setError,
   clearError,
   clearCurrentContact,

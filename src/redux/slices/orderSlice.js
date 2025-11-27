@@ -9,6 +9,17 @@ const initialState = {
   stats: null,
   paymentStatus: null,
   paymentLoading: false,
+  calculatedTotals: null,
+  // ADDED: Pagination state
+  pagination: {
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1
+  },
+  filters: {
+    status: 'ALL'
+  }
 };
 
 const orderSlice = createSlice({
@@ -28,9 +39,17 @@ const orderSlice = createSlice({
 
     // Set all orders (for admin)
     setOrders: (state, action) => {
-      state.orders = action.payload;
+      state.orders = action.payload.orders || action.payload;
       state.loading = false;
       state.error = null;
+      
+      // If response includes pagination data, update it
+      if (action.payload.pagination) {
+        state.pagination = {
+          ...state.pagination,
+          ...action.payload.pagination
+        };
+      }
     },
 
     // Set user orders
@@ -179,6 +198,31 @@ const orderSlice = createSlice({
       state.loading = false;
     },
 
+    // ADDED: Set pagination
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
+
+    // ADDED: Set filters
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      // Reset to first page when filters change
+      state.pagination.currentPage = 1;
+    },
+
+    // ADDED: Clear pagination
+    clearPagination: (state) => {
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
+    },
+
     // Set error
     setError: (state, action) => {
       state.error = action.payload;
@@ -206,6 +250,17 @@ const orderSlice = createSlice({
       state.stats = null;
       state.paymentStatus = null;
       state.paymentLoading = false;
+      state.calculatedTotals = null;
+      // ADDED: Clear pagination too
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
     },
   },
 });
@@ -226,6 +281,9 @@ export const {
   clearPaymentStatus,
   processRefund,
   setCalculatedTotals,
+  setPagination,
+  setFilters,
+  clearPagination,
   setError,
   clearError,
   clearCurrentOrder,

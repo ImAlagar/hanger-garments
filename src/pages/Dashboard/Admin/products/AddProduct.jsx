@@ -21,8 +21,61 @@ const navigate = useNavigate(); // ADD THIS HOOK
   const { data: subcategoriesData, isLoading: subcategoriesLoading } = 
     useGetSubcategoriesByCategoryQuery(selectedCategoryId, { skip: !selectedCategoryId });
 
-  const categories = categoriesData?.data || [];
-  const subcategories = subcategoriesData?.data || [];
+
+    const extractCategories = (data) => {
+  if (!data) {
+    return [];
+  }
+  
+  
+  // Based on your Redux structure, categories are in data.data.categories
+  if (data.data && data.data.categories && Array.isArray(data.data.categories)) {
+    return data.data.categories;
+  }
+  
+  // Fallback: try data.categories
+  if (data.categories && Array.isArray(data.categories)) {
+    return data.categories;
+  }
+  
+  // Fallback: try data.data as array
+  if (data.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  // Fallback: data itself might be array
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  return [];
+};
+
+const extractSubcategories = (data) => {
+  if (!data) {
+    return [];
+  }
+  
+  
+  // Subcategories likely follow similar structure
+  if (data.data && data.data.subcategories && Array.isArray(data.data.subcategories)) {
+    return data.data.subcategories;
+  }
+  
+  if (data.data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  if (Array.isArray(data)) {
+    return data;
+  }
+  
+  return [];
+};
+
+
+const categories = categoriesLoading ? [] : extractCategories(categoriesData);
+const subcategories = subcategoriesLoading ? [] : extractSubcategories(subcategoriesData);
 
   // Animation variants
   const containerVariants = {

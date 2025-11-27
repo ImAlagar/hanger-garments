@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import { useGetAllCategoriesQuery } from '../../../redux/services/categoryService';
 import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
-import { useTheme } from '../../../context/ThemeContext'; // Adjust import path as needed
+import { useTheme } from '../../../context/ThemeContext';
 
 const createSlug = (name = "") =>
   name
@@ -13,6 +13,50 @@ const createSlug = (name = "") =>
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
+
+// Helper function to safely extract and validate categories
+const getCategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.categories)) {
+    return data.data.categories;
+  }
+  if (Array.isArray(data.categories)) {
+    return data.categories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected categories data structure:', data);
+  return [];
+};
+
+// Helper function to safely extract and validate subcategories
+const getSubcategoriesFromData = (data) => {
+  if (!data) return [];
+  
+  // Handle the specific structure from your API
+  if (data.data && Array.isArray(data.data.subcategories)) {
+    return data.data.subcategories;
+  }
+  if (Array.isArray(data.subcategories)) {
+    return data.subcategories;
+  }
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (Array.isArray(data.data)) {
+    return data.data;
+  }
+  
+  console.warn('Unexpected subcategories data structure:', data);
+  return [];
+};
 
 const DesktopNav = () => {
   const { category } = useParams();
@@ -39,11 +83,16 @@ const DesktopNav = () => {
     setMounted(true);
   }, []);
 
-  const categories = categoriesData?.data || categoriesData || [];
-  const subcategories = subcategoriesData?.data || subcategoriesData || [];
+  // Safely get categories and subcategories with fallbacks
+  const categories = getCategoriesFromData(categoriesData);
+  const subcategories = getSubcategoriesFromData(subcategoriesData);
 
-  // Filter out inactive categories
-  const activeCategories = categories.filter(cat => cat.isActive === true);
+
+
+  // Filter out inactive categories - with array validation
+  const activeCategories = Array.isArray(categories) 
+    ? categories.filter(cat => cat && cat.isActive === true)
+    : [];
 
   // Desired order
   const desiredOrder = ['Men', 'Women', 'Kids', 'Unisex', 'Customised Design', 'Exclusive Pre Order'];
@@ -57,14 +106,18 @@ const DesktopNav = () => {
     return 0;
   });
 
-  const subcategoriesByCategory = subcategories.reduce((acc, subcat) => {
-    const categoryName = subcat.category?.name || subcat.category;
-    if (categoryName) {
-      if (!acc[categoryName]) acc[categoryName] = [];
-      acc[categoryName].push(subcat);
-    }
-    return acc;
-  }, {});
+  const subcategoriesByCategory = Array.isArray(subcategories) 
+    ? subcategories.reduce((acc, subcat) => {
+        if (!subcat) return acc;
+        
+        const categoryName = subcat.category?.name || subcat.category;
+        if (categoryName) {
+          if (!acc[categoryName]) acc[categoryName] = [];
+          acc[categoryName].push(subcat);
+        }
+        return acc;
+      }, {})
+    : {};
 
   const handleMouseEnter = (categoryName) => {
     if (mounted) setActiveDropdown(categoryName);
@@ -141,6 +194,7 @@ const DesktopNav = () => {
   }
 
   if (categoriesError || subcategoriesError) {
+    console.error('Error loading navigation:', { categoriesError, subcategoriesError });
     return (
       <nav className={`hidden lg:flex items-center space-x-8 ${styles.nav}`}>
         <Link to="/shop/men" className={`px-3 py-2 text-sm font-medium transition-colors font-bai-jamjuree tracking-wide ${styles.category.inactive}`}>Men</Link>
@@ -149,9 +203,20 @@ const DesktopNav = () => {
     );
   }
 
+  // Don't render if no categories
+  if (!Array.isArray(sortedCategories) || sortedCategories.length === 0) {
+    return (
+      <nav className={`hidden lg:flex items-center space-x-8 ${styles.nav}`}>
+        <span className="text-sm text-gray-500">No categories available</span>
+      </nav>
+    );
+  }
+
   return (
     <nav className={`hidden xl:flex items-center space-x-8 ${styles.nav}`}>
       {sortedCategories.map((cat) => {
+        if (!cat || !cat.name) return null;
+        
         const categoryName = cat.name;
         const categorySlug = createCategorySlug(categoryName);
         const categorySubcategories = subcategoriesByCategory[categoryName] || [];
@@ -160,7 +225,7 @@ const DesktopNav = () => {
 
         return (
           <div
-            key={cat.id || cat._id}
+            key={cat.id || cat._id || categoryName}
             className="relative"
             onMouseEnter={() => handleMouseEnter(categoryName)}
             onMouseLeave={(e) => handleMouseLeave(categoryName, e)}
@@ -209,14 +274,16 @@ const DesktopNav = () => {
                       Subcategories
                     </h4>
                     {categorySubcategories.map((subcat) => (
-                      <Link
-                        key={subcat.id || subcat._id}
-                        to={`/shop/${categorySlug}?subcategories=${encodeURIComponent(createSlug(subcat.name))}`}
-                        className={`block px-3 py-2 text-sm rounded-md transition-colors duration-200 font-instrument tracking-wide ${styles.dropdownItem}`}
-                        onClick={() => setActiveDropdown(null)}
-                      >
-                        {subcat.name}
-                      </Link>
+                      subcat && subcat.name && (
+                        <Link
+                          key={subcat.id || subcat._id || subcat.name}
+                          to={`/shop/${categorySlug}?subcategories=${encodeURIComponent(createSlug(subcat.name))}`}
+                          className={`block px-3 py-2 text-sm rounded-md transition-colors duration-200 font-instrument tracking-wide ${styles.dropdownItem}`}
+                          onClick={() => setActiveDropdown(null)}
+                        >
+                          {subcat.name}
+                        </Link>
+                      )
                     ))}
                   </div>
 

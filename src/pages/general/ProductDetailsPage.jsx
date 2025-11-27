@@ -583,11 +583,6 @@ const ratingStats = calculateRatingStats(ratings);
 
   // Handle customization
   const handleCustomize = () => {
-    if (!user) {
-      navigate('/login', { state: { returnUrl: window.location.pathname } });
-      return;  
-    }
-    
     if (!hasCustomization) {
       toast.error('Customization is not available for this product.');
       return;

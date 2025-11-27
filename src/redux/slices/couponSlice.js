@@ -8,6 +8,16 @@ const initialState = {
   error: null,
   stats: null,
   validationResult: null,
+  // ADDED: Pagination state
+  pagination: {
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1
+  },
+  filters: {
+    status: 'ALL' // ALL, ACTIVE, EXPIRED, SCHEDULED
+  }
 };
 
 const couponSlice = createSlice({
@@ -22,9 +32,17 @@ const couponSlice = createSlice({
 
     // Set all coupons
     setCoupons: (state, action) => {
-      state.coupons = action.payload;
+      state.coupons = action.payload.coupons || action.payload;
       state.loading = false;
       state.error = null;
+      
+      // If response includes pagination data, update it
+      if (action.payload.pagination) {
+        state.pagination = {
+          ...state.pagination,
+          ...action.payload.pagination
+        };
+      }
     },
 
     // Set available coupons (for public use)
@@ -130,6 +148,31 @@ const couponSlice = createSlice({
       }
     },
 
+    // ADDED: Set pagination
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
+
+    // ADDED: Set filters
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+      // Reset to first page when filters change
+      state.pagination.currentPage = 1;
+    },
+
+    // ADDED: Clear pagination
+    clearPagination: (state) => {
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
+    },
+
     // Set error
     setError: (state, action) => {
       state.error = action.payload;
@@ -155,6 +198,16 @@ const couponSlice = createSlice({
       state.error = null;
       state.stats = null;
       state.validationResult = null;
+      // ADDED: Clear pagination too
+      state.pagination = {
+        currentPage: 1,
+        pageSize: 10,
+        totalItems: 0,
+        totalPages: 1
+      };
+      state.filters = {
+        status: 'ALL'
+      };
     },
   },
 });
@@ -173,6 +226,9 @@ export const {
   clearValidationResult,
   updateCouponUsage,
   incrementCouponUsage,
+  setPagination,
+  setFilters,
+  clearPagination,
   setError,
   clearError,
   clearCurrentCoupon,

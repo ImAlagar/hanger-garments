@@ -4,13 +4,68 @@ import { toast } from 'react-toastify';
 
 export const couponService = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all coupons with optional filters
+    // Get all coupons with optional filters and pagination
     getCoupons: builder.query({
-      query: (params = {}) => ({
-        url: '/coupons',
-        params,
-      }),
+      query: (params = {}) => {
+        const { page = 1, limit = 10, status } = params;
+        const queryParams = new URLSearchParams();
+        
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+        
+        if (status && status !== 'ALL') {
+          queryParams.append('status', status);
+        }
+        
+        return {
+          url: `/coupons?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Coupon'],
+      // Transform the response to match our expected structure
+      transformResponse: (response) => {
+        // Handle different response structures
+        if (response.data && response.data.coupons) {
+          // If response already has the expected structure
+          return response;
+        } else if (Array.isArray(response.data)) {
+          // If response.data is an array, wrap it in the expected structure
+          return {
+            data: {
+              coupons: response.data,
+              pagination: response.pagination || {
+                currentPage: 1,
+                pages: 1,
+                total: response.data.length
+              }
+            }
+          };
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          return {
+            data: {
+              coupons: response,
+              pagination: {
+                currentPage: 1,
+                pages: 1,
+                total: response.length
+              }
+            }
+          };
+        }
+        
+        // Fallback structure
+        return {
+          data: {
+            coupons: response.data || response || [],
+            pagination: response.pagination || {
+              currentPage: 1,
+              pages: 1,
+              total: (response.data || response || []).length
+            }
+          }
+        };
+      },
     }),
 
     // Get coupon by ID
@@ -114,6 +169,7 @@ export const couponService = apiSlice.injectEndpoints({
       }),
       providesTags: ['Coupon'],
     }),
+
     // Public endpoints for coupon validation
     validateCoupon: builder.mutation({
       query: (couponData) => ({
@@ -122,8 +178,6 @@ export const couponService = apiSlice.injectEndpoints({
         body: couponData,
       }),
     }),
-
-
   }),
 });
 

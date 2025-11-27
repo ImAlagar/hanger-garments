@@ -6,17 +6,16 @@ const initialState = {
   currentSlider: null,
   loading: false,
   error: null,
-  // New states for pagination and filtering
+  // ADDED: Pagination state
   pagination: {
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 0
+    currentPage: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 1
   },
   filters: {
-    isActive: null,
-    search: '',
-    layout: ''
+    status: 'ALL', // ALL, ACTIVE, INACTIVE, EXPIRED, SCHEDULED
+    layout: 'ALL' // ALL, or specific layout type
   },
   // Stats and performance data
   stats: null,
@@ -32,7 +31,15 @@ const sliderSlice = createSlice({
   reducers: {
     // Basic state setters
     setSliders: (state, action) => {
-      state.sliders = action.payload;
+      state.sliders = action.payload.sliders || action.payload;
+      
+      // If response includes pagination data, update it
+      if (action.payload.pagination) {
+        state.pagination = {
+          ...state.pagination,
+          ...action.payload.pagination
+        };
+      }
     },
     setActiveSliders: (state, action) => {
       state.activeSliders = action.payload;
@@ -67,26 +74,27 @@ const sliderSlice = createSlice({
       state.successMessage = null;
     },
     
-    // Pagination
+    // ADDED: Pagination
     setPagination: (state, action) => {
       state.pagination = { ...state.pagination, ...action.payload };
     },
     setPage: (state, action) => {
-      state.pagination.page = action.payload;
+      state.pagination.currentPage = action.payload;
     },
     setLimit: (state, action) => {
-      state.pagination.limit = action.payload;
+      state.pagination.pageSize = action.payload;
     },
     
-    // Filters
+    // ADDED: Filters
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
+      // Reset to first page when filters change
+      state.pagination.currentPage = 1;
     },
     clearFilters: (state) => {
       state.filters = {
-        isActive: null,
-        search: '',
-        layout: ''
+        status: 'ALL',
+        layout: 'ALL'
       };
     },
     
@@ -193,7 +201,7 @@ const sliderSlice = createSlice({
     // Search and filter
     searchSliders: (state, action) => {
       state.filters.search = action.payload;
-      state.pagination.page = 1; // Reset to first page when searching
+      state.pagination.currentPage = 1; // Reset to first page when searching
     }
   },
 });

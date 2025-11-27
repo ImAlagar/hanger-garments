@@ -1,4 +1,4 @@
-// components/admin/ratings/AdminRatings.jsx - FIXED
+// components/admin/ratings/AdminRatings.jsx - UPDATED WITH PAGINATION
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -21,6 +21,10 @@ import {
   useToggleRatingApprovalMutation,
   useGetRatingStatsQuery,
 } from '../../../../redux/services/ratingService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/ratingSlice';
 
 // Component imports
 import RatingStats from '../../../../components/admin/stats/RatingStats';
@@ -34,6 +38,12 @@ const AdminRatings = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.rating);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -41,13 +51,18 @@ const AdminRatings = () => {
     rating: null
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: ratingsResponse,
     isLoading: ratingsLoading,
     error: ratingsError,
     refetch: refetchRatings
-  } = useGetAllRatingsQuery();
+  } = useGetAllRatingsQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status,
+    rating: filters.rating === 'ALL' ? undefined : filters.rating
+  });
 
   const { data: statsResponse } = useGetRatingStatsQuery();
   
@@ -55,13 +70,16 @@ const AdminRatings = () => {
   const [deleteRating, { isLoading: isDeleting }] = useDeleteRatingMutation();
   const [toggleApproval, { isLoading: isApprovalLoading }] = useToggleRatingApprovalMutation();
 
-  // Extract data - Ensure ratings is always an array
+  // Extract data with pagination
   const ratingsData = ratingsResponse?.data || {};
   const ratings = Array.isArray(ratingsData) ? ratingsData : 
                  Array.isArray(ratingsData.ratings) ? ratingsData.ratings : 
                  Array.isArray(ratingsData.data) ? ratingsData.data : 
                  Array.isArray(ratingsData.items) ? ratingsData.items : [];
   
+  const serverPagination = ratingsResponse?.data?.pagination || {};
+  const totalRatings = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
 
   // Theme-based styles
@@ -147,6 +165,31 @@ const AdminRatings = () => {
     } catch (error) {
       console.error('Approval toggle failed:', error);
     }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
+  };
+
+  const handleRatingFilterChange = (rating) => {
+    dispatch(setFilters({ 
+      rating 
+    }));
   };
 
   const openDeleteModal = (rating) => {
@@ -432,7 +475,7 @@ const AdminRatings = () => {
                 Ratings Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage product ratings and reviews • {ratings.length} total ratings
+                Manage product ratings and reviews • {totalRatings} total ratings
               </p>
             </div>
             
@@ -456,6 +499,7 @@ const AdminRatings = () => {
           <div className="mb-6 lg:mb-8">
             <RatingStats stats={stats} theme={theme} />
           </div>
+
         </div>
 
         {/* Ratings Display */}
@@ -472,10 +516,33 @@ const AdminRatings = () => {
                     <FiStar className={`w-12 h-12 mx-auto mb-4 ${themeStyles.text.muted}`} />
                     <p className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No ratings yet</p>
                     <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                      Product ratings will appear here when customers submit reviews
+                      {filters.status === 'ALL' && filters.rating === 'ALL' 
+                        ? 'Product ratings will appear here when customers submit reviews' 
+                        : 'No ratings match your current filters'
+                      }
                     </p>
+                    {(filters.status !== 'ALL' || filters.rating !== 'ALL') && (
+                      <button
+                        onClick={() => {
+                          handleStatusFilterChange('ALL');
+                          handleRatingFilterChange('ALL');
+                        }}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <span>Show All Ratings</span>
+                      </button>
+                    )}
                   </div>
                 }
+                              pagination={{
+                serverTotalItems: totalRatings,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -491,10 +558,33 @@ const AdminRatings = () => {
                   <FiStar className={`w-16 h-16 mx-auto mb-4 ${themeStyles.text.muted}`} />
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No ratings found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Product ratings and reviews will appear here when customers submit them
+                    {filters.status === 'ALL' && filters.rating === 'ALL' 
+                      ? 'Product ratings and reviews will appear here when customers submit them' 
+                      : 'No ratings match your current filters'
+                    }
                   </p>
+                  {(filters.status !== 'ALL' || filters.rating !== 'ALL') && (
+                    <button
+                      onClick={() => {
+                        handleStatusFilterChange('ALL');
+                        handleRatingFilterChange('ALL');
+                      }}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Ratings</span>
+                    </button>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalRatings,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

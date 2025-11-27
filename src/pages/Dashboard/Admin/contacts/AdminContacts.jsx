@@ -21,6 +21,10 @@ import {
   useUpdateContactStatusMutation,
   useGetContactStatsQuery,
 } from '../../../../redux/services/contactService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/contactSlice';
 
 // Component imports
 import ContactStats from '../../../../components/admin/stats/ContactStats';
@@ -34,6 +38,12 @@ const AdminContacts = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.contact);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -41,13 +51,17 @@ const AdminContacts = () => {
     contact: null
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: contactsResponse,
     isLoading: contactsLoading,
     error: contactsError,
     refetch: refetchContacts
-  } = useGetAllContactsQuery();
+  } = useGetAllContactsQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status
+  });
 
   const { data: statsResponse } = useGetContactStatsQuery();
   
@@ -55,13 +69,16 @@ const AdminContacts = () => {
   const [deleteContact, { isLoading: isDeleting }] = useDeleteContactMutation();
   const [updateStatus, { isLoading: isStatusLoading }] = useUpdateContactStatusMutation();
 
-  // Extract data - FIXED: Ensure contacts is always an array
+  // Extract data with pagination
   const contactsData = contactsResponse?.data || {};
   const contacts = Array.isArray(contactsData) ? contactsData : 
                   Array.isArray(contactsData.contacts) ? contactsData.contacts : 
                   Array.isArray(contactsData.data) ? contactsData.data : 
                   Array.isArray(contactsData.items) ? contactsData.items : [];
   
+  const serverPagination = contactsResponse?.data?.pagination || {};
+  const totalContacts = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
 
   // Theme-based styles
@@ -85,7 +102,7 @@ const AdminContacts = () => {
     }
   };
 
-  // Status badge styles - UPDATED to match your API status
+  // Status badge styles
   const getStatusBadge = (status) => {
     const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
     
@@ -143,6 +160,25 @@ const AdminContacts = () => {
     } catch (error) {
       console.error('Status update failed:', error);
     }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
   };
 
   const openDeleteModal = (contact) => {
@@ -408,7 +444,7 @@ const AdminContacts = () => {
                 Contact Messages
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage customer inquiries and messages • {contacts.length} total messages
+                Manage customer inquiries and messages • {totalContacts} total messages
               </p>
             </div>
             
@@ -432,6 +468,34 @@ const AdminContacts = () => {
           <div className="mb-6 lg:mb-8">
             <ContactStats stats={stats} theme={theme} />
           </div>
+
+          {/* Status Filter */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2">
+              {['ALL', 'PENDING', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => handleStatusFilterChange(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    filters.status === status
+                      ? theme === 'dark' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-blue-600 text-white'
+                      : theme === 'dark'
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {status === 'ALL' ? 'All Messages' : status.replace('_', ' ')}
+                  {status !== 'ALL' && (
+                    <span className="ml-2 px-1.5 py-0.5 text-xs bg-white bg-opacity-20 rounded">
+                      {stats.statusBreakdown?.[status] || 0}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Contacts Display */}
@@ -448,10 +512,30 @@ const AdminContacts = () => {
                     <FiMessageSquare className={`w-12 h-12 mx-auto mb-4 ${themeStyles.text.muted}`} />
                     <p className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No messages yet</p>
                     <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                      Customer contact messages will appear here
+                      {filters.status === 'ALL' 
+                        ? 'Customer contact messages will appear here' 
+                        : `No messages with status: ${filters.status}`
+                      }
                     </p>
+                    {filters.status !== 'ALL' && (
+                      <button
+                        onClick={() => handleStatusFilterChange('ALL')}
+                        className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <span>Show All Messages</span>
+                      </button>
+                    )}
                   </div>
                 }
+                              pagination={{
+                serverTotalItems: totalContacts,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -467,10 +551,30 @@ const AdminContacts = () => {
                   <FiMessageSquare className={`w-16 h-16 mx-auto mb-4 ${themeStyles.text.muted}`} />
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No contact messages found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Customer inquiries and messages will appear here when they contact you
+                    {filters.status === 'ALL' 
+                      ? 'Customer inquiries and messages will appear here when they contact you' 
+                      : `No messages with status: ${filters.status}`
+                    }
                   </p>
+                  {filters.status !== 'ALL' && (
+                    <button
+                      onClick={() => handleStatusFilterChange('ALL')}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Messages</span>
+                    </button>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalContacts,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

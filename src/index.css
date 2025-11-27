@@ -113,13 +113,13 @@
     transform: translateY(-25%); /* Smooth scroll to first item */
   }
   50% { 
-    transform: translateY(-25%); /* Pause on first item */
+    transform: translateY(-30%); /* Pause on first item */
   }
   80% { 
-    transform: translateY(-50%); /* Smooth scroll to second item */
+    transform: translateY(-35%); /* Smooth scroll to second item */
   }
   90% { 
-    transform: translateY(-50%); /* Pause on second item */
+    transform: translateY(-35%); /* Pause on second item */
   }
   100% { 
     transform: translateY(-50%); /* Reset position */
@@ -174,6 +174,9 @@
 @keyframes scrollDownContinuous {
   0% { 
     transform: translateY(0); 
+  }
+    50% { 
+    transform: translateY(-25%); 
   }
   100% { 
     transform: translateY(-50%); 

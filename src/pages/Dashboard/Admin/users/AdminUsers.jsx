@@ -27,6 +27,10 @@ import {
   useApproveWholesalerMutation,
   useGetUserStatsQuery,
 } from '../../../../redux/services/userService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/userSlice';
 
 // Component imports
 import DeleteConfirmationModal from '../../../../shared/DeleteConfirmationModal';
@@ -40,6 +44,12 @@ const AdminUsers = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.user);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -52,13 +62,18 @@ const AdminUsers = () => {
     newRole: ''
   });
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: usersResponse,
     isLoading: usersLoading,
     error: usersError,
     refetch: refetchUsers
-  } = useGetAllUsersQuery();
+  } = useGetAllUsersQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    role: filters.role === 'ALL' ? undefined : filters.role,
+    status: filters.status === 'ALL' ? undefined : filters.status
+  });
 
   const { data: statsResponse } = useGetUserStatsQuery();
 
@@ -70,6 +85,9 @@ const AdminUsers = () => {
 
   // Extract data
   const users = usersResponse?.data?.users || [];
+  const serverPagination = usersResponse?.data?.pagination || {};
+  const totalUsers = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
 
   // Theme-based styles
@@ -183,6 +201,31 @@ const AdminUsers = () => {
     } catch (error) {
       console.error('Approval toggle failed:', error);
     }
+  };
+
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleRoleFilterChange = (role) => {
+    dispatch(setFilters({ 
+      role 
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
   };
 
   const openDeleteModal = (user) => {
@@ -393,7 +436,7 @@ const AdminUsers = () => {
     }
   ];
 
-  // Mobile card renderer
+  // Mobile card renderer (keep your existing renderUserCard function)
   const renderUserCard = (user) => {
     return (
       <motion.div
@@ -562,45 +605,72 @@ const AdminUsers = () => {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto"
       >
-      {/* Header Section */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-          <div className="flex-1 min-w-0">
-            <h1 className={`text-2xl font-italiana sm:text-3xl font-bold truncate ${themeStyles.text.primary}`}>
-              Users Management
-            </h1>
-            <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-              Manage your platform users • {users.length} total users
-            </p>
-          </div>
-          
-          <div className="flex flex-col xs:flex-row gap-3">              
-            <button
-              onClick={handleRefresh}
-              disabled={usersLoading}
-              className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed ${
-                theme === 'dark'
-                  ? 'bg-gray-700 text-white hover:bg-gray-600'
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            >
-              <FiRefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+        {/* Header Section */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div className="flex-1 min-w-0">
+              <h1 className={`text-2xl font-italiana sm:text-3xl font-bold truncate ${themeStyles.text.primary}`}>
+                Users Management
+              </h1>
+              <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
+                Manage your platform users • {totalUsers} total users
+              </p>
+            </div>
             
-            <Link
-              to="/dashboard/users/add"
-              className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap"
-            >
-              <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Add User</span>
-            </Link>
+            <div className="flex flex-col xs:flex-row gap-3">              
+              <button
+                onClick={handleRefresh}
+                disabled={usersLoading}
+                className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed ${
+                  theme === 'dark'
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
+                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
+              >
+                <FiRefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+              
+              <Link
+                to="/dashboard/users/add"
+                className="flex items-center justify-center space-x-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base whitespace-nowrap"
+              >
+                <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Add User</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* User Stats */}
+          <UserStats stats={stats} />
+
+          {/* Filters Section */}
+          <div className="mb-6 mt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Role Filter */}
+              <div className="flex flex-wrap gap-2">
+                {['ALL', 'CUSTOMER', 'WHOLESALER', 'ADMIN'].map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => handleRoleFilterChange(role)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      filters.role === role
+                        ? theme === 'dark' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-blue-600 text-white'
+                        : theme === 'dark'
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {role === 'ALL' ? 'All Roles' : role}
+                  </button>
+                ))}
+              </div>
+
+            </div>
           </div>
         </div>
-
-        {/* User Stats */}
-        <UserStats stats={stats} />
-      </div>
 
         {/* Users Display */}
         <div className={`rounded-xl shadow-sm border overflow-hidden ${themeStyles.card}`}>
@@ -618,6 +688,15 @@ const AdminUsers = () => {
                     </p>
                   </div>
                 }
+                              pagination={{
+                serverTotalItems: totalUsers,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
@@ -632,10 +711,33 @@ const AdminUsers = () => {
                 <div className="text-center py-12">
                   <div className={`text-lg mb-2 ${themeStyles.text.secondary}`}>No users found</div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    Users will appear here when they register on your platform
+                    {filters.role !== 'ALL' || filters.status !== 'ALL' 
+                      ? `No users match your current filters` 
+                      : 'Users will appear here when they register on your platform'
+                    }
                   </p>
+                  {(filters.role !== 'ALL' || filters.status !== 'ALL') && (
+                    <button
+                      onClick={() => {
+                        handleRoleFilterChange('ALL');
+                        handleStatusFilterChange('ALL');
+                      }}
+                      className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <span>Show All Users</span>
+                    </button>
+                  )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalUsers,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />

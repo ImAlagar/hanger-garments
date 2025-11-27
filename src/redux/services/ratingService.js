@@ -1,4 +1,4 @@
-// redux/services/ratingService.js - UPDATED WITH TOAST MESSAGES
+// redux/services/ratingService.js - UPDATED WITH PAGINATION
 import { apiSlice } from './api';
 import { toast } from 'react-toastify';
 
@@ -66,13 +66,72 @@ export const ratingService = apiSlice.injectEndpoints({
       providesTags: ['Rating'],
     }),
 
-    // Admin endpoints
+    // Admin endpoints - UPDATED with pagination
     getAllRatings: builder.query({
-      query: (params = {}) => ({
-        url: '/ratings/admin',
-        params,
-      }),
+      query: (params = {}) => {
+        const { page = 1, limit = 10, status, rating } = params;
+        const queryParams = new URLSearchParams();
+        
+        queryParams.append('page', page);
+        queryParams.append('limit', limit);
+        
+        if (status && status !== 'ALL') {
+          queryParams.append('isApproved', status === 'APPROVED' ? 'true' : 'false');
+        }
+        
+        if (rating && rating !== 'ALL') {
+          queryParams.append('rating', rating);
+        }
+        
+        return {
+          url: `/ratings/admin?${queryParams.toString()}`,
+        };
+      },
       providesTags: ['Rating'],
+      // Transform the response to match our expected structure
+      transformResponse: (response) => {
+        // Handle different response structures
+        if (response.data && response.data.ratings) {
+          // If response already has the expected structure
+          return response;
+        } else if (Array.isArray(response.data)) {
+          // If response.data is an array, wrap it in the expected structure
+          return {
+            data: {
+              ratings: response.data,
+              pagination: response.pagination || {
+                currentPage: 1,
+                pages: 1,
+                total: response.data.length
+              }
+            }
+          };
+        } else if (Array.isArray(response)) {
+          // If response is directly an array
+          return {
+            data: {
+              ratings: response,
+              pagination: {
+                currentPage: 1,
+                pages: 1,
+                total: response.length
+              }
+            }
+          };
+        }
+        
+        // Fallback structure
+        return {
+          data: {
+            ratings: response.data || response || [],
+            pagination: response.pagination || {
+              currentPage: 1,
+              pages: 1,
+              total: (response.data || response || []).length
+            }
+          }
+        };
+      },
     }),
 
     getRatingById: builder.query({

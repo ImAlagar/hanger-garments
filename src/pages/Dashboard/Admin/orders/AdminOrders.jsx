@@ -2,13 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiPlus, 
   FiRefreshCw, 
   FiEdit2,
   FiTrash2,
   FiEye,
   FiPackage,
-  FiTruck,
   FiDollarSign,
   FiUser
 } from 'react-icons/fi';
@@ -22,6 +20,10 @@ import {
   useUpdateOrderStatusMutation,
   useGetOrderStatsQuery,
 } from '../../../../redux/services/orderService';
+import {
+  setPagination,
+  setFilters
+} from '../../../../redux/slices/orderSlice';
 
 // Component imports
 import OrderStats from '../../../../components/admin/stats/OrderStats';
@@ -35,21 +37,30 @@ const AdminOrders = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
+  // Redux state
+  const { 
+    pagination,
+    filters 
+  } = useSelector((state) => state.order);
+
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     order: null
   });
-  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  // RTK Query hooks
+  // RTK Query hooks with pagination and filters
   const {
     data: ordersResponse,
     isLoading: ordersLoading,
     error: ordersError,
     refetch: refetchOrders
-  } = useGetAllOrdersQuery();
+  } = useGetAllOrdersQuery({
+    page: pagination.currentPage,
+    limit: pagination.pageSize,
+    status: filters.status === 'ALL' ? undefined : filters.status
+  });
 
   const { data: statsResponse } = useGetOrderStatsQuery();
   
@@ -59,12 +70,10 @@ const AdminOrders = () => {
 
   // Extract data
   const orders = ordersResponse?.data?.orders || [];
+  const serverPagination = ordersResponse?.data?.pagination || {};
+  const totalOrders = serverPagination.total || 0;
+  const serverTotalPages = serverPagination.pages || 1;
   const stats = statsResponse?.data || {};
-
-  // Filter orders by status
-  const filteredOrders = statusFilter === 'ALL' 
-    ? orders 
-    : orders.filter(order => order.status === statusFilter);
 
   // Theme-based styles
   const themeStyles = {
@@ -130,6 +139,25 @@ const AdminOrders = () => {
     }
   };
 
+  const handleServerPageChange = (page) => {
+    dispatch(setPagination({ 
+      currentPage: page 
+    }));
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    dispatch(setPagination({ 
+      pageSize: newSize,
+      currentPage: 1
+    }));
+  };
+
+  const handleStatusFilterChange = (status) => {
+    dispatch(setFilters({ 
+      status 
+    }));
+  };
+
   const openDeleteModal = (order) => {
     setDeleteModal({ isOpen: true, order });
   };
@@ -187,7 +215,7 @@ const AdminOrders = () => {
       sortable: true,
       render: (value) => (
         <span className={`font-medium ${themeStyles.text.primary}`}>
-          ₹{value}
+          ₹{parseFloat(value || 0).toFixed(2)}
         </span>
       )
     },
@@ -321,7 +349,7 @@ const AdminOrders = () => {
             <div>
               <p className={themeStyles.text.muted}>Amount</p>
               <p className={`font-medium ${themeStyles.text.primary}`}>
-                ₹{order.totalAmount}
+                ₹{parseFloat(order.totalAmount || 0).toFixed(2)}
               </p>
             </div>
             <div>
@@ -416,7 +444,7 @@ const AdminOrders = () => {
                 Orders Management
               </h1>
               <p className={`mt-1 text-sm sm:text-base ${themeStyles.text.secondary}`}>
-                Manage customer orders • {filteredOrders.length} orders
+                Manage customer orders • {totalOrders} total orders
               </p>
             </div>
             
@@ -447,9 +475,9 @@ const AdminOrders = () => {
               {['ALL', 'PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => (
                 <button
                   key={status}
-                  onClick={() => setStatusFilter(status)}
+                  onClick={() => handleStatusFilterChange(status)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    statusFilter === status
+                    filters.status === status
                       ? theme === 'dark' 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-blue-600 text-white'
@@ -475,7 +503,7 @@ const AdminOrders = () => {
           {isMobile ? (
             <div className="p-4">
               <DataCard
-                data={filteredOrders}
+                data={orders}
                 renderItem={renderOrderCard}
                 onItemClick={(order) => navigate(`/dashboard/orders/view/${order.id}`)}
                 emptyMessage="No orders found"
@@ -485,20 +513,29 @@ const AdminOrders = () => {
                       No orders match your current filter
                     </p>
                     <button
-                      onClick={() => setStatusFilter('ALL')}
+                      onClick={() => handleStatusFilterChange('ALL')}
                       className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <span>Show All Orders</span>
                     </button>
                   </div>
                 }
+                              pagination={{
+                serverTotalItems: totalOrders,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
                 theme={theme}
               />
             </div>
           ) : (
             <DataTable
               columns={columns}
-              data={filteredOrders}
+              data={orders}
               keyField="id"
               loading={ordersLoading}
               onRowClick={(order) => navigate(`/dashboard/orders/view/${order.id}`)}
@@ -508,14 +545,14 @@ const AdminOrders = () => {
                     No orders found
                   </div>
                   <p className={`text-sm mb-4 ${themeStyles.text.muted}`}>
-                    {statusFilter === 'ALL' 
+                    {filters.status === 'ALL' 
                       ? 'No orders in the system yet' 
-                      : `No orders with status: ${statusFilter}`
+                      : `No orders with status: ${filters.status}`
                     }
                   </p>
-                  {statusFilter !== 'ALL' && (
+                  {filters.status !== 'ALL' && (
                     <button
-                      onClick={() => setStatusFilter('ALL')}
+                      onClick={() => handleStatusFilterChange('ALL')}
                       className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <span>Show All Orders</span>
@@ -523,6 +560,15 @@ const AdminOrders = () => {
                   )}
                 </div>
               }
+              pagination={{
+                serverTotalItems: totalOrders,
+                serverTotalPages: serverTotalPages,
+                serverCurrentPage: pagination.currentPage,
+                serverPageSize: pagination.pageSize,
+                onServerPageChange: handleServerPageChange,
+                onPageSizeChange: handlePageSizeChange,
+                pageSizeOptions: [10, 20, 50]
+              }}
               className="border-0"
               theme={theme}
             />
