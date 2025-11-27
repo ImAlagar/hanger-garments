@@ -115,8 +115,6 @@ const getSubcategoriesFromData = (data) => {
   console.warn('Unexpected subcategories data structure:', data);
   return [];
 };
-
-
 // Extract categories and subcategories arrays using helper functions
 const categories = getCategoriesFromData(categoriesData);
 const subcategories = getSubcategoriesFromData(subcategoriesData);
@@ -471,22 +469,16 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
   const hoverBg = isDark ? "hover:bg-gray-800" : "hover:bg-gray-50";
 
   // Category display name helper
-const getCategoryDisplayName = () => {
-  if (!category) return "All Products";
+  const getCategoryDisplayName = () => {
+    if (!category) return "All Products";
 
-  // Ensure categories is an array before calling find
-  if (!Array.isArray(categories) || categories.length === 0) {
-    return `${category.replace(/-/g, ' ')}'s Collections`;
-  }
+    const foundCategory = categories.find(cat => {
+      const categorySlug = cat.name.toLowerCase().replace(/\s+/g, '-');
+      return categorySlug === category.toLowerCase();
+    });
 
-  const foundCategory = categories.find(cat => {
-    if (!cat || !cat.name) return false;
-    const categorySlug = createSlug(cat.name);
-    return categorySlug === category.toLowerCase();
-  });
-
-  return foundCategory ? `${foundCategory.name}'s Collections` : `${category.replace(/-/g, ' ')}'s Collections`;
-};
+    return foundCategory ? `${foundCategory.name}'s Collections` : `${category.replace('-', ' ')}'s Collections`;
+  };
 
   // Loading state
   if (isLoading) {
