@@ -1178,38 +1178,51 @@ const handleRazorpayPayment = async () => {
               )}
 
               {/* Coupon Input Section */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  disabled={!!appliedCoupon}
-                  className={`flex-1 p-3 border ${borderColor} rounded-lg ${inputBg} ${textColor} ${
-                    appliedCoupon ? 'opacity-50' : ''
-                  } transition-colors`}
-                />
-                {!appliedCoupon ? (
-                  <button
-                    onClick={handleApplyCoupon}
-                    disabled={loading || !couponCode.trim()}
-                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                      isDark 
-                        ? "bg-orange-600 text-white hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed" 
-                        : "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed"
-                    }`}
-                  >
-                    {loading ? "..." : "Apply"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleRemoveCoupon}
-                    className="px-6 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+<div className="flex flex-wrap gap-3">
+  <input
+    type="text"
+    placeholder="Enter coupon code"
+    value={couponCode}
+    onChange={(e) => setCouponCode(e.target.value)}
+    disabled={!!appliedCoupon}
+    className={`
+      flex-1 min-w-[200px] p-3 border ${borderColor} rounded-lg 
+      ${inputBg} ${textColor} 
+      ${appliedCoupon ? "opacity-50" : ""} 
+      transition-colors w-full sm:w-auto
+    `}
+  />
+
+  {!appliedCoupon ? (
+    <button
+      onClick={handleApplyCoupon}
+      disabled={loading || !couponCode.trim()}
+      className={`
+        px-6 py-3 rounded-lg font-semibold transition-all 
+        w-full sm:w-auto
+        ${
+          isDark
+            ? "bg-orange-600 text-white hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed"
+            : "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed"
+        }
+      `}
+    >
+      {loading ? "..." : "Apply"}
+    </button>
+  ) : (
+    <button
+      onClick={handleRemoveCoupon}
+      className="
+        px-6 py-3 bg-red-500 text-white rounded-lg font-semibold 
+        hover:bg-red-600 transition-colors 
+        w-full sm:w-auto
+      "
+    >
+      Remove
+    </button>
+  )}
+</div>
+
 
               {/* Applied Coupon Display */}
               {appliedCoupon && (

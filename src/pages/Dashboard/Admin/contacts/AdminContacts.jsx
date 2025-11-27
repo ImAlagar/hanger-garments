@@ -225,9 +225,9 @@ const AdminContacts = () => {
       )
     },
     {
-      key: 'subject',
-      title: 'Subject',
-      dataIndex: 'subject',
+      key: 'message',
+      title: 'Message',
+      dataIndex: 'message',
       render: (value) => (
         <span className={`font-medium ${themeStyles.text.primary}`}>
           {value || 'No Subject'}
