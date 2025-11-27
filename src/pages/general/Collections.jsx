@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { tshirtCategories, motionVariants } from '../../constants/headerConstants';
 import { useGetAllProductsQuery } from '../../redux/services/productService';
 import ProductCard from '../../components/ProductCard/ProductCard';
@@ -9,6 +10,7 @@ import { useSelector } from 'react-redux';
 const Collections = () => {
   const [activeCategory, setActiveCategory] = useState('Men');
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [displayedProducts, setDisplayedProducts] = useState([]);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
 
   // Get user role from Redux store
@@ -150,6 +152,8 @@ const Collections = () => {
       
       if (activeCategory === 'All') {
         setFilteredProducts(transformedProducts);
+        // For "All" category, show only 8 products
+        setDisplayedProducts(transformedProducts.slice(0, 8));
       } else {
         const filtered = transformedProducts.filter(product => {
           const productCategory = product.category?.toLowerCase();
@@ -158,9 +162,12 @@ const Collections = () => {
           return matches;
         });
         setFilteredProducts(filtered);
+        // Show only first 8 products for the category
+        setDisplayedProducts(filtered.slice(0, 8));
       }
     } else {
       setFilteredProducts([]);
+      setDisplayedProducts([]);
     }
   }, [productsData, activeCategory, isWholesaleUser]);
 
@@ -257,7 +264,7 @@ const Collections = () => {
         animate="visible"
       >
         <p className="text-gray-600">
-          Showing {filteredProducts.length} color variant{filteredProducts.length !== 1 ? 's' : ''}
+          Showing {displayedProducts.length} of {filteredProducts.length} color variant{filteredProducts.length !== 1 ? 's' : ''}
           {activeCategory !== 'All' && ` in ${activeCategory}`}
           {isWholesaleUser && ' • Wholesale pricing applied'}
         </p>
@@ -270,7 +277,7 @@ const Collections = () => {
         initial="hidden"
         animate="visible"
       >
-        {filteredProducts.map((product) => (
+        {displayedProducts.map((product) => (
           <motion.div
             key={product.id}
             variants={motionVariants.item}
@@ -285,8 +292,28 @@ const Collections = () => {
         ))}
       </motion.div>
 
+      {/* View All Products Button - Show only when there are more products to view */}
+      {filteredProducts.length > 8 && (
+        <motion.div 
+          className="text-center mt-12 mb-8"
+          variants={motionVariants.item}
+          initial="hidden"
+          animate="visible"
+        >
+          <Link 
+            to="/shop" 
+            className="inline-flex items-center justify-center bg-black text-white px-8 py-3 rounded-lg hover:bg-gray-800 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+          >
+            View All {filteredProducts.length} Products
+            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </Link>
+        </motion.div>
+      )}
+
       {/* Empty State */}
-      {filteredProducts.length === 0 && !isLoading && (
+      {displayedProducts.length === 0 && !isLoading && (
         <motion.div 
           className="text-center py-16"
           variants={motionVariants.item}

@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { useTheme } from '../../context/ThemeContext';
 import { useCreateRatingMutation } from '../../redux/services/ratingService';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 const ReviewForm = ({ productId, onReviewSubmitted }) => {
   const { theme } = useTheme();
@@ -107,7 +108,7 @@ const ReviewForm = ({ productId, onReviewSubmitted }) => {
     return (
       <div className={`p-6 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
         <p className="text-center text-gray-600 dark:text-gray-400">
-          Please <button className="text-blue-600 hover:underline">login</button> to write a review
+          Please <Link to={'/login'} className="text-blue-600 hover:underline">login</Link> to write a review
         </p>
       </div>
     );
