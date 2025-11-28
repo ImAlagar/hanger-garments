@@ -39,45 +39,65 @@ const UserWishlist = () => {
   };
 
   // Transform wishlist items for ProductCard with better debugging
-  const transformWishlistItem = (wishlistItem, index) => {
-    
-    if (!wishlistItem?.product) {
-      console.warn('Invalid wishlist item:', wishlistItem);
-      return null;
-    }
+const transformWishlistItem = (wishlistItem, index) => {
+  
+  if (!wishlistItem?.product) {
+    console.warn('Invalid wishlist item:', wishlistItem);
+    return null;
+  }
 
-    const product = wishlistItem.product;
-    
+  const product = wishlistItem.product;
+  
+  // Get color from variant or product
+  const color = wishlistItem.variant?.color || product.color || '';
 
-    const transformedProduct = {
-      id: product._id || product.id,
-      _id: product._id || product.id,
-      name: product.name || 'Unknown Product',
-      title: product.name || 'Unknown Product',
-      category: product.category || 'Uncategorized',
-      price: `₹${product.normalPrice || 0}`,
-      originalPrice: product.offerPrice && product.normalPrice && product.offerPrice < product.normalPrice 
-        ? `₹${product.normalPrice}` 
-        : null,
-      priceLabel: product.offerPrice && product.normalPrice && product.offerPrice < product.normalPrice 
-        ? "Offer" 
-        : "",
-      image: product.images?.[0] || "https://via.placeholder.com/300x300?text=No+Image",
-      variants: wishlistItem.variant ? [wishlistItem.variant] : [],
-      inStock: wishlistItem.variant?.stock > 0 || false,
-      normalPrice: product.normalPrice || 0,
-      offerPrice: product.offerPrice || 0,
-      wholesalePrice: product.wholesalePrice || 0,
-      isWholesaleUser: user?.role === 'WHOLESALER',
-      avgRating: product.avgRating || 0,
-      totalRatings: product.totalRatings || 0,
-      isFeatured: product.featured || false,
-      isNewArrival: product.isNewArrival || false,
-      isBestSeller: product.isBestSeller || false
-    };
+  // Clean the ID - remove the color suffix if it exists
+  const rawId = product.baseProductId || product._id || product.id;
+  let cleanId = rawId;
+  
+  // Remove color from ID if it's appended
+  if (color && rawId.endsWith(`-${color}`)) {
+    cleanId = rawId.replace(`-${color}`, '');
+  } else if (color && rawId.endsWith(`-${color.toLowerCase()}`)) {
+    cleanId = rawId.replace(`-${color.toLowerCase()}`, '');
+  } else if (color && rawId.endsWith(`-${color.toUpperCase()}`)) {
+    cleanId = rawId.replace(`-${color.toUpperCase()}`, '');
+  }
 
-    return transformedProduct;
+
+  const transformedProduct = {
+    id: cleanId, // Use the cleaned ID
+    _id: cleanId, // Use the cleaned ID
+    name: product.name || 'Unknown Product',
+    title: product.name || 'Unknown Product',
+    category: product.category || 'Uncategorized',
+    price: `₹${product.normalPrice || 0}`,
+    originalPrice: product.offerPrice && product.normalPrice && product.offerPrice < product.normalPrice 
+      ? `₹${product.normalPrice}` 
+      : null,
+    priceLabel: product.offerPrice && product.normalPrice && product.offerPrice < product.normalPrice 
+      ? "Offer" 
+      : "",
+    image: product.images?.[0] || "https://via.placeholder.com/300x300?text=No+Image",
+    variants: wishlistItem.variant ? [wishlistItem.variant] : [],
+    inStock: wishlistItem.variant?.stock > 0 || false,
+    normalPrice: product.normalPrice || 0,
+    offerPrice: product.offerPrice || 0,
+    wholesalePrice: product.wholesalePrice || 0,
+    isWholesaleUser: user?.role === 'WHOLESALER',
+    avgRating: product.avgRating || 0,
+    totalRatings: product.totalRatings || 0,
+    isFeatured: product.featured || false,
+    isNewArrival: product.isNewArrival || false,
+    isBestSeller: product.isBestSeller || false,
+    // Add color property for correct URL generation
+    color: color,
+    // Use the cleaned base product ID
+    baseProductId: cleanId
   };
+
+  return transformedProduct;
+};
 
   // Filter out invalid products
   const transformedProducts = wishlistItems
@@ -120,17 +140,6 @@ const UserWishlist = () => {
                 product={product} 
                 onCartUpdate={handleCartUpdate}
               />
-              {/* Remove from wishlist button */}
-              <button
-                onClick={() => handleRemoveFromWishlist(product.id || product._id)}
-                className="absolute top-2 right-2 z-10 p-2 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-red-50 dark:hover:bg-red-900 transition-colors group wishlist-btn"
-                title="Remove from wishlist"
-              >
-                <Heart 
-                  size={20} 
-                  className="text-red-500 fill-red-500 group-hover:scale-110 transition-transform" 
-                />
-              </button>
             </div>
           ))}
         </div>

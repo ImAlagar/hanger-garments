@@ -31,19 +31,29 @@ export const generateProductSlug = (product) => {
     // Handle both original products and color-split products
     const name = product.name || product.title || `product-${product.id}`;
     const id = product.baseProductId || product.id || product._id || 'unknown';
-    const color = product.color ? `-${slugify(product.color)}` : '';
+    const color = product.color ? slugify(product.color) : '';
     
-    // Create slug from name and append ID for uniqueness
+    // Create slug from name
     const nameSlug = slugify(name);
     const idSlug = slugify(id.toString());
     
-    return `${nameSlug}${color}-${idSlug}`;
+    
+    // Check if color is already in the name slug to avoid duplicates
+    let finalSlug;
+    if (color && !nameSlug.includes(color)) {
+      finalSlug = `${nameSlug}-${color}-${idSlug}`;
+    } else {
+      finalSlug = `${nameSlug}-${idSlug}`;
+    }
+    
+
+    
+    return finalSlug;
   } catch (error) {
     console.error('Error generating product slug:', error);
     return 'unknown-product';
   }
 };
-
 // Alternative simpler version for just names
 export const generateSlugFromName = (name) => {
   if (!name) {

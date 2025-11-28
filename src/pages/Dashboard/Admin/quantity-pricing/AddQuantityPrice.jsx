@@ -26,37 +26,30 @@ const { data: subcategoriesResponse } = useGetAllSubcategoriesQuery();
 
 const extractSubcategories = (data) => {
   if (!data) {
-    console.log('No subcategories data');
     return [];
   }
   
-  console.log('Full subcategories response:', data);
   
   // Based on your Redux structure, subcategories might be in data.data.subcategories
   if (data.data && data.data.subcategories && Array.isArray(data.data.subcategories)) {
-    console.log('Subcategories found in data.data.subcategories:', data.data.subcategories);
     return data.data.subcategories;
   }
   
   // Fallback: try data.subcategories
   if (data.subcategories && Array.isArray(data.subcategories)) {
-    console.log('Subcategories found in data.subcategories:', data.subcategories);
     return data.subcategories;
   }
   
   // Fallback: try data.data as array
   if (data.data && Array.isArray(data.data)) {
-    console.log('Subcategories found in data.data (array):', data.data);
     return data.data;
   }
   
   // Fallback: data itself might be array
   if (Array.isArray(data)) {
-    console.log('Subcategories is direct array:', data);
     return data;
   }
   
-  console.log('Could not extract subcategories from:', data);
   return [];
 };
 
