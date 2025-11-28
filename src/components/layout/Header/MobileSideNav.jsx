@@ -509,7 +509,7 @@ const MobileSideNav = ({
                               }`}
                               whileHover={{ x: 4 }}
                             >
-                              👀 View All {categoryName}
+                            View All {categoryName}
                             </motion.div>
 
                             {/* Subcategories List */}

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiX, FiMinus, FiPlus, FiTrash2, FiImage, FiPercent, FiDollarSign } from "react-icons/fi";
 import { removeCartItem, updateQuantity } from "../../redux/slices/cartSlice";
 import { useCalculateCartPricesMutation, useCalculateQuantityPriceMutation } from "../../redux/services/productService";
+import placeholderimage from "../../assets/images/placeholder.jpg"
 
 const CartSidebar = ({ isOpen, onClose }) => {
   const { theme } = useTheme();
@@ -269,7 +270,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
 
   // SIMPLIFIED: Get product image
   const getProductImage = (item) => {
-    if (!item) return '/images/placeholder-product.jpg';
+    if (!item) return placeholderimage;
 
     // Priority 1: Variant image
     if (item.variant?.image && isValidImage(item.variant.image)) {
@@ -287,7 +288,7 @@ const CartSidebar = ({ isOpen, onClose }) => {
       if (validImage) return validImage;
     }
 
-    return '/images/placeholder-product.jpg';
+    return placeholderimage;
   };
 
   // Helper function to validate images

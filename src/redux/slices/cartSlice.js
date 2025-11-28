@@ -1,5 +1,7 @@
 // slices/cartSlice.js - FIXED VERSION
 import { createSlice } from '@reduxjs/toolkit';
+import placeholderimage from "../../assets/images/placeholder.jpg"
+
 
 const getCartStorageKey = (userId = 'guest') => `cart_${userId}`;
 
@@ -32,7 +34,7 @@ const cartSlice = createSlice({
           description: newItem.product.description || '',
           category: newItem.product.category || 'Uncategorized',
           images: newItem.product.images || [],
-          image: newItem.product.image || (newItem.product.images && newItem.product.images[0]) || '/images/placeholder-product.jpg',
+          image: newItem.product.image || (newItem.product.images && newItem.product.images[0]) || placeholderimage,
         },
         variant: {
           _id: newItem.variant._id,

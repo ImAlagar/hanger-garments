@@ -7,6 +7,8 @@ import { FiMinus, FiPlus, FiTrash2, FiImage, FiPercent, FiDollarSign, FiShopping
 import { removeCartItem, updateQuantity, clearCart } from "../../redux/slices/cartSlice";
 import { useCalculateCartPricesMutation, useCalculateQuantityPriceMutation } from "../../redux/services/productService";
 import QuantityDiscountBadge from "../../components/discount/QuantityDiscountBadge";
+import placeholderimage from "../../assets/images/placeholder.jpg"
+
 
 const Cart = () => {
   const { theme } = useTheme();
@@ -280,7 +282,7 @@ const Cart = () => {
 
   // SIMPLIFIED: Get product image
   const getProductImage = (item) => {
-    if (!item) return '/images/placeholder-product.jpg';
+    if (!item) return placeholderimage;
 
     // Priority 1: Variant image
     if (item.variant?.image && isValidImage(item.variant.image)) {
@@ -298,7 +300,7 @@ const Cart = () => {
       if (validImage) return validImage;
     }
 
-    return '/images/placeholder-product.jpg';
+    return placeholderimage;
   };
 
   // Helper function to validate images

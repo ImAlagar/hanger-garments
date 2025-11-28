@@ -1,49 +1,71 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import WishlistButton from "./WishlistButton";
+import placeholderimage from "../../assets/images/placeholder.jpg"
 
-const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, onWishlistToggle }) => {
+
+const ProductImage = memo(({ product, styles, isInWishlist, user, togglingWishlist, onWishlistToggle }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   
-  // Get all images for the first variant
-  const firstVariant = product.variants?.[0];
-  const variantImages = firstVariant?.variantImages || [];
-  
-  // Separate primary and secondary images
-  const primaryImages = variantImages.filter(img => img.isPrimary);
-  const secondaryImages = variantImages.filter(img => !img.isPrimary);
-  
-  // Use primary images by default, fallback to all images
-  const displayImages = primaryImages.length > 0 ? primaryImages : variantImages;
-  const hoverImages = secondaryImages.length > 0 ? secondaryImages : variantImages;
+  // Memoized image processing
+  const { displayImages, hoverImages } = React.useMemo(() => {
+    const firstVariant = product.variants?.[0];
+    const variantImages = firstVariant?.variantImages || [];
+    
+    const primaryImages = variantImages.filter(img => img.isPrimary);
+    const secondaryImages = variantImages.filter(img => !img.isPrimary);
+    
+    return {
+      displayImages: primaryImages.length > 0 ? primaryImages : variantImages,
+      hoverImages: secondaryImages.length > 0 ? secondaryImages : variantImages
+    };
+  }, [product.variants]);
 
-  // Get the current image to display
-  const getCurrentImage = () => {
+  // Memoized current image URL
+  const currentImage = React.useMemo(() => {
     if (imageError) {
-      return "https://via.placeholder.com/600x600/cccccc/969696?text=No+Image";
+      return placeholderimage;
     }
     const images = isHovered ? hoverImages : displayImages;
-    return images[currentImageIndex]?.imageUrl || "https://via.placeholder.com/600x600/cccccc/969696?text=No+Image";
-  };
+    return images[currentImageIndex]?.imageUrl || placeholderimage;
+  }, [isHovered, hoverImages, displayImages, currentImageIndex, imageError]);
 
-  // Auto-cycle through images when hovered
+  // Optimized auto-cycle effect
   useEffect(() => {
-    let interval;
-    if (isHovered && hoverImages.length > 1) {
-      interval = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % hoverImages.length);
-      }, 1000);
-    } else {
+    if (!isHovered || hoverImages.length <= 1) {
       setCurrentImageIndex(0);
+      return;
     }
-    
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex(prev => (prev + 1) % hoverImages.length);
+    }, 1000);
+
     return () => clearInterval(interval);
   }, [isHovered, hoverImages.length]);
 
   const discountPercentage = product.offerPrice && product.normalPrice 
     ? Math.round(((product.normalPrice - product.offerPrice) / product.normalPrice) * 100)
     : 0;
+
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+    setImageLoaded(true);
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
 
   return (
     <div className="relative w-full">
@@ -70,22 +92,31 @@ const ProductImage = ({ product, styles, isInWishlist, user, togglingWishlist, o
         styles={styles}
       />
 
-      {/* SIMPLE IMAGE CONTAINER - Try this first */}
+      {/* Optimized Image Container */}
       <div 
-        className="w-full h-96 bg-gray-200 rounded-lg overflow-hidden"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        className="w-full h-96 bg-gray-200 rounded-lg overflow-hidden relative"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
+        {!imageLoaded && (
+          <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
+        )}
         <img
-          src={getCurrentImage()}
+          src={currentImage}
           alt={product.name}
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
           loading="lazy"
+          decoding="async"
         />
       </div>
     </div>
   );
-};
+});
+
+ProductImage.displayName = 'ProductImage';
 
 export default ProductImage;

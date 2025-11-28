@@ -22,6 +22,8 @@ import ReviewsList from './ReviewsList';
 import RatingDisplay from './RatingDisplay';
 import { useGetProductRatingsQuery } from '../../redux/services/ratingService';
 import calculateRatingStats from '../../utils/calculateRatingStats';
+import placeholderimage from "../../assets/images/placeholder.jpg"
+
 
 const ProductDetailsPage = () => {
   const { productSlug } = useParams();
@@ -437,7 +439,7 @@ const ratingStats = calculateRatingStats(ratings);
       );
       
       // If no valid images, use placeholder
-      const finalImages = productImages.length > 0 ? productImages : ['/images/placeholder-product.jpg'];
+      const finalImages = productImages.length > 0 ? productImages : placeholderimage;
 
       const cartItem = {
         product: {
@@ -502,7 +504,7 @@ const ratingStats = calculateRatingStats(ratings);
         url && !url.includes('via.placeholder.com') && !url.includes('No+Image')
       );
       
-      const finalImages = productImages.length > 0 ? productImages : ['/images/placeholder-product.jpg'];
+      const finalImages = productImages.length > 0 ? productImages : placeholderimage;
 
       if (isDesignMode && hasCustomization) {
         const customProduct = {
@@ -1265,91 +1267,104 @@ const ratingStats = calculateRatingStats(ratings);
         </div>
 
 
-        {/* Reviews Section */}
-        <div className="mt-12">
-          <div className={`p-6 rounded-lg border ${themeColors.borderPrimary} ${themeColors.bgCard}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className={`text-2xl font-bold ${themeColors.textPrimary}`}>
-                Customer Reviews ({ratingStats?.totalReviews || 0})
-              </h2>
-              <div className="flex space-x-2">
-                {(ratingStats?.totalReviews || 0) > 0 && (
-                  <button
-                    onClick={() => setShowReviews(!showReviews)}
-                    className={`px-4 py-2 rounded-lg border transition-colors ${themeColors.borderPrimary} hover:${themeColors.borderHover}`}
-                  >
-                    {showReviews ? 'Hide Reviews' : 'Show Reviews'}
-                  </button>
-                )}
-                {/* Always show Write Review button */}
+      {/* Reviews Section */}
+      <div className="mt-12">
+        <div className={`p-4 sm:p-6 rounded-lg border ${themeColors.borderPrimary} ${themeColors.bgCard}`}>
+
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+            <h2 className={`text-xl sm:text-2xl font-bold ${themeColors.textPrimary}`}>
+              Customer Reviews ({ratingStats?.totalReviews || 0})
+            </h2>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row sm:space-x-2 gap-2">
+              {(ratingStats?.totalReviews || 0) > 0 && (
                 <button
-                  onClick={() => setShowReviews(true)}
-                  className={`px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors`}
+                  onClick={() => setShowReviews(!showReviews)}
+                  className={`px-4 py-2 rounded-lg border transition-colors ${themeColors.borderPrimary} hover:${themeColors.borderHover}`}
                 >
-                  Write a Review
+                  {showReviews ? 'Hide Reviews' : 'Show Reviews'}
                 </button>
+              )}
+
+              <button
+                onClick={() => setShowReviews(true)}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              >
+                Write a Review
+              </button>
+            </div>
+          </div>
+
+          {showReviews ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+
+              {/* Rating Summary (left side) */}
+              {(ratingStats?.totalReviews || 0) > 0 && (
+                <div className="lg:col-span-1 order-2 lg:order-1">
+                  <RatingSummary 
+                    ratingStats={ratingStats || {}}
+                    onFilterChange={setRatingFilter}
+                  />
+                </div>
+              )}
+
+              {/* Review Form + Reviews List */}
+              <div className={
+                (ratingStats?.totalReviews || 0) > 0
+                  ? "lg:col-span-2 order-1 lg:order-2"
+                  : "lg:col-span-3 order-1"
+              }>
+                <div className="space-y-6">
+
+                  {/* Review Form */}
+                  <ReviewForm
+                    productId={productId}
+                    onReviewSubmitted={handleReviewSubmitted}
+                  />
+
+                  {/* Reviews List */}
+                  {(ratingStats?.totalReviews || 0) > 0 && (
+                    <div>
+                      <h3 className={`text-lg font-semibold mb-4 ${themeColors.textPrimary}`}>
+                        Customer Reviews ({ratingStats?.totalReviews || 0})
+                      </h3>
+
+                      <ReviewsList 
+                        reviews={ratings.filter(rating => 
+                          ratingFilter === 0 || rating.rating === ratingFilter
+                        )}
+                        currentUser={user}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          ) : (
+            /* Show empty state when no reviews */
+            (ratingStats?.totalReviews || 0) === 0 && (
+              <div className="text-center py-8">
+                <p className={`text-lg ${themeColors.textSecondary} mb-3`}>
+                  No reviews yet for this product
+                </p>
+                <p className={`text-sm ${themeColors.textTertiary} mb-6`}>
+                  Be the first to share your experience!
+                </p>
 
-            {showReviews ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Rating Summary - Only show if there are reviews */}
-                {(ratingStats?.totalReviews || 0) > 0 && (
-                  <div className="lg:col-span-1">
-                    <RatingSummary 
-                      ratingStats={ratingStats || {}}
-                      onFilterChange={setRatingFilter}
-                    />
-                  </div>
-                )}
-
-                {/* Reviews and Form - Always show when reviews section is open */}
-                <div className={ratingStats?.totalReviews > 0 ? "lg:col-span-2" : "lg:col-span-3"}>
-                  <div className="space-y-6">
-                    {/* Review Form - Always show at the top */}
-                    <ReviewForm
-                      productId={productId}
-                      onReviewSubmitted={handleReviewSubmitted}
-                    />
-
-                    {/* Reviews List - Only show if there are reviews */}
-                    {(ratingStats?.totalReviews || 0) > 0 && (
-                      <div>
-                        <h3 className={`text-lg font-semibold mb-4 ${themeColors.textPrimary}`}>
-                          Customer Reviews ({ratingStats?.totalReviews || 0})
-                        </h3>
-                        <ReviewsList 
-                          reviews={ratings.filter(rating => 
-                            ratingFilter === 0 || rating.rating === ratingFilter
-                          )}
-                          currentUser={user}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <button
+                  onClick={() => setShowReviews(true)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Write the First Review
+                </button>
               </div>
-            ) : (
-              // Show this when reviews section is collapsed and no reviews exist
-              (ratingStats?.totalReviews || 0) === 0 && (
-                <div className="text-center py-8">
-                  <p className={`text-lg ${themeColors.textSecondary} mb-4`}>
-                    No reviews yet for this product
-                  </p>
-                  <p className={`text-sm ${themeColors.textTertiary} mb-6`}>
-                    Be the first to share your experience!
-                  </p>
-                  <button
-                    onClick={() => setShowReviews(true)}
-                    className={`px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium`}
-                  >
-                    Write the First Review
-                  </button>
-                </div>
-              )
-            )}
-          </div>
+            )
+          )}
         </div>
+      </div>
+
 
         {/* Related Products */}
         <RelatedProducts 

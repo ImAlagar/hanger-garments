@@ -6,6 +6,7 @@ import ProductCard from '../../../components/ProductCard/ProductCard';
 import { Heart, Trash2, ShoppingBag } from "lucide-react";
 import CartSidebar from '../../../components/layout/CartSidebar';
 import { useSelector } from 'react-redux';
+import placeholderimage from "../../../assets/images/placeholder.jpg"
 
 
 const UserWishlist = () => {
@@ -78,7 +79,7 @@ const transformWishlistItem = (wishlistItem, index) => {
     priceLabel: product.offerPrice && product.normalPrice && product.offerPrice < product.normalPrice 
       ? "Offer" 
       : "",
-    image: product.images?.[0] || "https://via.placeholder.com/300x300?text=No+Image",
+    image: product.images?.[0] || placeholderimage,
     variants: wishlistItem.variant ? [wishlistItem.variant] : [],
     inStock: wishlistItem.variant?.stock > 0 || false,
     normalPrice: product.normalPrice || 0,

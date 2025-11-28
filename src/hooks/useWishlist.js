@@ -8,6 +8,9 @@ import {
   clearCurrentWishlist 
 } from '../redux/slices/wishlistSlice';
 
+import placeholderimage from "../assets/images/placeholder.jpg"
+
+
 export const useWishlist = () => {
   const dispatch = useDispatch();
   const wishlistItems = useSelector((state) => state.wishlist.items);
@@ -69,7 +72,7 @@ export const useWishlist = () => {
       return firstVariant.variantImages[0].imageUrl;
     }
     
-    return "https://via.placeholder.com/300x300?text=No+Image";
+    return placeholderimage;
   };
 
   return {

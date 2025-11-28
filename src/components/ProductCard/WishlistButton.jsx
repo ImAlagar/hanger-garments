@@ -1,6 +1,6 @@
-import React from "react";
+import React, { memo } from "react";
 
-const WishlistButton = ({ isInWishlist, user, togglingWishlist, onToggle, styles }) => {
+const WishlistButton = memo(({ isInWishlist, user, togglingWishlist, onToggle, styles }) => {
   return (
     <button
       onClick={onToggle}
@@ -32,6 +32,8 @@ const WishlistButton = ({ isInWishlist, user, togglingWishlist, onToggle, styles
       )}
     </button>
   );
-};
+});
+
+WishlistButton.displayName = 'WishlistButton';
 
 export default WishlistButton;

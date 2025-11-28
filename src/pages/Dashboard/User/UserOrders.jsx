@@ -29,6 +29,9 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useGetUserOrdersQuery, useGetOrderByOrderNumberQuery } from '../../../redux/services/orderService';
+import placeholderimage from "../../../assets/images/placeholder.jpg"
+
+
 
 const UserOrders = () => {
   const navigate = useNavigate();
@@ -211,7 +214,7 @@ const UserOrders = () => {
       const firstImage = orderItem.product.images[0];
       return typeof firstImage === 'string' ? firstImage : firstImage?.imageUrl;
     }
-    return "https://via.placeholder.com/80x80/f5f5f5/666666?text=Product";
+    return placeholderimage;
   };
 
   const containerVariants = {
@@ -709,7 +712,7 @@ const tabs = [
                                           alt={item.product?.name || "Product"}
                                           className="w-16 h-16 object-cover rounded-lg bg-gray-100 flex-shrink-0"
                                           onError={(e) => {
-                                            e.target.src = 'https://via.placeholder.com/80x80/f8fafc/64748b?text=Product';
+                                            e.target.src = placeholderimage;
                                           }}
                                         />
                                         

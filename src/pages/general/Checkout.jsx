@@ -15,7 +15,9 @@ import { useGetAvailableCouponsQuery, useValidateCouponMutation } from "../../re
 import { useCalculateQuantityPriceMutation } from "../../redux/services/productService";
 import { CreditCard, MapPin, ShoppingCart, Shield, Truck, Upload, X, Percent, Tag } from "lucide-react";
 import razorpayService from "../../utils/razorpayService";
-import QuantityDiscountBadge from "../../components/discount/QuantityDiscountBadge";
+
+import placeholderimage from "../../assets/images/placeholder.jpg"
+
 
 const Checkout = () => {
   const { theme } = useTheme();
@@ -1285,11 +1287,11 @@ const handleRazorpayPayment = async () => {
                     <div key={item.id} className="flex items-center space-x-3 pb-4 border-b border-gray-200 dark:border-gray-600">
                       <div className="relative">
                         <img
-                          src={item.product.images?.[0] || "/images/placeholder-product.jpg"}
+                          src={item.product.images?.[0] || placeholderimage}
                           alt={item.product.name}
                           className="w-16 h-16 object-cover rounded-lg"
                           onError={(e) => {
-                            e.target.src = "/images/placeholder-product.jpg";
+                            e.target.src = placeholderimage;
                           }}
                         />
                         {renderItemDiscountBadge(item)}
