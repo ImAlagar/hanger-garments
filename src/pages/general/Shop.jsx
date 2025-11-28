@@ -36,17 +36,15 @@ export default function Shop() {
   const userRole = user?.role;
   const isWholesaleUser = userRole === 'WHOLESALER';
 
-  // RTK Query hooks
+  // RTK Query hooks - Fetch ALL products without pagination
   const { data: productsData, isLoading, error } = useGetAllProductsQuery();
   const { data: categoriesData } = useGetAllCategoriesQuery();
   const { data: subcategoriesData } = useGetAllSubcategoriesQuery();
 
   // State
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [showCartSidebar, setShowCartSidebar] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
 
   // Initialize filters from URL
   const initFiltersFromSearch = useCallback(() => {
@@ -70,54 +68,6 @@ export default function Shop() {
   }, [searchParams]);
 
   const [filters, setFilters] = useState(initFiltersFromSearch);
-
-
-  // Helper function to safely extract and validate categories
-const getCategoriesFromData = (data) => {
-  if (!data) return [];
-  
-  // Handle the specific structure from your API
-  if (data.data && Array.isArray(data.data.categories)) {
-    return data.data.categories;
-  }
-  if (Array.isArray(data.categories)) {
-    return data.categories;
-  }
-  if (Array.isArray(data)) {
-    return data;
-  }
-  if (Array.isArray(data.data)) {
-    return data.data;
-  }
-  
-  console.warn('Unexpected categories data structure:', data);
-  return [];
-};
-
-// Helper function to safely extract and validate subcategories
-const getSubcategoriesFromData = (data) => {
-  if (!data) return [];
-  
-  // Handle the specific structure from your API
-  if (data.data && Array.isArray(data.data.subcategories)) {
-    return data.data.subcategories;
-  }
-  if (Array.isArray(data.subcategories)) {
-    return data.subcategories;
-  }
-  if (Array.isArray(data)) {
-    return data;
-  }
-  if (Array.isArray(data.data)) {
-    return data.data;
-  }
-  
-  console.warn('Unexpected subcategories data structure:', data);
-  return [];
-};
-// Extract categories and subcategories arrays using helper functions
-const categories = getCategoriesFromData(categoriesData);
-const subcategories = getSubcategoriesFromData(subcategoriesData);
 
   // Keep filters state in sync when URL/searchParams changes
   useEffect(() => {
@@ -195,24 +145,51 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
     });
   };
 
-  // Utility to extract products array from API data
-  const extractProductsArray = useMemo(() => {
-    if (!productsData) return [];
-
-    if (Array.isArray(productsData)) {
-      return productsData;
-    } else if (productsData.data && Array.isArray(productsData.data.products)) {
-      return productsData.data.products;
-    } else if (productsData.data && Array.isArray(productsData.data)) {
-      return productsData.data;
-    } else if (productsData.products && Array.isArray(productsData.products)) {
-      return productsData.products;
-    } else if (productsData.success && Array.isArray(productsData.data)) {
-      return productsData.data;
+  // Helper function to safely extract and validate categories
+  const getCategoriesFromData = (data) => {
+    if (!data) return [];
+    
+    if (data.data && Array.isArray(data.data.categories)) {
+      return data.data.categories;
     }
-
+    if (Array.isArray(data.categories)) {
+      return data.categories;
+    }
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (Array.isArray(data.data)) {
+      return data.data;
+    }
+    
+    console.warn('Unexpected categories data structure:', data);
     return [];
-  }, [productsData]);
+  };
+
+  // Helper function to safely extract and validate subcategories
+  const getSubcategoriesFromData = (data) => {
+    if (!data) return [];
+    
+    if (data.data && Array.isArray(data.data.subcategories)) {
+      return data.data.subcategories;
+    }
+    if (Array.isArray(data.subcategories)) {
+      return data.subcategories;
+    }
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (Array.isArray(data.data)) {
+      return data.data;
+    }
+    
+    console.warn('Unexpected subcategories data structure:', data);
+    return [];
+  };
+
+  // Extract categories and subcategories arrays using helper functions
+  const categories = getCategoriesFromData(categoriesData);
+  const subcategories = getSubcategoriesFromData(subcategoriesData);
 
   // Helper: split product by color
   const splitProductsByColor = (apiProduct) => {
@@ -310,18 +287,19 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
     });
   };
 
-  // Filtering effect — runs when data / category / filters change
-  useEffect(() => {
-    if (extractProductsArray.length === 0) {
-      setFilteredProducts([]);
-      return;
-    }
+  // Get ALL products from API response
+  const allProducts = useMemo(() => {
+    if (!productsData?.data?.products) return [];
+    return productsData.data.products.flatMap(product => splitProductsByColor(product));
+  }, [productsData, isWholesaleUser]);
 
-    let filtered = extractProductsArray;
+  // CLIENT-SIDE FILTERING
+  const filteredProducts = useMemo(() => {
+    let filtered = allProducts;
 
     // Filter by URL category first - this is the main category from navigation
     if (category && category !== "all") {
-      filtered = extractProductsArray.filter((product) => {
+      filtered = allProducts.filter((product) => {
         const productCategory = product.category?.name || product.category || "";
         const productCategorySlug = createSlug(productCategory);
         return productCategorySlug === category.toLowerCase();
@@ -356,7 +334,7 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
       }
 
       // Featured / new / bestseller / rating filters
-      if (filters.isFeatured && !product.featured) return false;
+      if (filters.isFeatured && !product.isFeatured) return false;
       if (filters.isNewArrival && !product.isNewArrival) return false;
       if (filters.isBestSeller && !product.isBestSeller) return false;
       if ((product.avgRating || 0) < filters.minRating) return false;
@@ -364,23 +342,19 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
       return true;
     });
 
-    // Split by color and produce flattened list
-    const colorBasedProducts = filtered.flatMap(product => splitProductsByColor(product));
-    setFilteredProducts(colorBasedProducts);
-  }, [productsData, category, isWholesaleUser, filters, extractProductsArray]);
+    return filtered;
+  }, [allProducts, category, isWholesaleUser, filters]);
 
-  // Calculate paginated products
+  // CLIENT-SIDE PAGINATION
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / PRODUCTS_PER_PAGE);
+  const hasMore = currentPage < totalPages;
+
+  // Get paginated products for current page
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
     const endIndex = startIndex + PRODUCTS_PER_PAGE;
-    return filteredProducts.slice(0, endIndex);
-  }, [filteredProducts, currentPage]);
-
-  // Check if there are more products to load
-  useEffect(() => {
-    const totalProducts = filteredProducts.length;
-    const currentEndIndex = currentPage * PRODUCTS_PER_PAGE;
-    setHasMore(currentEndIndex < totalProducts);
+    return filteredProducts.slice(startIndex, endIndex);
   }, [filteredProducts, currentPage]);
 
   // Load more products
@@ -394,9 +368,6 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
     // Scroll to top when changing pages
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // Calculate total pages
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -529,7 +500,7 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
       {/* Results Count */}
       <div className="text-center mb-6">
         <p className={`text-lg ${subText}`}>
-          Showing {paginatedProducts.length} of {filteredProducts.length} products
+          Showing {paginatedProducts.length} of {totalItems} products
           {category && ` in ${getCategoryDisplayName()}`}
         </p>
       </div>
@@ -899,7 +870,7 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
                     onClick={loadMoreProducts}
                     className="px-8 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
                   >
-                    Load More Products ({filteredProducts.length - paginatedProducts.length} remaining)
+                    Load More Products ({totalItems - (currentPage * PRODUCTS_PER_PAGE)} remaining)
                   </button>
                 )}
 
@@ -951,7 +922,7 @@ const subcategories = getSubcategoriesFromData(subcategoriesData);
 
                 {/* Page Info */}
                 <div className={`text-sm ${subText}`}>
-                  Page {currentPage} of {totalPages} • Showing {paginatedProducts.length} of {filteredProducts.length} products
+                  Page {currentPage} of {totalPages} • Showing {paginatedProducts.length} of {totalItems} products
                 </div>
               </div>
             </>

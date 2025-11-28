@@ -31,79 +31,12 @@ export const productService = apiSlice.injectEndpoints({
       providesTags: ['Product'],
     }),
 
-getAllProducts: builder.query({
-  query: (params = {}) => {
-    const queryParams = new URLSearchParams();
-    
-    // Pagination parameters
-    queryParams.append('page', params.page || 1);
-    queryParams.append('limit', params.limit || 20);
-    
-    // Category and subcategory filters
-    if (params.category) queryParams.append('category', params.category);
-    if (params.subcategories && params.subcategories.length > 0) {
-      queryParams.append('subcategories', params.subcategories.join(','));
-    }
-    
-    // Other filters
-    if (params.minPrice) queryParams.append('minPrice', params.minPrice);
-    if (params.maxPrice) queryParams.append('maxPrice', params.maxPrice);
-    if (params.inStock) queryParams.append('inStock', params.inStock);
-    if (params.isFeatured) queryParams.append('featured', params.isFeatured);
-    if (params.isNewArrival) queryParams.append('newArrival', params.isNewArrival);
-    if (params.isBestSeller) queryParams.append('bestSeller', params.isBestSeller);
-    if (params.minRating) queryParams.append('minRating', params.minRating);
-    if (params.search) queryParams.append('search', params.search);
-    
-    // Sorting
-    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
-
-    return {
-      url: `/products?${queryParams.toString()}`,
-    };
-  },
-  providesTags: ['Product'],
-  
-  // Proper cache handling for pagination
-  serializeQueryArgs: ({ endpointName, queryArgs }) => {
-    const { page, ...filters } = queryArgs || {};
-    return {
-      endpointName,
-      filters: JSON.stringify(filters)
-    };
-  },
-  
-  merge: (currentCache, newData, { arg }) => {
-    const currentPage = arg?.page || 1;
-    
-    // If it's the first page, replace the cache completely
-    if (currentPage === 1) {
-      return newData;
-    }
-    
-    // If no current cache, return new data
-    if (!currentCache?.data) {
-      return newData;
-    }
-    
-    // Merge products arrays and update pagination
-    return {
-      ...newData,
-      data: {
-        ...newData.data,
-        products: [
-          ...(currentCache.data?.products || []),
-          ...(newData.data?.products || [])
-        ]
-      }
-    };
-  },
-  
-  forceRefetch({ currentArg, previousArg }) {
-    return currentArg?.page !== previousArg?.page;
-  },
-}),
+    getAllProducts: builder.query({
+      query: () => ({
+     url: '/products?limit=1000', // Fetch all products at once
+      }),
+      providesTags: ['Product'],
+    }),
 
     getProductById: builder.query({
       query: (productId) => `/products/${productId}`,
