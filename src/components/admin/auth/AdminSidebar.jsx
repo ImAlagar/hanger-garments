@@ -194,24 +194,6 @@ const AdminSidebar = ({ isOpen, setIsOpen }) => {
                 );
               })}
             </nav>
-
-            {/* Sidebar Footer */}
-            <div className={`p-4 border-t space-y-2 flex-shrink-0 ${sidebarBorder}`}>
-              <button
-                onClick={handleLogout}
-                className={`w-full flex items-center justify-start space-x-3 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 ${logoutHover} transition-all duration-200 group`}
-              >
-                <FiLogOut 
-                  size={20} 
-                  className={
-                    theme === "dark" 
-                      ? "text-red-500 group-hover:text-red-400" 
-                      : "text-red-400 group-hover:text-red-600"
-                  } 
-                />
-                <span className="font-medium">Logout</span>
-              </button>
-            </div>
           </motion.aside>
         )}
       </AnimatePresence>
