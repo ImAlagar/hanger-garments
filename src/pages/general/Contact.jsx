@@ -235,7 +235,7 @@ export default function Contact() {
                   initial="initial"
                   whileHover="hover"
                   className={`p-8 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-300 ${card} cursor-pointer group relative overflow-hidden`}
-                  onClick={() => window.location.href = "mailto:contact@hangergarments.com"}
+                  onClick={() => window.location.href = "mailto:contact@Tiruppurgarments.com"}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
@@ -245,7 +245,7 @@ export default function Contact() {
                   </div>
                   <h3 className="font-semibold text-xl mb-3 text-gray-800 dark:text-white">Email Us</h3>
                   <p className="text-gray-500 lg:text-[14px] dark:text-gray-300 hover:text-purple-500 transition-colors  lg:text-base break-all">
-                    contact@hangergarments.com
+                    retail@tiruppurgarments.in
                   </p>
                   <span className="mt-2 text-xs text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     Click to compose email
@@ -261,7 +261,7 @@ export default function Contact() {
                   initial="initial"
                   whileHover="hover"
                   className={`p-8 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-300 ${card} cursor-pointer group relative overflow-hidden`}
-                  onClick={() => window.location.href = "tel:+918883385888"}
+                  onClick={() => window.location.href = "tel:+9196774 11007  "}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   
@@ -271,7 +271,7 @@ export default function Contact() {
                   </div>
                   <h3 className="font-semibold text-xl mb-3 text-gray-800 dark:text-white">Call Us</h3>
                   <p className="text-gray-500 dark:text-gray-300 hover:text-purple-500 transition-colors text-lg font-semibold">
-                    +91 88833 85888
+                    +91 96774 11007
                   </p>
                   <span className="mt-2 text-xs text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     Click to call now
@@ -292,8 +292,8 @@ export default function Contact() {
                   whileHover="hover"
                   className={`p-8 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-300 ${card} cursor-pointer group relative overflow-hidden`}
                   onClick={() => {
-                    const phoneNumber = "918883385888";
-                    const message = "Hello Hanger Garments! I would like to get in touch with you.";
+                    const phoneNumber = "919677411007";
+                    const message = "Hello Tiruppur Garments! I would like to get in touch with you.";
                     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
                     window.open(whatsappUrl, "_blank");
                   }}

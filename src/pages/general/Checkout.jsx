@@ -560,7 +560,7 @@ const handleRazorpayPayment = async () => {
         razorpayOrderId: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        name: "Hanger Garments",
+        name: "Tiruppur Garments",
         description: `Order Payment - ${tempOrderData.orderNumber}`,
         prefill: {
           name: orderData.name,

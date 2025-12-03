@@ -15,10 +15,10 @@ import { useTheme } from "../../context/ThemeContext";
 import { useLoginMutation } from "../../redux/services/authService";
 import { setCredentials, authFailure } from "../../redux/slices/authSlice";
 import { useAppSelector } from "../../redux/hooks";
-import hangerImage from "../../assets/categories/tshirt.webp";
+import TiruppurImage from "../../assets/categories/tshirt.webp";
 import { FaSpinner } from "react-icons/fa";
-import logo from "../../assets/images/logo.png";
-import logowhite from "../../assets/images/logowhite.png";
+import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
+import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -236,7 +236,7 @@ const AdminLogin = () => {
         variants={slideInVariants}
         className="hidden lg:flex lg:w-1/2 items-center justify-center relative bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{
-          backgroundImage: `url(${hangerImage})`
+          backgroundImage: `url(${TiruppurImage})`
         }}
       >
         <motion.div 
@@ -259,7 +259,7 @@ const AdminLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Hanger Garments Logo" 
+              alt="Tiruppur  Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>
@@ -271,7 +271,7 @@ const AdminLogin = () => {
             transition={{ delay: 0.3, duration: 0.7 }}
           >
             <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
-              Hanger<br />Garments
+              Tiruppur<br />Garments
             </h1>
             <motion.p 
               className="text-xl text-gray-300 font-bai-jamjuree mt-6"
@@ -318,7 +318,7 @@ const AdminLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Hanger Garments Logo" 
+              alt="Tiruppur Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

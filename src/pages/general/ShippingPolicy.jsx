@@ -11,7 +11,7 @@ const ShippingPolicy = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Shipping Areas</h2>
-              <p>Hanger Garments currently ships to all major cities and towns across India. We are working to expand our shipping network to more locations.</p>
+              <p>Tiruppur Garments currently ships to all major cities and towns across India. We are working to expand our shipping network to more locations.</p>
             </section>
 
             <section>
@@ -78,7 +78,7 @@ const ShippingPolicy = () => {
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">7. Contact Us</h2>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <p>For any shipping-related queries, please contact our customer support:</p>
-                <p><strong>Email:</strong> contact@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@Tiruppurgarments.com</p>
                 <p><strong>Phone:</strong> +91 88833 85888</p>
                 <p><strong>Business Hours:</strong> Mon–Sun: 9AM – 8PM</p>
               </div>

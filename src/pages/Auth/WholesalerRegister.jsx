@@ -18,9 +18,9 @@ import {
 } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
 import { useRegisterMutation } from "../../redux/services/authService";
-import hangerImage from "../../assets/categories/tshirt.webp";
-import logo from "../../assets/images/logo.png";
-import logowhite from "../../assets/images/logowhite.png";
+import TiruppurImage from "../../assets/categories/tshirt.webp";
+import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
+import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
 
 const WholesalerRegister = () => {
   const { theme } = useTheme();
@@ -308,7 +308,7 @@ const WholesalerRegister = () => {
         variants={slideInVariants}
         className="hidden lg:flex lg:w-1/2 items-center justify-center relative bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{
-          backgroundImage: `url(${hangerImage})`
+          backgroundImage: `url(${TiruppurImage})`
         }}
       >
         <motion.div 
@@ -331,7 +331,7 @@ const WholesalerRegister = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Hanger Garments Logo" 
+              alt="Tiruppur Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>
@@ -343,7 +343,7 @@ const WholesalerRegister = () => {
             transition={{ delay: 0.3, duration: 0.7 }}
           >
             <h1 className="text-5xl font-italiana font-bold text-white mb-4 leading-tight">
-              Hanger<br />Garments
+              Tiruppur<br />Garments
             </h1>
             <motion.p 
               className="text-xl text-gray-300 font-bai-jamjuree mt-6"
@@ -390,7 +390,7 @@ const WholesalerRegister = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Hanger Garments Logo" 
+              alt="Tiruppur Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

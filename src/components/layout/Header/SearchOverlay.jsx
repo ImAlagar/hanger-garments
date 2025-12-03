@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiXCircle, FiClock, FiShoppingBag, FiTrendingUp } from 'react-icons/fi';
 import { motionVariants } from '../../../constants/headerConstants';
+import { useTheme } from '../../../context/ThemeContext'; // Assuming ThemeContext is in same directory
 
 const SearchOverlay = ({ 
   searchOpen, 
@@ -18,6 +19,7 @@ const SearchOverlay = ({
   handleViewAllResults
 }) => {
   const inputRef = useRef(null);
+  const { theme } = useTheme();
 
   // Focus input when search opens
   useEffect(() => {
@@ -52,6 +54,67 @@ const SearchOverlay = ({
   // Ensure recentSearches is always an array
   const safeRecentSearches = Array.isArray(recentSearches) ? recentSearches : [];
 
+  // Theme-based classes
+  const themeClasses = {
+    overlay: theme === 'dark' 
+      ? 'bg-black/70 backdrop-blur-sm' 
+      : 'bg-black/50 backdrop-blur-sm',
+    
+    container: theme === 'dark'
+      ? 'bg-gray-900 text-gray-100'
+      : 'bg-white text-gray-900',
+    
+    input: theme === 'dark'
+      ? 'bg-gray-900 text-gray-100 placeholder-gray-400'
+      : 'bg-transparent text-gray-900 placeholder-gray-400',
+    
+    border: theme === 'dark'
+      ? 'border-gray-700'
+      : 'border-gray-100',
+    
+    text: {
+      primary: theme === 'dark' ? 'text-gray-100' : 'text-gray-900',
+      secondary: theme === 'dark' ? 'text-gray-400' : 'text-gray-600',
+      tertiary: theme === 'dark' ? 'text-gray-500' : 'text-gray-500',
+      placeholder: theme === 'dark' ? 'text-gray-400' : 'text-gray-400',
+    },
+    
+    button: {
+      cancel: theme === 'dark'
+        ? 'text-gray-300 hover:text-gray-100'
+        : 'text-gray-600 hover:text-gray-800',
+      
+      clear: theme === 'dark'
+        ? 'text-gray-400 hover:text-gray-300'
+        : 'text-gray-400 hover:text-gray-600',
+      
+      tag: theme === 'dark'
+        ? 'bg-gray-800 hover:bg-purple-900/30 hover:text-purple-300 text-gray-300'
+        : 'bg-gray-100 hover:bg-purple-100 hover:text-purple-700 text-gray-700',
+    },
+    
+    hover: {
+      item: theme === 'dark'
+        ? 'hover:bg-gray-800 hover:border-gray-700'
+        : 'hover:bg-gray-50 hover:border-gray-200',
+      
+      recent: theme === 'dark'
+        ? 'hover:bg-gray-800'
+        : 'hover:bg-gray-50',
+    },
+    
+    icon: {
+      primary: theme === 'dark' ? 'text-gray-400' : 'text-gray-400',
+      hover: theme === 'dark' ? 'text-purple-400' : 'text-purple-500',
+    },
+    
+    background: {
+      section: theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50',
+      fallback: theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100',
+      badge: theme === 'dark' ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800',
+    }
+  };
+
   return (
     <AnimatePresence>
       {searchOpen && (
@@ -60,7 +123,7 @@ const SearchOverlay = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-20 px-4"
+          className={`fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 ${themeClasses.overlay}`}
           onClick={() => setSearchOpen(false)}
         >
           <motion.div
@@ -68,25 +131,25 @@ const SearchOverlay = ({
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="search-container bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+            className={`search-container rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden ${themeClasses.container}`}
             onClick={(e) => e.stopPropagation()}
           >
             <form onSubmit={handleSearch} className="relative">
-              <div className="flex items-center px-6 py-5 border-b border-gray-100">
-                <FiSearch className="text-gray-400 size-6 mr-4" />
+              <div className={`flex items-center px-6 py-5 border-b ${themeClasses.border}`}>
+                <FiSearch className={`${themeClasses.icon.primary} size-6 mr-4`} />
                 <input
                   ref={inputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search t-shirts, collections, styles..."
-                  className="flex-1 text-xl bg-transparent border-none outline-none placeholder-gray-400"
+                  className={`flex-1 text-xl border-none outline-none ${themeClasses.input}`}
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                    className={`${themeClasses.icon.primary} hover:${themeClasses.icon.hover} transition-colors p-1`}
                   >
                     <FiXCircle className="size-6" />
                   </button>
@@ -101,14 +164,16 @@ const SearchOverlay = ({
                     {isSearchLoading && (
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                        <span className="ml-3 text-gray-600">Searching...</span>
+                        <span className={`ml-3 ${themeClasses.text.secondary}`}>
+                          Searching...
+                        </span>
                       </div>
                     )}
                     
                     {searchError && (
-                      <div className="text-center py-8 text-red-500">
-                        <p>Error searching products</p>
-                        <p className="text-sm text-gray-500 mt-1">
+                      <div className="text-center py-8">
+                        <p className="text-red-400">Error searching products</p>
+                        <p className={`text-sm mt-1 ${themeClasses.text.tertiary}`}>
                           Please try again later
                         </p>
                       </div>
@@ -117,13 +182,13 @@ const SearchOverlay = ({
                     {!isSearchLoading && !searchError && products.length > 0 && (
                       <>
                         <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-semibold text-gray-700">
+                          <h3 className={`font-semibold ${themeClasses.text.secondary}`}>
                             Products ({totalResults})
                           </h3>
                           <button
                             type="button"
                             onClick={handleViewAllResults}
-                            className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                            className="text-purple-500 hover:text-purple-400 text-sm font-medium transition-colors"
                           >
                             View All Results
                           </button>
@@ -134,7 +199,7 @@ const SearchOverlay = ({
                             <div
                               key={product.id}
                               onClick={() => handleProductClick && handleProductClick(product)}
-                              className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                              className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors border border-transparent ${themeClasses.hover.item}`}
                             >
                               {product.variants?.[0]?.variantImages?.[0]?.imageUrl ? (
                                 <img
@@ -143,29 +208,29 @@ const SearchOverlay = ({
                                   className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                                 />
                               ) : (
-                                <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                  <FiShoppingBag className="text-gray-400 size-6" />
+                                <div className={`w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0 ${themeClasses.background.fallback}`}>
+                                  <FiShoppingBag className={`${themeClasses.icon.primary} size-6`} />
                                 </div>
                               )}
                               
                               <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-gray-900 truncate">
+                                <h4 className={`font-medium truncate ${themeClasses.text.primary}`}>
                                   {product.name}
                                 </h4>
-                                <p className="text-sm text-gray-500 truncate">
+                                <p className={`text-sm truncate ${themeClasses.text.secondary}`}>
                                   {product.category?.name} • {product.subcategory?.name}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-purple-600 font-semibold">
+                                  <span className="text-purple-500 font-semibold">
                                     ₹{product.offerPrice || product.normalPrice}
                                   </span>
                                   {product.offerPrice && product.offerPrice < product.normalPrice && (
-                                    <span className="text-gray-400 text-sm line-through">
+                                    <span className={`text-sm line-through ${themeClasses.text.tertiary}`}>
                                       ₹{product.normalPrice}
                                     </span>
                                   )}
                                   {product.isBestSeller && (
-                                    <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${themeClasses.background.badge}`}>
                                       Best Seller
                                     </span>
                                   )}
@@ -179,9 +244,11 @@ const SearchOverlay = ({
                     
                     {!isSearchLoading && !searchError && products.length === 0 && searchQuery && (
                       <div className="text-center py-8">
-                        <FiSearch className="mx-auto text-gray-300 size-12 mb-3" />
-                        <p className="text-gray-500 mb-2">No products found for "{searchQuery}"</p>
-                        <p className="text-sm text-gray-400">
+                        <FiSearch className={`mx-auto size-12 mb-3 ${themeClasses.icon.primary}`} />
+                        <p className={`mb-2 ${themeClasses.text.secondary}`}>
+                          No products found for "{searchQuery}"
+                        </p>
+                        <p className={`text-sm ${themeClasses.text.tertiary}`}>
                           Try different keywords or check the spelling
                         </p>
                       </div>
@@ -191,16 +258,16 @@ const SearchOverlay = ({
                 
                 {/* Recent Searches */}
                 {!searchQuery && safeRecentSearches.length > 0 && (
-                  <div className="p-4 border-b border-gray-100">
+                  <div className={`p-4 border-b ${themeClasses.border}`}>
                     <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                      <h3 className={`font-semibold flex items-center gap-2 ${themeClasses.text.secondary}`}>
                         <FiClock className="size-4" />
                         Recent Searches
                       </h3>
                       <button
                         type="button"
                         onClick={() => clearRecentSearches && clearRecentSearches()}
-                        className="text-gray-400 hover:text-gray-600 text-sm"
+                        className={`text-sm transition-colors ${themeClasses.button.clear}`}
                       >
                         Clear All
                       </button>
@@ -212,10 +279,10 @@ const SearchOverlay = ({
                           key={index}
                           type="button"
                           onClick={() => handleRecentSearchClick(recentQuery)}
-                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 text-left transition-colors group"
+                          className={`flex items-center gap-3 w-full p-3 rounded-lg text-left transition-colors group ${themeClasses.hover.recent}`}
                         >
-                          <FiClock className="text-gray-400 size-4 group-hover:text-purple-500" />
-                          <span className="text-gray-700 group-hover:text-purple-600">
+                          <FiClock className={`size-4 group-hover:text-purple-500 ${themeClasses.icon.primary}`} />
+                          <span className={`group-hover:text-purple-400 ${themeClasses.text.primary}`}>
                             {recentQuery}
                           </span>
                         </button>
@@ -227,7 +294,7 @@ const SearchOverlay = ({
                 {/* Popular Searches */}
                 {!searchQuery && (
                   <div className="p-4">
-                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <h3 className={`font-semibold mb-3 flex items-center gap-2 ${themeClasses.text.secondary}`}>
                       <FiTrendingUp className="size-4" />
                       Popular Searches
                     </h3>
@@ -237,7 +304,7 @@ const SearchOverlay = ({
                           key={category}
                           type="button"
                           onClick={() => handleQuickSearch(category)}
-                          className="px-4 py-2 rounded-full bg-gray-100 hover:bg-purple-100 hover:text-purple-700 text-gray-700 text-sm transition-colors duration-200"
+                          className={`px-4 py-2 rounded-full text-sm transition-colors duration-200 ${themeClasses.button.tag}`}
                         >
                           {category}
                         </button>
@@ -248,25 +315,27 @@ const SearchOverlay = ({
               </div>
               
               {/* Footer */}
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                <div className="text-sm text-gray-500">
-                  Press Enter to search
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!searchQuery.trim()}
-                    className="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    Search
-                  </button>
+              <div className={`p-4 border-t ${themeClasses.border} ${themeClasses.background.section}`}>
+                <div className="flex justify-between items-center">
+                  <div className={`text-sm ${themeClasses.text.tertiary}`}>
+                    Press Enter to search
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSearchOpen(false)}
+                      className={`px-4 py-2 transition-colors text-sm ${themeClasses.button.cancel}`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!searchQuery.trim()}
+                      className="bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Search
+                    </button>
+                  </div>
                 </div>
               </div>
             </form>

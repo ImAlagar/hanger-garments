@@ -27,8 +27,8 @@ import CartSidebar from '../CartSidebar';
 import { selectWishlistCount } from '../../../redux/slices/wishlistSlice';
 
 // Import logos
-import logowhite from "../../../assets/images/logowhite.png";
-import logoblack from "../../../assets/images/logo.png";
+import logowhite from "../../../assets/images/TiruppurGarmentsLogo1(1).png";
+import logoblack from "../../../assets/images/TiruppurGarmentsLogoblack1.png";
 
 const MainHeader = () => {
   const navigate = useNavigate();
@@ -155,7 +155,7 @@ const {
             <img 
               src={getLogo()} 
               alt="Garments Logo" 
-              className="h-16 lg:h-16 xl:h-16 w-20" // Adjust height as needed
+              className="h-20 lg:h-20 xl:h-20 w-20" // Adjust height as needed
             />
             
             {/* Optional: Keep text logo as fallback or remove it */}

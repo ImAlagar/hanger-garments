@@ -29,6 +29,42 @@ const Dashboard = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [showAllActivities, setShowAllActivities] = useState(false);
 
+
+  // Helper function to format numbers with max 2 decimal places
+const formatNumber = (value, options = {}) => {
+  if (value === null || value === undefined) return '0';
+  
+  const { 
+    isCurrency = false, 
+    decimalPlaces = 2,
+    showSign = false 
+  } = options;
+  
+  // Convert to number if it's a string
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  
+  // Check if it's a valid number
+  if (isNaN(num)) return '0';
+  
+  // Format the number
+  if (isCurrency) {
+    // For currency values
+    const formatted = new Intl.NumberFormat('en-IN', {
+      maximumFractionDigits: decimalPlaces,
+      minimumFractionDigits: 0
+    }).format(num);
+    
+    return showSign ? `₹${formatted}` : formatted;
+  } else {
+    // For percentage and other numbers
+    const formatted = new Intl.NumberFormat('en-IN', {
+      maximumFractionDigits: decimalPlaces,
+      minimumFractionDigits: 0
+    }).format(num);
+    
+    return showSign ? `${formatted}%` : formatted;
+  }
+};
   // Theme classes
   const themeClasses = {
     light: {
@@ -117,84 +153,105 @@ const Dashboard = () => {
   };
 
   // Stats Card Component
-  const StatCard = ({ icon: Icon, value, change, label, color = "blue" }) => {
-    const colorClasses = {
-      blue: 'from-blue-500 to-blue-600',
-      green: 'from-green-500 to-green-600',
-      purple: 'from-purple-500 to-purple-600',
-      orange: 'from-orange-500 to-orange-600'
-    };
-
-    return (
-      <motion.div
-        variants={itemVariants}
-        className={`rounded-xl bg-gradient-to-br ${colorClasses[color]} p-6 text-white shadow-lg`}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm opacity-90">{label}</p>
-            <p className="text-2xl font-bold mt-1">
-              {typeof value === 'number' ? value.toLocaleString() : value}
-            </p>
-            {change !== undefined && change !== null && (
-              <div className="flex items-center mt-2 text-sm">
-                <TrendingUp size={16} className="mr-1" />
-                <span>+{change}%</span>
-              </div>
-            )}
-          </div>
-          <div className="p-3 bg-white bg-opacity-20 rounded-full">
-            <Icon size={24} />
-          </div>
-        </div>
-      </motion.div>
-    );
+const StatCard = ({ icon: Icon, value, change, label, color = "blue" }) => {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-green-500 to-green-600',
+    purple: 'from-purple-500 to-purple-600',
+    orange: 'from-orange-500 to-orange-600'
   };
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      className={`rounded-xl bg-gradient-to-br ${colorClasses[color]} p-6 text-white shadow-lg`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm opacity-90">{label}</p>
+          <p className="text-2xl font-bold mt-1">
+            {/* Use formatter for value */}
+            {typeof value === 'number' 
+              ? formatNumber(value, { 
+                  isCurrency: label.toLowerCase().includes('revenue') || label.toLowerCase().includes('value'),
+                  decimalPlaces: 2 
+                }) 
+              : value}
+          </p>
+          {change !== undefined && change !== null && (
+            <div className="flex items-center mt-2 text-sm">
+              <TrendingUp size={16} className="mr-1" />
+              <span>+{formatNumber(change, { decimalPlaces: 1 })}%</span>
+            </div>
+          )}
+        </div>
+        <div className="p-3 bg-white bg-opacity-20 rounded-full">
+          <Icon size={24} />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
   // Metric Card Component
-  const MetricCard = ({ icon: Icon, value, label, subtitle, color = "gray" }) => {
-    const colorClasses = {
-      gray: `${currentTheme.bg.card} ${currentTheme.border}`,
-      green: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800',
-      red: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
-      yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800',
-      blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
-    };
-
-    const iconColors = {
-      gray: 'text-gray-600 dark:text-gray-400',
-      green: 'text-green-600 dark:text-green-400',
-      red: 'text-red-600 dark:text-red-400',
-      yellow: 'text-yellow-600 dark:text-yellow-400',
-      blue: 'text-blue-600 dark:text-blue-400'
-    };
-
-    return (
-      <motion.div
-        variants={itemVariants}
-        className={`rounded-lg border p-4 ${colorClasses[color]}`}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-sm font-medium ${currentTheme.text.secondary}`}>
-              {label}
-            </p>
-            <p className={`text-2xl font-bold mt-1 ${currentTheme.text.primary}`}>
-              {typeof value === 'number' ? value.toLocaleString() : value}
-            </p>
-            {subtitle && (
-              <p className={`text-xs mt-1 ${currentTheme.text.muted}`}>
-                {subtitle}
-              </p>
-            )}
-          </div>
-          <div className={`p-2 rounded-full ${iconColors[color]}`}>
-            <Icon size={20} />
-          </div>
-        </div>
-      </motion.div>
-    );
+// Metric Card Component
+const MetricCard = ({ icon: Icon, value, label, subtitle, color = "gray" }) => {
+  const colorClasses = {
+    gray: `${currentTheme.bg.card} ${currentTheme.border}`,
+    green: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800',
+    red: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+    yellow: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800',
+    blue: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
   };
+
+  const iconColors = {
+    gray: 'text-gray-600 dark:text-gray-400',
+    green: 'text-green-600 dark:text-green-400',
+    red: 'text-red-600 dark:text-red-400',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    blue: 'text-blue-600 dark:text-blue-400'
+  };
+
+  // Check if value should be formatted as currency
+  const isCurrencyValue = label.toLowerCase().includes('value') || 
+                         label.toLowerCase().includes('revenue') ||
+                         label.toLowerCase().includes('price');
+  
+  // Check if value is a percentage
+  const isPercentageValue = label.toLowerCase().includes('rate') || 
+                           (typeof value === 'string' && value.includes('%'));
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      className={`rounded-lg border p-4 ${colorClasses[color]}`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className={`text-sm font-medium ${currentTheme.text.secondary}`}>
+            {label}
+          </p>
+          <p className={`text-2xl font-bold mt-1 ${currentTheme.text.primary}`}>
+            {typeof value === 'number' 
+              ? formatNumber(value, { 
+                  isCurrency: isCurrencyValue,
+                  decimalPlaces: isPercentageValue ? 1 : 2 
+                })
+              : value}
+          </p>
+          {subtitle && (
+            <p className={`text-xs mt-1 ${currentTheme.text.muted}`}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <div className={`p-2 rounded-full ${iconColors[color]}`}>
+          <Icon size={20} />
+        </div>
+      </div>
+    </motion.div>
+  );
+}; 
 
   // Activity Item Component
   const ActivityItem = ({ activity, index }) => {
@@ -416,8 +473,15 @@ const Dashboard = () => {
                 <MetricCard icon={AlertTriangle} value={data.business.lowStockProducts.value} label={data.business.lowStockProducts.label} subtitle="Restock needed" color="red" />
                 <MetricCard icon={MessageSquare} value={data.business.pendingContacts.value} label={data.business.pendingContacts.label} subtitle="Awaiting response" color="yellow" />
                 <MetricCard icon={TrendingUp} value={`${data.business.conversionRate.value}%`} label={data.business.conversionRate.label} subtitle={`+${data.business.conversionRate.change}%`} color="green" />
-                <MetricCard icon={DollarSign} value={`₹${data.business.averageOrderValue.value}`} label={data.business.averageOrderValue.label} subtitle={`+${data.business.averageOrderValue.change}%`} color="green" />
-              </div>
+<MetricCard 
+  icon={DollarSign} 
+  value={formatNumber(data.business.averageOrderValue.value, { 
+    decimalPlaces: 2 
+  })}
+  label={data.business.averageOrderValue.label} 
+  subtitle={`+${formatNumber(data.business.averageOrderValue.change, { decimalPlaces: 1 })}%`} 
+  color="green" 
+/>              </div>
             </motion.div>
 
             {/* Top Products */}

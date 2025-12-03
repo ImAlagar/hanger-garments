@@ -34,8 +34,8 @@ import { useGetAllCategoriesQuery } from '../../../redux/services/categoryServic
 import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
 
 // Import logos
-import logowhite from "../../../assets/images/logowhite.png";
-import logoblack from "../../../assets/images/logo.png";
+import logowhite from "../../../assets/images/TiruppurGarmentsLogo1(1).png";
+import logoblack from "../../../assets/images/TiruppurGarmentsLogoblack1.png";
 
 // Helper functions (same as DesktopNav)
 // Helper function to safely extract and validate categories
@@ -310,8 +310,8 @@ const MobileSideNav = ({
   );
 
   const socialIcons = [
-    { icon: FiInstagram, href: "https://www.instagram.com/hanger_garments/" },
-    { icon: FiFacebook, href: "https://www.facebook.com/share/19yyr4QjpU/?mibextid=wwXIfr" },
+    { icon: FiInstagram, href: "https://www.instagram.com/tiruppur_garments_/?hl=en" },
+    { icon: FiFacebook, href: "https://www.facebook.com/tiruppurgarmentstg" },
   ];
 
   // Collections data
@@ -382,9 +382,8 @@ const MobileSideNav = ({
                   <img 
                     src={getLogo()} 
                     alt="Garments Logo" 
-                    className="h-8 w-auto mr-3"
+                    className="h-20 w-auto mr-3"
                   />
-                  <h2 className="text-xl font-bold tracking-tight font-italiana">Hanger Garments</h2>
                 </div>
                 <motion.button
                   onClick={() => setMenuOpen(false)}
@@ -921,7 +920,7 @@ const MobileSideNav = ({
                 <p className={`text-center text-xs ${
                   theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
                 }`}>
-                  © 2024 Hanger Garments. All rights reserved.
+                  © 2025 Tiruppur Garments. All rights reserved.
                 </p>
               </div>
             </div>

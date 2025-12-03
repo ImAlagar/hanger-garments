@@ -11,7 +11,7 @@ const ReturnsAndRefunds = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Return Policy</h2>
-              <p>We want you to be completely satisfied with your purchase from Hanger Garments. If you're not happy with your order, we accept returns within 30 days of delivery.</p>
+              <p>We want you to be completely satisfied with your purchase from Tiruppur Garments. If you're not happy with your order, we accept returns within 30 days of delivery.</p>
             </section>
 
             <section>
@@ -61,7 +61,7 @@ const ReturnsAndRefunds = () => {
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">7. Contact Us</h2>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                 <p>For return requests or any questions about our returns policy:</p>
-                <p><strong>Email:</strong> contact@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@Tiruppurgarments.com</p>
                 <p><strong>Phone:</strong> +91 88833 85888</p>
                 <p><strong>Address:</strong> 8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu - 641602</p>
                 <p><strong>Business Hours:</strong> Mon–Sun: 9AM – 8PM</p>

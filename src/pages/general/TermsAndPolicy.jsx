@@ -11,7 +11,7 @@ const TermsAndPolicy = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Agreement to Terms</h2>
-              <p>By accessing and using Hanger Garments' website and services, you accept and agree to be bound by the terms and provision of this agreement.</p>
+              <p>By accessing and using Tiruppur Garments' website and services, you accept and agree to be bound by the terms and provision of this agreement.</p>
             </section>
 
             <section>
@@ -35,12 +35,12 @@ const TermsAndPolicy = () => {
 
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">4. Intellectual Property</h2>
-              <p>All content included on this site, such as text, graphics, logos, images, and software, is the property of Hanger Garments and protected by copyright laws.</p>
+              <p>All content included on this site, such as text, graphics, logos, images, and software, is the property of Tiruppur Garments and protected by copyright laws.</p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">5. Limitation of Liability</h2>
-              <p>Hanger Garments shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service.</p>
+              <p>Tiruppur Garments shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the service.</p>
             </section>
 
             <section>
@@ -51,7 +51,7 @@ const TermsAndPolicy = () => {
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">7. Contact Information</h2>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p><strong>Email:</strong> contact@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@Tiruppurgarments.com</p>
                 <p><strong>Phone:</strong> +91 88833 85888</p>
                 <p><strong>Address:</strong> 8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu - 641602</p>
                 <p><strong>Business Hours:</strong> Mon–Sun: 9AM – 8PM</p>

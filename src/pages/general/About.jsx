@@ -27,7 +27,7 @@ const About = () => {
         animate={{ opacity: 1, y: 0 }}
       >
         About Us –{" "}
-        <span className="text-purple-600 font-bold">Hanger Garments</span>
+        <span className="text-purple-600 font-bold">Tiruppur Garments</span>
       </motion.h2>
 
       <div className="grid lg:grid-cols-2 font-instrument tracking-wider gap-10 items-start">
@@ -44,7 +44,7 @@ const About = () => {
               🧵 Our Beginning
             </h3>
             <p>
-              <strong>Hanger Garments</strong>, founded by{" "}
+              <strong>Tiruppur Garments</strong>, founded by{" "}
               <strong>Mrs. Kasthuri Dinesh, MBA</strong>, is a new-age apparel
               brand built on a proud <strong>50+ year family legacy</strong> in
               the garment industry established by{" "}
@@ -97,7 +97,7 @@ const About = () => {
               ✨ Our Promise
             </h3>
             <p>
-              At Hanger Garments, every piece is crafted with{" "}
+              At Tiruppur Garments, every piece is crafted with{" "}
               <strong>passion, precision, and purpose</strong> — ensuring superior
               fabric quality, fine stitching, and timely delivery.
             </p>

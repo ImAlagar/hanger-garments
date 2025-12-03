@@ -34,7 +34,7 @@ class RazorpayService {
           key: this.razorpayKey,
           amount: options.amount,
           currency: options.currency || 'INR',
-          name: options.name || 'Hanger Garments',
+          name: options.name || 'Tiruppur Garments',
           description: options.description || 'Order Payment',
           order_id: options.razorpayOrderId,
           handler: function (response) {

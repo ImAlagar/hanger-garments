@@ -11,7 +11,7 @@ const PrivacyPolicy = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Information We Collect</h2>
-              <p className="mb-4">At Hanger Garments, we collect information to provide better services to our customers. We collect information in the following ways:</p>
+              <p className="mb-4">At Tiruppur Garments, we collect information to provide better services to our customers. We collect information in the following ways:</p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Information you give us (name, email, shipping address, etc.)</li>
                 <li>Information we get from your use of our services</li>
@@ -33,7 +33,7 @@ const PrivacyPolicy = () => {
 
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">3. Information Sharing</h2>
-              <p>We do not share your personal information with companies, organizations, or individuals outside of Hanger Garments except in the following cases:</p>
+              <p>We do not share your personal information with companies, organizations, or individuals outside of Tiruppur Garments except in the following cases:</p>
               <ul className="list-disc pl-6 space-y-2 mt-2">
                 <li>With your consent</li>
                 <li>For external processing with trusted partners</li>
@@ -43,14 +43,14 @@ const PrivacyPolicy = () => {
 
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">4. Data Security</h2>
-              <p>We work hard to protect Hanger Garments and our users from unauthorized access to or unauthorized alteration, disclosure, or destruction of information we hold.</p>
+              <p>We work hard to protect Tiruppur Garments and our users from unauthorized access to or unauthorized alteration, disclosure, or destruction of information we hold.</p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">5. Contact Us</h2>
               <p>If you have any questions about this Privacy Policy, please contact us at:</p>
               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p><strong>Email:</strong> contact@hangergarments.com</p>
+                <p><strong>Email:</strong> contact@Tiruppurgarments.com</p>
                 <p><strong>Phone:</strong> +91 88833 85888</p>
                 <p><strong>Address:</strong> 8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu - 641602</p>
               </div>

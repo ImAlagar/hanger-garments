@@ -76,8 +76,8 @@ export default function Footer() {
   // Contact Info
   // =====================
   const contactData = [
-    { id: 1, icon: Mail, title: "Email", content: "contact@hangergarments.com" },
-    { id: 2, icon: Phone, title: "Phone", content: "+91 88833 85888" },
+    { id: 1, icon: Mail, title: "Email", content: " retail@tiruppurgarments.in " },
+    { id: 2, icon: Phone, title: "Phone", content: "+91 96774 11007" },
     { id: 3, icon: MapPin, title: "Location", content: "8/2514 . Thiyagi Kumaran St, Pandian Nagar , Tiruppur , Tamilnadu  - 641602" },
     { id: 4, icon: Clock, title: "Business Hours", content: "Mon–Sun: 9AM – 8PM" }
   ];
@@ -91,14 +91,14 @@ export default function Footer() {
       id: 1,
       icon: Instagram,
       name: "Instagram",
-      url: "https://www.instagram.com/hanger_garments/",
+      url: "https://www.instagram.com/tiruppur_garments_/?hl=en",
       color: "hover:bg-pink-500"
     },
     {
       id: 2,
       icon: Facebook,
       name: "Facebook",
-      url: "https://www.facebook.com/share/19yyr4QjpU/?mibextid=wwXIfr",
+      url: "https://www.facebook.com/tiruppurgarmentstg",
       color: "hover:bg-blue-600"
     },
   ];
@@ -189,7 +189,7 @@ export default function Footer() {
               </motion.div>
 
               <div>
-                <h3 className={`text-xl font-bold ${headingColor}`}>HANGER GARMENTS</h3>
+                <h3 className={`text-xl font-bold ${headingColor}`}>TIRUPPUR GARMENTS</h3>
                 <p className={`text-xs ${textColor}`}>Premium Fashion</p>
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function Footer() {
       <div className={`border-t ${borderColor}`}>
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y=0">
           <div className={`text-sm ${textColor}`}>
-            © {new Date().getFullYear()} Hanger Garments. All rights reserved.
+            © {new Date().getFullYear()} Tiruppur Garments. All rights reserved.
           </div>
 
           <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-sm">
