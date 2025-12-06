@@ -1,5 +1,5 @@
 // ProductDetailsPage.jsx - UPDATED WITH BOTH PRICING TYPES
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTheme } from '../../context/ThemeContext';
@@ -1367,11 +1367,13 @@ const ratingStats = calculateRatingStats(ratings);
 
 
         {/* Related Products */}
-        <RelatedProducts 
-          currentProduct={product}
-          category={product.category?.name || product.category}
-          relatedProducts={relatedProductsData?.data || []}
-        />
+<Suspense fallback={<div className="h-40 bg-gray-100 dark:bg-gray-800 animate-pulse rounded"></div>}>
+  <RelatedProducts 
+    currentProduct={product}
+    category={product.category?.name || product.category}
+    relatedProducts={relatedProductsData?.data || []}
+  />
+</Suspense>
 
         {/* Cart Sidebar */}
         <CartSidebar 
@@ -1425,4 +1427,4 @@ const ratingStats = calculateRatingStats(ratings);
   );
 };
 
-export default ProductDetailsPage;
+export default ProductDetailsPage;  

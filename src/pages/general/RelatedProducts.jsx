@@ -14,6 +14,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
   const autoScrollRef = useRef(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Add Cart Sidebar state
   const [showCartSidebar, setShowCartSidebar] = useState(false);
@@ -159,47 +160,72 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   // Calculate visible items based on container width
   const getVisibleItemsCount = useCallback(() => {
-    if (typeof window === 'undefined') return 4;
+    if (!mounted || typeof window === 'undefined') return 4;
     const width = window.innerWidth;
     if (width < 640) return 1;  // mobile
     if (width < 768) return 2;  // tablet
     if (width < 1024) return 3; // small desktop
     return 4; // large desktop
-  }, []);
+  }, [mounted]);
+
+  // Handle scroll events for button visibility
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current || !mounted) return;
+    
+    try {
+      const container = scrollContainerRef.current;
+      const scrollLeft = container.scrollLeft;
+      const scrollWidth = container.scrollWidth;
+      const clientWidth = container.clientWidth;
+      
+      setCanScrollLeft(scrollLeft > 10);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    } catch (err) {
+      // Ignore scroll errors during unmounting
+    }
+  }, [mounted]);
 
   // Scroll to specific slide
   const scrollToSlide = useCallback((slideIndex) => {
-    if (!scrollContainerRef.current || relatedProducts.length === 0) return;
+    if (!scrollContainerRef.current || relatedProducts.length === 0 || !mounted) return;
 
-    const container = scrollContainerRef.current;
-    const cardWidth = 256; // w-64 = 256px
-    const gap = 24; // space-x-6 = 24px
-    const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
-    
-    const targetSlide = Math.min(slideIndex, maxSlide);
-    const scrollPosition = targetSlide * (cardWidth + gap);
-    
-    container.scrollTo({
-      left: scrollPosition,
-      behavior: 'smooth'
-    });
-    
-    setCurrentSlide(targetSlide);
-    updateScrollButtons();
-  }, [relatedProducts.length, getVisibleItemsCount]);
+    try {
+      const container = scrollContainerRef.current;
+      const cardWidth = 256; // w-64 = 256px
+      const gap = 24; // space-x-6 = 24px
+      const visibleItems = getVisibleItemsCount();
+      const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
+      
+      const targetSlide = Math.min(slideIndex, maxSlide);
+      const scrollPosition = targetSlide * (cardWidth + gap);
+      
+      container.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
+      
+      setCurrentSlide(targetSlide);
+      updateScrollButtons();
+    } catch (err) {
+      // Ignore scroll errors during unmounting
+    }
+  }, [relatedProducts.length, getVisibleItemsCount, mounted]);
 
   // Update scroll button states
   const updateScrollButtons = useCallback(() => {
-    if (!scrollContainerRef.current || relatedProducts.length === 0) return;
+    if (!scrollContainerRef.current || relatedProducts.length === 0 || !mounted) return;
     
-    const container = scrollContainerRef.current;
-    const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
-    
-    setCanScrollLeft(currentSlide > 0);
-    setCanScrollRight(currentSlide < maxSlide);
-  }, [currentSlide, relatedProducts.length, getVisibleItemsCount]);
+    try {
+      const container = scrollContainerRef.current;
+      const visibleItems = getVisibleItemsCount();
+      const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
+      
+      setCanScrollLeft(currentSlide > 0);
+      setCanScrollRight(currentSlide < maxSlide);
+    } catch (err) {
+      // Ignore errors during unmounting
+    }
+  }, [currentSlide, relatedProducts.length, getVisibleItemsCount, mounted]);
 
   // Scroll functions
   const scrollPrev = useCallback(() => {
@@ -212,55 +238,23 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   // Auto-scroll function
   const startAutoScroll = useCallback(() => {
-    if (isPaused || relatedProducts.length === 0) return;
+    if (isPaused || relatedProducts.length === 0 || !mounted) return;
     
-    const visibleItems = getVisibleItemsCount();
-    const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
-    
-    if (currentSlide >= maxSlide) {
-      // Go back to first slide
-      scrollToSlide(0);
-    } else {
-      // Go to next slide
-      scrollToSlide(currentSlide + 1);
-    }
-  }, [currentSlide, isPaused, relatedProducts.length, scrollToSlide, getVisibleItemsCount]);
-
-  // Initialize and cleanup
-  useEffect(() => {
-    updateScrollButtons();
-    
-    const handleResize = () => {
-      updateScrollButtons();
-    };
-
-    window.addEventListener('resize', handleResize);
-    
-    // Start auto-scroll
-    if (relatedProducts.length > 0) {
-      autoScrollRef.current = setInterval(startAutoScroll, 4000);
-    }
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
+    try {
+      const visibleItems = getVisibleItemsCount();
+      const maxSlide = Math.max(0, relatedProducts.length - visibleItems);
+      
+      if (currentSlide >= maxSlide) {
+        // Go back to first slide
+        scrollToSlide(0);
+      } else {
+        // Go to next slide
+        scrollToSlide(currentSlide + 1);
       }
-    };
-  }, [relatedProducts.length, startAutoScroll, updateScrollButtons]);
-
-  // Handle scroll events for button visibility
-  const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return;
-    
-    const container = scrollContainerRef.current;
-    const scrollLeft = container.scrollLeft;
-    const scrollWidth = container.scrollWidth;
-    const clientWidth = container.clientWidth;
-    
-    setCanScrollLeft(scrollLeft > 10);
-    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-  }, []);
+    } catch (err) {
+      // Ignore auto-scroll errors
+    }
+  }, [currentSlide, isPaused, relatedProducts.length, scrollToSlide, getVisibleItemsCount, mounted]);
 
   // Mouse event handlers
   const handleMouseEnter = () => {
@@ -272,7 +266,7 @@ const RelatedProducts = ({ currentProduct, category }) => {
 
   const handleMouseLeave = () => {
     setIsPaused(false);
-    if (relatedProducts.length > 0) {
+    if (relatedProducts.length > 0 && mounted) {
       autoScrollRef.current = setInterval(startAutoScroll, 4000);
     }
   };
@@ -288,12 +282,62 @@ const RelatedProducts = ({ currentProduct, category }) => {
   const handleTouchEnd = () => {
     // Restart auto-scroll after a delay
     setTimeout(() => {
+      if (!mounted) return;
       setIsPaused(false);
       if (relatedProducts.length > 0) {
         autoScrollRef.current = setInterval(startAutoScroll, 4000);
       }
     }, 3000);
   };
+
+  // Set mounted state
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Setup scroll event listener
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const container = scrollContainerRef.current;
+    if (container) {
+      const scrollHandler = () => handleScroll();
+      container.addEventListener('scroll', scrollHandler);
+      return () => {
+        if (container) {
+          container.removeEventListener('scroll', scrollHandler);
+        }
+      };
+    }
+  }, [handleScroll, mounted]);
+
+  // Initialize and cleanup
+  useEffect(() => {
+    if (!mounted) return;
+    
+    updateScrollButtons();
+    
+    const handleResize = () => {
+      if (mounted) {
+        updateScrollButtons();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Start auto-scroll
+    if (relatedProducts.length > 0) {
+      autoScrollRef.current = setInterval(startAutoScroll, 4000);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [relatedProducts.length, startAutoScroll, updateScrollButtons, mounted]);
 
   if (isLoading) {
     return (
@@ -376,7 +420,6 @@ const RelatedProducts = ({ currentProduct, category }) => {
           <div
             ref={scrollContainerRef}
             className="flex space-x-6 overflow-x-auto scrollbar-hide scroll-smooth"
-            onScroll={handleScroll}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onTouchStart={handleTouchStart}
@@ -390,13 +433,12 @@ const RelatedProducts = ({ currentProduct, category }) => {
           >
             {relatedProducts.map((product) => (
               <div
-                key={product.id}
-                className="flex-shrink-0 w-80 transition-transform duration-300 hover:scale-105"
+                key={`${product.id}-${product.color}`}
+                className="flex-shrink-0 w-80 transition-transform duration-300"
               >
                 <ProductCard
                   product={product}
                   onCartUpdate={handleCartUpdate}
-                  // ✅ FIX: Pass the color information explicitly
                   selectedColor={product.selectedColor}
                 />
               </div>

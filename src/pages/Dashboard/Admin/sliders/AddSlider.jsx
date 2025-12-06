@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useTheme } from '../../../../context/ThemeContext';
 import { useCreateSliderMutation } from '../../../../redux/services/sliderService';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Upload, X, Image, Layout, Calendar } from 'lucide-react';
+import { ArrowLeft, Upload, X, Image, Layout, Calendar, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../../components/Common/Button';
 import InputField from '../../../../components/Common/InputField';
@@ -18,10 +18,10 @@ const AddSlider = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 
-   const { user, token } = useSelector((state) => state.auth);
+  const { user, token } = useSelector((state) => state.auth);
   const [createSlider] = useCreateSliderMutation();
 
-    useEffect(() => {
+  useEffect(() => {
     if (!token) {
       toast.error('Please login to create sliders');
       navigate('/admin/login');
@@ -34,6 +34,7 @@ const AddSlider = () => {
       return;
     }
   }, [token, user, navigate]);
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -54,6 +55,10 @@ const AddSlider = () => {
   const [bgImagePreview, setBgImagePreview] = useState(null);
   const [mainImage, setMainImage] = useState(null);
   const [mainImagePreview, setMainImagePreview] = useState(null);
+  
+  // New state to track if images are optional
+  const [useBgImage, setUseBgImage] = useState(true);
+  const [useMainImage, setUseMainImage] = useState(true);
 
   // Theme-based styling
   const themeClasses = {
@@ -140,9 +145,11 @@ const AddSlider = () => {
       if (type === 'bg') {
         setBgImage(file);
         setBgImagePreview(URL.createObjectURL(file));
+        setUseBgImage(true);
       } else {
         setMainImage(file);
         setMainImagePreview(URL.createObjectURL(file));
+        setUseMainImage(true);
       }
     }
   };
@@ -155,12 +162,35 @@ const AddSlider = () => {
         URL.revokeObjectURL(bgImagePreview);
       }
       setBgImagePreview(null);
+      setUseBgImage(false);
     } else {
       setMainImage(null);
       if (mainImagePreview) {
         URL.revokeObjectURL(mainImagePreview);
       }
       setMainImagePreview(null);
+      setUseMainImage(false);
+    }
+  };
+
+  // Toggle image usage
+  const toggleImageUsage = (type) => {
+    if (type === 'bg') {
+      if (useBgImage && bgImage) {
+        if (window.confirm('Remove background image?')) {
+          removeImage('bg');
+        }
+      } else {
+        setUseBgImage(true);
+      }
+    } else {
+      if (useMainImage && mainImage) {
+        if (window.confirm('Remove main image?')) {
+          removeImage('main');
+        }
+      } else {
+        setUseMainImage(true);
+      }
     }
   };
 
@@ -170,14 +200,7 @@ const AddSlider = () => {
       toast.error('Slider title is required');
       return false;
     }
-    if (!bgImage) {
-      toast.error('Background image is required');
-      return false;
-    }
-    if (!mainImage) {
-      toast.error('Main image is required');
-      return false;
-    }
+    // Images are now optional, no validation needed
     if (formData.startDate && formData.endDate && new Date(formData.endDate) <= new Date(formData.startDate)) {
       toast.error('End date must be after start date');
       return false;
@@ -185,10 +208,8 @@ const AddSlider = () => {
     return true;
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     
     if (!validateForm()) {
       return;
@@ -209,7 +230,7 @@ const AddSlider = () => {
         }
       });
       
-      // Append files
+      // Append files only if they exist
       if (bgImage) {
         sliderData.append('bgImage', bgImage);
       }
@@ -217,9 +238,11 @@ const AddSlider = () => {
         sliderData.append('image', mainImage);
       }
 
+      // Add flags for optional images
+      sliderData.append('useBgImage', useBgImage.toString());
+      sliderData.append('useMainImage', useMainImage.toString());
       
       const result = await createSlider(sliderData).unwrap();
-      
       
       // Reset form
       setFormData({
@@ -228,24 +251,27 @@ const AddSlider = () => {
         startDate: '', endDate: ''
       });
       
-      removeImage('bg');
-      removeImage('main');
+      setBgImage(null);
+      setBgImagePreview(null);
+      setMainImage(null);
+      setMainImagePreview(null);
+      setUseBgImage(true);
+      setUseMainImage(true);
       
+      toast.success('Slider created successfully!');
       navigate('/dashboard/sliders');
       
     } catch (error) {
-      console.error('❌ Frontend catch error:', error);
+      console.error('Error creating slider:', error);
+      toast.error(error?.data?.message || 'Failed to create slider');
       
-      // Additional error handling in component
       if (error?.status === 401) {
         toast.error('Session expired. Please login again.');
-        // Optionally dispatch logout action here
       }
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <motion.section
@@ -280,7 +306,7 @@ const AddSlider = () => {
                             Create New Slider
                         </h1>
                         <p className={`text-sm sm:text-base ${currentTheme.text.muted} font-instrument`}>
-                            Add a new home page slider
+                            Add a new home page slider (Images are optional)
                         </p>
                         </div>
                     </div>
@@ -429,7 +455,7 @@ const AddSlider = () => {
                     </div>
                   </motion.section>
 
-                  {/* Images */}
+                  {/* Images - Optional */}
                   <motion.section
                     variants={containerVariants}
                     className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
@@ -439,112 +465,170 @@ const AddSlider = () => {
                       className="text-xl font-semibold font-instrument mb-6 flex items-center"
                     >
                       <span className="bg-purple-100 text-purple-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">3</span>
-                      Slider Images
+                      Slider Images (Optional)
                     </motion.h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Background Image */}
+                      {/* Background Image - Optional */}
                       <motion.div variants={itemVariants}>
-                        <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
-                          Background Image *
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary}`}>
+                            Background Image
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => toggleImageUsage('bg')}
+                            className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full ${
+                              useBgImage 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                            }`}
+                          >
+                            {useBgImage ? <Eye size={14} /> : <EyeOff size={14} />}
+                            {useBgImage ? 'Enabled' : 'Disabled'}
+                          </button>
+                        </div>
+                        
                         <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
                           Recommended: 1920x1080px, high quality
                         </p>
                         
-                        {!bgImagePreview ? (
-                          <div className={`border-2 border-dashed rounded-lg p-6 text-center ${currentTheme.border} hover:border-blue-500 transition-colors`}>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleImageUpload(e, 'bg')}
-                              className="hidden"
-                              id="bg-image"
-                            />
-                            <label
-                              htmlFor="bg-image"
-                              className="cursor-pointer flex flex-col items-center"
-                            >
-                              <Image className="w-12 h-12 text-gray-400 mb-4" />
-                              <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
-                                Upload Background
-                              </p>
-                              <p className={`text-sm ${currentTheme.text.muted}`}>
-                                PNG, JPG, JPEG up to 5MB
-                              </p>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <div className="border rounded-lg p-4 ${currentTheme.border}">
-                              <img
-                                src={bgImagePreview}
-                                alt="Background preview"
-                                className="w-full h-48 object-cover rounded-lg"
+                        {useBgImage ? (
+                          !bgImagePreview ? (
+                            <div className={`border-2 border-dashed rounded-lg p-6 text-center ${currentTheme.border} hover:border-blue-500 transition-colors`}>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleImageUpload(e, 'bg')}
+                                className="hidden"
+                                id="bg-image"
                               />
+                              <label
+                                htmlFor="bg-image"
+                                className="cursor-pointer flex flex-col items-center"
+                              >
+                                <Image className="w-12 h-12 text-gray-400 mb-4" />
+                                <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
+                                  Upload Background
+                                </p>
+                                <p className={`text-sm ${currentTheme.text.muted}`}>
+                                  PNG, JPG, JPEG up to 5MB
+                                </p>
+                              </label>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => removeImage('bg')}
-                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                            >
-                              <X size={16} />
-                            </button>
+                          ) : (
+                            <div className="relative">
+                              <div className="border rounded-lg p-4 ${currentTheme.border}">
+                                <img
+                                  src={bgImagePreview}
+                                  alt="Background preview"
+                                  className="w-full h-48 object-cover rounded-lg"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeImage('bg')}
+                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <div className={`border rounded-lg p-6 text-center ${currentTheme.border} ${currentTheme.bg.secondary}`}>
+                            <p className={`font-medium ${currentTheme.text.secondary} mb-2`}>
+                              Background image disabled
+                            </p>
+                            <p className={`text-sm ${currentTheme.text.muted}`}>
+                              Slider will use default background
+                            </p>
                           </div>
                         )}
                       </motion.div>
 
-                      {/* Main Image */}
+                      {/* Main Image - Optional */}
                       <motion.div variants={itemVariants}>
-                        <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
-                          Main Image *
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary}`}>
+                            Main Image
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => toggleImageUsage('main')}
+                            className={`flex items-center gap-2 text-sm px-3 py-1 rounded-full ${
+                              useMainImage 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'
+                            }`}
+                          >
+                            {useMainImage ? <Eye size={14} /> : <EyeOff size={14} />}
+                            {useMainImage ? 'Enabled' : 'Disabled'}
+                          </button>
+                        </div>
+                        
                         <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
                           Recommended: 600x600px, transparent background
                         </p>
                         
-                        {!mainImagePreview ? (
-                          <div className={`border-2 border-dashed rounded-lg p-6 text-center ${currentTheme.border} hover:border-blue-500 transition-colors`}>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handleImageUpload(e, 'main')}
-                              className="hidden"
-                              id="main-image"
-                            />
-                            <label
-                              htmlFor="main-image"
-                              className="cursor-pointer flex flex-col items-center"
-                            >
-                              <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                              <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
-                                Upload Main Image
-                              </p>
-                              <p className={`text-sm ${currentTheme.text.muted}`}>
-                                PNG, JPG, JPEG up to 5MB
-                              </p>
-                            </label>
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <div className="border rounded-lg p-4 ${currentTheme.border}">
-                              <img
-                                src={mainImagePreview}
-                                alt="Main image preview"
-                                className="w-full h-48 object-contain rounded-lg"
+                        {useMainImage ? (
+                          !mainImagePreview ? (
+                            <div className={`border-2 border-dashed rounded-lg p-6 text-center ${currentTheme.border} hover:border-blue-500 transition-colors`}>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleImageUpload(e, 'main')}
+                                className="hidden"
+                                id="main-image"
                               />
+                              <label
+                                htmlFor="main-image"
+                                className="cursor-pointer flex flex-col items-center"
+                              >
+                                <Upload className="w-12 h-12 text-gray-400 mb-4" />
+                                <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
+                                  Upload Main Image
+                                </p>
+                                <p className={`text-sm ${currentTheme.text.muted}`}>
+                                  PNG, JPG, JPEG up to 5MB
+                                </p>
+                              </label>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => removeImage('main')}
-                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                            >
-                              <X size={16} />
-                            </button>
+                          ) : (
+                            <div className="relative">
+                              <div className="border rounded-lg p-4 ${currentTheme.border}">
+                                <img
+                                  src={mainImagePreview}
+                                  alt="Main image preview"
+                                  className="w-full h-48 object-contain rounded-lg"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeImage('main')}
+                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <div className={`border rounded-lg p-6 text-center ${currentTheme.border} ${currentTheme.bg.secondary}`}>
+                            <p className={`font-medium ${currentTheme.text.secondary} mb-2`}>
+                              Main image disabled
+                            </p>
+                            <p className={`text-sm ${currentTheme.text.muted}`}>
+                              Slider will show text only
+                            </p>
                           </div>
                         )}
                       </motion.div>
                     </div>
+                    
+                    <motion.div variants={itemVariants} className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className={`text-sm ${currentTheme.text.secondary}`}>
+                        <span className="font-medium">Note:</span> Both images are optional. You can create text-only sliders or use only one image.
+                      </p>
+                    </motion.div>
                   </motion.section>
 
                 {/* Schedule & Status */}
@@ -563,7 +647,7 @@ const AddSlider = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Start Date */}
                     <motion.div variants={itemVariants}>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">Start Date</label>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-200 mb-1">Start Date (Optional)</label>
                     <div className="relative">
                         <DatePicker
                         selected={formData.startDate ? new Date(formData.startDate) : null}
@@ -576,8 +660,9 @@ const AddSlider = () => {
                         showTimeSelect
                         timeFormat="HH:mm"
                         dateFormat="Pp"
-                        placeholderText="Select start date"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        placeholderText="Select start date (optional)"
+                        className={`w-full border rounded-lg px-3 py-2 ${currentTheme.border} ${currentTheme.bg.primary} ${currentTheme.text.primary}`}
+                        isClearable
                         />
                         <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     </div>
@@ -585,7 +670,7 @@ const AddSlider = () => {
 
                     {/* End Date */}
                     <motion.div variants={itemVariants}>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">End Date</label>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-200 mb-1">End Date (Optional)</label>
                     <div className="relative">
                         <DatePicker
                         selected={formData.endDate ? new Date(formData.endDate) : null}
@@ -598,8 +683,9 @@ const AddSlider = () => {
                         showTimeSelect
                         timeFormat="HH:mm"
                         dateFormat="Pp"
-                        placeholderText="Select end date"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                        placeholderText="Select end date (optional)"
+                        className={`w-full border rounded-lg px-3 py-2 ${currentTheme.border} ${currentTheme.bg.primary} ${currentTheme.text.primary}`}
+                        isClearable
                         />
                         <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     </div>
@@ -623,7 +709,6 @@ const AddSlider = () => {
                 </motion.div>
                 </motion.section>
 
-
                   {/* Submit Section */}
                   <motion.section
                     variants={containerVariants}
@@ -633,7 +718,7 @@ const AddSlider = () => {
                       <div>
                         <h3 className="text-lg font-semibold font-instrument">Ready to Create Slider</h3>
                         <p className={currentTheme.text.muted}>
-                          This will add a new slider to your home page
+                          {useBgImage || useMainImage ? 'This will add a new slider to your home page' : 'This will create a text-only slider'}
                         </p>
                       </div>
 
