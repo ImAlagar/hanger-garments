@@ -1183,13 +1183,13 @@ const MobileCustomizationView = ({
                       <span>Choose Image</span>
                     </button>
                     
- <input
-  type="file"
-  ref={fileInputRef}
-  onChange={handleImageUpload}
-  accept="image/*"
-  className="hidden"
-/>
+                            <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                            className="hidden"
+                            />
                     
                     <div className="bg-gray-50 p-4 rounded border">
                       <h5 className="font-medium text-sm mb-2">Image Guidelines:</h5>

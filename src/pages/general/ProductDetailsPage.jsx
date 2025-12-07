@@ -1018,22 +1018,7 @@ const ratingStats = calculateRatingStats(ratings);
             </div>
 
 
-            {/* Rating Summary */}
-            <div className="flex items-center space-x-4 py-2 border-t border-b border-gray-200 dark:border-gray-700">
-              <RatingDisplay
-                averageRating={ratingStats?.averageRating || 0} 
-                totalReviews={ratingStats?.totalReviews || 0}
-                size="medium"
-              />
-              {(ratingStats?.totalReviews || 0) > 0 && (
-                <button
-                  onClick={() => setShowReviews(true)}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  View All Reviews
-                </button>
-              )}
-            </div>
+
 
             {/* Bulk Pricing Display */}
             {renderBulkPricing()}
@@ -1367,13 +1352,13 @@ const ratingStats = calculateRatingStats(ratings);
 
 
         {/* Related Products */}
-<Suspense fallback={<div className="h-40 bg-gray-100 dark:bg-gray-800 animate-pulse rounded"></div>}>
-  <RelatedProducts 
-    currentProduct={product}
-    category={product.category?.name || product.category}
-    relatedProducts={relatedProductsData?.data || []}
-  />
-</Suspense>
+      <Suspense fallback={<div className="h-40 bg-gray-100 dark:bg-gray-800 animate-pulse rounded"></div>}>
+        <RelatedProducts 
+          currentProduct={product}
+          category={product.category?.name || product.category}
+          relatedProducts={relatedProductsData?.data || []}
+        />
+      </Suspense>
 
         {/* Cart Sidebar */}
         <CartSidebar 

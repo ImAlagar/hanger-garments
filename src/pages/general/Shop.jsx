@@ -736,7 +736,7 @@ export default function Shop() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Memoized filters initialization
-  const initFiltersFromSearch = useCallback(() => {
+const initFiltersFromSearch = useCallback(() => {
     const rawSub = searchParams.get('subcategories');
     const subSlugs = rawSub
       ? rawSub.split(',').map(s => decodeURIComponent(s)).filter(Boolean)
@@ -753,6 +753,7 @@ export default function Shop() {
       isNewArrival: searchParams.get('newArrival') === 'true',
       isBestSeller: searchParams.get('bestSeller') === 'true',
       minRating: parseInt(searchParams.get('minRating')) || 0
+      // REMOVED: category filter from here
     };
   }, [searchParams]);
 
@@ -769,7 +770,7 @@ export default function Shop() {
   }, [filters, category]);
 
   // Optimized URL update with proper cleanup
-  const updateURL = useCallback((newFilters) => {
+const updateURL = useCallback((newFilters) => {
     if (filterTimeoutRef.current) {
       clearTimeout(filterTimeoutRef.current);
     }
@@ -796,11 +797,30 @@ export default function Shop() {
       if (newFilters.minRating > 0) params.set('minRating', newFilters.minRating.toString());
 
       const newSearch = params.toString();
-      const newUrl = category ? `/shop/${category}${newSearch ? `?${newSearch}` : ''}` : `/shop${newSearch ? `?${newSearch}` : ''}`;
+      // Build URL based on whether we have a category or not
+      const newUrl = category 
+        ? `/shop/${category}${newSearch ? `?${newSearch}` : ''}` 
+        : `/shop${newSearch ? `?${newSearch}` : ''}`;
       
       navigate(newUrl, { replace: true });
     }, DEBOUNCE_DELAY);
   }, [category, navigate]);
+
+
+useEffect(() => {
+    // Check if there's a category in query params (old format)
+    const queryCategory = searchParams.get('category');
+    
+    if (queryCategory && !category) {
+        // Redirect from old format to new format
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('category'); // Remove category from query params
+        
+        const newUrl = `/shop/${queryCategory}${newParams.toString() ? `?${newParams.toString()}` : ''}`;
+        navigate(newUrl, { replace: true });
+    }
+}, [searchParams, category, navigate]);
+
 
   // Update URL when filters change
   useEffect(() => {
@@ -927,7 +947,7 @@ export default function Shop() {
     });
   }, []);
 
-  const clearAllFilters = useCallback(() => {
+const clearAllFilters = useCallback(() => {
     const clearedFilters = {
       subcategories: [],
       priceRange: [0, 10000],
@@ -941,6 +961,7 @@ export default function Shop() {
     setFilters(clearedFilters);
     setCurrentPage(1);
 
+    // Keep category in the URL when clearing filters
     if (category) {
       navigate(`/shop/${category}`, { replace: true });
     } else {
