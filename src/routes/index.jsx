@@ -87,6 +87,7 @@ import AdminQuantityPricing from "../pages/Dashboard/Admin/quantity-pricing/Admi
 import AddQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/AddQuantityPrice";
 import EditQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/EditQuantityPrice";
 import ViewQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/ViewQuantityPrice";
+import CustomizationPage from "../pages/general/CustomizationPage";
 
 
 
@@ -129,6 +130,14 @@ export const router = createBrowserRouter([
       {
         path: "/collections/:productSlug",
         element: <ProductDetailsPage />
+      },
+      {
+        path: "/customize/:productSlug",
+        element: (
+          <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
+            <CustomizationPage />
+          </ProtectedRoute>
+        )
       },
       {
         path: "/privacy-policy",
