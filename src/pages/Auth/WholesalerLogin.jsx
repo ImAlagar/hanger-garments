@@ -6,6 +6,7 @@ import {
   FaPhone,
   FaLock,
   FaSpinner,
+  FaRedo,
 } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
 import { useDispatch } from "react-redux";
@@ -34,14 +35,63 @@ const WholesalerLogin = () => {
   const [success, setSuccess] = useState("");
   const [showOTPField, setShowOTPField] = useState(false);
   const [otp, setOtp] = useState("");
-  const [countryCode, setCountryCode] = useState("+91"); // Default country code
+  const [countryCode] = useState("+91");
+  
+  // Resend OTP state
+  const [canResend, setCanResend] = useState(true);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+
+  // Timer effect for resend OTP
+  useEffect(() => {
+    let timer;
+    if (resendTimer > 0) {
+      timer = setTimeout(() => {
+        setResendTimer(resendTimer - 1);
+      }, 1000);
+    } else if (resendTimer === 0 && !canResend) {
+      setCanResend(true);
+    }
+    return () => clearTimeout(timer);
+  }, [resendTimer, canResend]);
 
   // Check if error message indicates OTP was already sent
   useEffect(() => {
     if (error && error.toLowerCase().includes("otp already sent")) {
       setShowOTPField(true);
+      // Start resend timer if OTP was already sent
+      if (!resendTimer) {
+        setCanResend(false);
+        setResendTimer(60);
+      }
     }
   }, [error]);
+
+  const handleResendOTP = async () => {
+    if (!canResend || isResending) return;
+    
+    setIsResending(true);
+    setError("");
+    setSuccess("");
+    
+    try {
+      const fullPhoneNumber = countryCode + formData.phone;
+      const response = await sendOTP({ phone: fullPhoneNumber }).unwrap();
+      
+      setSuccess(response.message || "OTP resent successfully!");
+      setCanResend(false);
+      setResendTimer(60); // Reset timer to 60 seconds
+      
+      // Clear OTP field for new OTP
+      setOtp("");
+    } catch (err) {
+      console.error('Resend OTP failed:', err);
+      const errorMessage = err?.data?.message || "Failed to resend OTP. Please try again.";
+      setError(errorMessage);
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +99,6 @@ const WholesalerLogin = () => {
     setSuccess("");
 
     try {
-      // Combine country code with phone number
       const fullPhoneNumber = countryCode + formData.phone;
       
       if (showOTPField) {
@@ -60,26 +109,30 @@ const WholesalerLogin = () => {
         }).unwrap();
         
         dispatch(setCredentials(result));
-        
-        // Check if user needs additional verification (adjust this condition based on your actual business logic)
-        // Since there's no status field, you might need to check something else
-        // For now, let's assume all verified users go to dashboard
         navigate('/');
         
       } else {
-        // Send OTP first - send phone to login endpoint
+        // Send OTP first
         const response = await sendOTP({ phone: fullPhoneNumber }).unwrap();
         setSuccess(response.message || "OTP sent to your phone number!");
         setShowOTPField(true);
+        
+        // Start resend timer
+        setCanResend(false);
+        setResendTimer(60);
       }
     } catch (err) {
       console.error('Login failed:', err);
       const errorMessage = err?.data?.message || "Login failed. Please try again.";
       setError(errorMessage);
       
-      // If error indicates OTP was already sent, show OTP field
       if (errorMessage.toLowerCase().includes("otp already sent")) {
         setShowOTPField(true);
+        // Start resend timer if OTP was already sent
+        if (!resendTimer) {
+          setCanResend(false);
+          setResendTimer(60);
+        }
       }
     }
   };
@@ -99,7 +152,6 @@ const WholesalerLogin = () => {
     : "bg-gray-100 text-gray-900 border-gray-200";
   const inputBorder = theme === "dark" ? "border-gray-600" : "border-gray-400";
 
-  // Determine which logo to use based on theme
   const currentLogo = theme === "dark" ? logowhite : logo;
 
   // Animation variants
@@ -317,14 +369,14 @@ const WholesalerLogin = () => {
               />
             </div>
 
-            {/* OTP Field (shown after sending OTP or when OTP already sent error occurs) */}
+            {/* OTP Field */}
             <AnimatePresence>
               {(showOTPField || (error && error.toLowerCase().includes("otp already sent"))) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-2"
+                  className="space-y-4"
                 >
                   <div className={`flex items-center border-b pb-2 ${inputBorder}`}>
                     <FaLock className={`mr-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`} />
@@ -341,6 +393,38 @@ const WholesalerLogin = () => {
                       }`}
                     />
                   </div>
+                  
+                  {/* Resend OTP Section */}
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={!canResend || isResending}
+                      className={`flex items-center gap-2 text-sm font-instrument transition-all duration-300 ${
+                        canResend 
+                          ? theme === "dark"
+                            ? "text-purple-400 hover:text-purple-300"
+                            : "text-purple-600 hover:text-purple-800"
+                          : "text-gray-500 cursor-not-allowed"
+                      } ${isResending ? "opacity-70 cursor-not-allowed" : ""}`}
+                    >
+                      <FaRedo className={`w-4 h-4 ${isResending ? "animate-spin" : ""}`} />
+                      {isResending ? "Resending..." : "Resend OTP"}
+                    </button>
+                    
+                    {!canResend && resendTimer > 0 && (
+                      <motion.span 
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={`text-sm font-instrument ${
+                          theme === "dark" ? "text-gray-400" : "text-gray-600"
+                        }`}
+                      >
+                        Resend in {resendTimer}s
+                      </motion.span>
+                    )}
+                  </div>
+                  
                   {error && error.toLowerCase().includes("otp already sent") && (
                     <motion.p 
                       initial={{ opacity: 0 }}

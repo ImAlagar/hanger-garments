@@ -1,4 +1,4 @@
-// components/mobile/MobileCustomizationView.js - COMPLETE NEAT CODE
+// components/mobile/MobileCustomizationView.js - UPDATED
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   addDesignLayer, 
@@ -18,7 +18,16 @@ const MobileCustomizationView = ({
   designData,
   isCreatingDesign,
   createDesign,
-  dispatch
+  dispatch,
+  
+  // Add these props to match DesktopCustomizationView
+  variantImages: propVariantImages,
+  selectedColor: propSelectedColor,
+  handleColorChange,
+  activeImageIndex: propActiveImageIndex,
+  handleImageSelect,
+  availableColors: propAvailableColors,
+  selectedImage: propSelectedImage,
 }) => {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -46,6 +55,7 @@ const MobileCustomizationView = ({
   const [exportQuality, setExportQuality] = useState(0.9);
   const [exportSize, setExportSize] = useState('original');
   const [isExporting, setIsExporting] = useState(false);
+  const [resizeHandleSize, setResizeHandleSize] = useState(20); // Bigger for mobile touch
   
   // Available fonts and colors
   const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
@@ -59,7 +69,76 @@ const MobileCustomizationView = ({
     low: { label: 'Low (0.75x)', scale: 0.75 }
   };
 
-  // ==================== IMAGE LOADING UTILITIES ====================
+  // ==================== HELPER FUNCTIONS ====================
+
+  // Get resize handles for a layer
+  const getResizeHandles = useCallback((layer) => {
+    if (!layer || !layer.width || !layer.height) return [];
+    
+    const width = layer.width;
+    const height = layer.height;
+    const handleSize = resizeHandleSize;
+    
+    return [
+      { 
+        x: layer.x - handleSize/2, 
+        y: layer.y - handleSize/2, 
+        direction: 'nw',
+        cursor: 'nwse-resize'
+      },
+      { 
+        x: layer.x + width - handleSize/2, 
+        y: layer.y - handleSize/2, 
+        direction: 'ne',
+        cursor: 'nesw-resize'
+      },
+      { 
+        x: layer.x - handleSize/2, 
+        y: layer.y + height - handleSize/2, 
+        direction: 'sw',
+        cursor: 'nesw-resize'
+      },
+      { 
+        x: layer.x + width - handleSize/2, 
+        y: layer.y + height - handleSize/2, 
+        direction: 'se',
+        cursor: 'nwse-resize'
+      },
+      // Middle handles for better control
+      { 
+        x: layer.x + width/2 - handleSize/2, 
+        y: layer.y - handleSize/2, 
+        direction: 'n',
+        cursor: 'ns-resize'
+      },
+      { 
+        x: layer.x + width/2 - handleSize/2, 
+        y: layer.y + height - handleSize/2, 
+        direction: 's',
+        cursor: 'ns-resize'
+      },
+      { 
+        x: layer.x - handleSize/2, 
+        y: layer.y + height/2 - handleSize/2, 
+        direction: 'w',
+        cursor: 'ew-resize'
+      },
+      { 
+        x: layer.x + width - handleSize/2, 
+        y: layer.y + height/2 - handleSize/2, 
+        direction: 'e',
+        cursor: 'ew-resize'
+      },
+    ];
+  }, [resizeHandleSize]);
+
+  // Check if point is inside a resize handle
+  const isPointInResizeHandle = useCallback((pointX, pointY, handleX, handleY) => {
+    return pointX >= handleX && 
+           pointX <= handleX + resizeHandleSize && 
+           pointY >= handleY && 
+           pointY <= handleY + resizeHandleSize;
+  }, [resizeHandleSize]);
 
   // Create mobile-optimized placeholder
   const createMobilePlaceholder = useCallback(() => {
@@ -198,120 +277,27 @@ const MobileCustomizationView = ({
     });
   }, [createMobilePlaceholder, getOptimizedImageUrl]);
 
-  // ==================== CANVAS OPERATIONS ====================
+  // ==================== CANVAS DRAWING FUNCTIONS ====================
+  // Define these BEFORE functions that use them
 
-  // Count images to load
-  useEffect(() => {
-    if (isOpen && designData) {
-      let count = 0;
-      
-      // Base product image
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
-      if (baseImageUrl) count++;
-      
-      // Design layer images
-      designData.layers.forEach(layer => {
-        if (layer.type === 'image' && layer.visible !== false && layer.src) {
-          count++;
-        }
-      });
-      
-      setTotalImages(count);
-      setImagesLoaded(0);
-      setLoadingProgress(0);
-      setHasLoadingError(false);
-      retryCountRef.current = 0;
-    }
-  }, [isOpen, designData, variant, product]);
-
-  // Initialize canvas
-  useEffect(() => {
-    if (isOpen && canvasRef.current) {
-      setCanvasReady(false);
-      
-      const initCanvas = async () => {
-        try {
-          await drawCanvas();
-          setCanvasReady(true);
-          setHasLoadingError(false);
-        } catch (error) {
-          console.error('Canvas init error:', error);
-          setHasLoadingError(true);
-          retryCountRef.current += 1;
-          
-          // Auto-retry once
-          if (retryCountRef.current < 2) {
-            setTimeout(async () => {
-              try {
-                await drawCanvas();
-                setCanvasReady(true);
-              } catch (retryError) {
-                console.error('Retry failed:', retryError);
-                setCanvasReady(true); // Still set ready to allow user interaction
-              }
-            }, 2000);
-          } else {
-            setCanvasReady(true); // Allow user to continue anyway
-          }
-        }
-      };
-      
-      initCanvas();
-    }
-  }, [isOpen, designData]);
-
-  // Update loading progress
-  useEffect(() => {
-    if (totalImages > 0) {
-      const progress = Math.min(100, Math.round((loadingProgress / totalImages) * 100));
-      setImagesLoaded(progress);
-    }
-  }, [loadingProgress, totalImages]);
-
-  // Draw canvas with all elements
-  const drawCanvas = useCallback(async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for performance
-    if (!ctx) {
-      throw new Error('Could not get canvas context');
-    }
+  // 1. Image placeholder drawing
+  const drawImagePlaceholder = useCallback((ctx, layer) => {
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw base product image
-    const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
-    if (baseImageUrl) {
-      try {
-        const baseImage = await loadImage(baseImageUrl);
-        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
-      } catch (error) {
-        console.warn('Base image failed, using fallback');
-        drawFallbackBackground(ctx, canvas);
-      }
-    } else {
-      drawFallbackBackground(ctx, canvas);
-    }
-    
-    // Draw all design layers
-    for (const layer of designData.layers) {
-      if (layer.visible !== false) {
-        await drawLayerOnCanvas(ctx, layer);
-      }
-    }
-    
-    // Draw selection outline if layer is selected
-    if (selectedLayer) {
-      const layer = designData.layers.find(l => l.id === selectedLayer);
-      if (layer) {
-        drawLayerSelection(ctx, layer);
-      }
-    }
-  }, [variant, product, designData, selectedLayer, loadImage]);
+    ctx.fillStyle = '#adb5bd';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🖼️', layer.x + layer.width / 2, layer.y + layer.height / 2 - 10);
+    ctx.font = '10px Arial';
+    ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2 + 10);
+  }, []);
 
-  // Draw fallback background
+  // 2. Fallback background drawing
   const drawFallbackBackground = useCallback((ctx, canvas) => {
     // Solid white background
     ctx.fillStyle = '#ffffff';
@@ -330,7 +316,7 @@ const MobileCustomizationView = ({
     ctx.fillText('Add your design below', canvas.width / 2, canvas.height / 2 + 30);
   }, [product]);
 
-  // Draw a single layer
+  // 3. Single layer drawing
   const drawLayerOnCanvas = useCallback(async (ctx, layer) => {
     ctx.save();
     
@@ -371,190 +357,329 @@ const MobileCustomizationView = ({
     }
     
     ctx.restore();
-  }, [loadImage]);
+  }, [loadImage, drawImagePlaceholder]);
 
-  // Draw image placeholder
-  const drawImagePlaceholder = useCallback((ctx, layer) => {
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
-    ctx.strokeStyle = '#dee2e6';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
-    
-    ctx.fillStyle = '#adb5bd';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🖼️', layer.x + layer.width / 2, layer.y + layer.height / 2 - 10);
-    ctx.font = '10px Arial';
-    ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2 + 10);
-  }, []);
-
-  // Draw layer selection
+  // 4. Layer selection drawing
   const drawLayerSelection = useCallback((ctx, layer) => {
+    if (!layer) return;
+    
     const width = layer.width || 100;
     const height = layer.height || 50;
     
-    // Selection border
+    // Draw selection border
     ctx.strokeStyle = '#007bff';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
     ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
     ctx.setLineDash([]);
     
-    // Resize handles (for images and shapes)
     if (layer.type === 'image' || layer.type === 'shape') {
-      ctx.fillStyle = '#007bff';
-      const handleSize = 12;
+      const handles = getResizeHandles(layer);
       
-      // Corners
-      const corners = [
-        [layer.x, layer.y], // top-left
-        [layer.x + width, layer.y], // top-right
-        [layer.x, layer.y + height], // bottom-left
-        [layer.x + width, layer.y + height] // bottom-right
-      ];
-      
-      corners.forEach(([x, y]) => {
-        ctx.beginPath();
-        ctx.arc(x, y, handleSize / 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-  }, []);
-
-  // ==================== TOUCH HANDLERS ====================
-
-  const handleTouchStart = useCallback((e) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    
-    // Find touched layer
-    const touchedLayer = [...designData.layers]
-      .reverse()
-      .find(layer => {
-        if (!layer.visible) return false;
+      // Draw resize handles
+      handles.forEach(handle => {
+        // Fill handle with blue color
+        ctx.fillStyle = '#007bff';
+        ctx.fillRect(handle.x, handle.y, resizeHandleSize, resizeHandleSize);
         
-        const width = layer.width || 100;
-        const height = layer.height || 50;
+        // Draw handle border
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(handle.x, handle.y, resizeHandleSize, resizeHandleSize);
         
-        // Check for resize handles
-        if (selectedLayer === layer.id && (layer.type === 'image' || layer.type === 'shape')) {
-          const handleSize = 15;
-          const corners = [
-            { x: layer.x, y: layer.y, dir: 'nw' },
-            { x: layer.x + width, y: layer.y, dir: 'ne' },
-            { x: layer.x, y: layer.y + height, dir: 'sw' },
-            { x: layer.x + width, y: layer.y + height, dir: 'se' }
-          ];
-          
-          for (const corner of corners) {
-            if (Math.abs(x - corner.x) < handleSize && Math.abs(y - corner.y) < handleSize) {
-              setIsResizing(true);
-              setResizeDirection(corner.dir);
-              setDragOffset({ x: x - corner.x, y: y - corner.y });
-              return true;
-            }
-          }
+        // Add handle indicator based on direction
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial'; // Slightly bigger for mobile
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let indicator = '';
+        switch(handle.direction) {
+          case 'nw': indicator = '↖'; break;
+          case 'ne': indicator = '↗'; break;
+          case 'sw': indicator = '↙'; break;
+          case 'se': indicator = '↘'; break;
+          case 'n': indicator = '↑'; break;
+          case 's': indicator = '↓'; break;
+          case 'w': indicator = '←'; break;
+          case 'e': indicator = '→'; break;
         }
         
-        // Check layer body
-        return x >= layer.x && x <= layer.x + width && 
-               y >= layer.y && y <= layer.y + height;
+        ctx.fillText(
+          indicator, 
+          handle.x + resizeHandleSize/2, 
+          handle.y + resizeHandleSize/2
+        );
       });
-    
-    if (touchedLayer && !isResizing) {
-      setSelectedLayer(touchedLayer.id);
-      setIsDragging(true);
-      setDragOffset({
-        x: x - touchedLayer.x,
-        y: y - touchedLayer.y
-      });
-    } else if (!touchedLayer) {
-      setSelectedLayer(null);
     }
-  }, [designData, selectedLayer, isResizing]);
+  }, [getResizeHandles, resizeHandleSize]);
 
-  const handleTouchMove = useCallback((e) => {
-    e.preventDefault();
-    if (!isDragging && !isResizing) return;
-    
+  // 5. Main canvas drawing (uses all the above functions)
+  const drawCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) {
+      throw new Error('Could not get canvas context');
+    }
     
-    const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (isDragging && selectedLayer) {
-      const newX = Math.max(0, Math.min(canvas.width - 50, x - dragOffset.x));
-      const newY = Math.max(0, Math.min(canvas.height - 50, y - dragOffset.y));
-      
-      dispatch(updateDesignLayer({
-        layerId: selectedLayer,
-        updates: { x: newX, y: newY }
-      }));
-    } else if (isResizing && selectedLayer) {
+    const baseImageUrl = propSelectedImage?.imageUrl || 
+                        designData.selectedImage?.imageUrl || 
+                        propVariantImages[propActiveImageIndex]?.imageUrl ||
+                        variant?.variantImages?.[0]?.imageUrl || 
+                        product?.images?.[0]?.imageUrl;
+    
+    if (baseImageUrl) {
+      try {
+        const baseImage = await loadImage(baseImageUrl);
+        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+      } catch (error) {
+        console.warn('Base image failed, using fallback');
+        drawFallbackBackground(ctx, canvas);
+      }
+    } else {
+      drawFallbackBackground(ctx, canvas);
+    }
+    
+    // Draw all design layers
+    for (const layer of designData.layers) {
+      if (layer.visible !== false) {
+        await drawLayerOnCanvas(ctx, layer);
+      }
+    }
+    
+    // Draw selection outline if layer is selected
+    if (selectedLayer) {
       const layer = designData.layers.find(l => l.id === selectedLayer);
-      if (!layer) return;
+      if (layer) {
+        drawLayerSelection(ctx, layer);
+      }
+    }
+  }, [propSelectedImage, designData, propVariantImages, propActiveImageIndex, variant, product, selectedLayer, loadImage, drawFallbackBackground, drawLayerOnCanvas, drawLayerSelection]);
+
+  // ==================== TOUCH HANDLERS ====================
+  // These come AFTER drawCanvas since they use it
+const handleTouchStart = useCallback((e) => {
+  // Don't call preventDefault here, let the event bubble
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (touch.clientX - rect.left) * scaleX;
+  const y = (touch.clientY - rect.top) * scaleY;
+
+  let clickedOnResizeHandle = false;
+  let clickedLayerId = null;
+  let clickedResizeDirection = null;
+
+  // Check if clicked on resize handle of selected layer
+  if (selectedLayer) {
+    const selectedLayerData = designData.layers.find(l => l.id === selectedLayer);
+    if (selectedLayerData && (selectedLayerData.type === 'image' || selectedLayerData.type === 'shape')) {
+      const handles = getResizeHandles(selectedLayerData);
       
-      const currentWidth = layer.width || 100;
-      const currentHeight = layer.height || 50;
-      let newWidth = currentWidth;
-      let newHeight = currentHeight;
-      let newX = layer.x;
-      let newY = layer.y;
+      for (const handle of handles) {
+        if (isPointInResizeHandle(x, y, handle.x, handle.y)) {
+          clickedOnResizeHandle = true;
+          clickedLayerId = selectedLayer;
+          clickedResizeDirection = handle.direction;
+          break;
+        }
+      }
+    }
+  }
+
+  if (clickedOnResizeHandle) {
+    e.preventDefault(); // Only prevent default when actually handling resize
+    setIsResizing(true);
+    setResizeDirection(clickedResizeDirection);
+    setDragOffset({
+      x: x - selectedLayerData.x,
+      y: y - selectedLayerData.y
+    });
+    return;
+  }
+
+  // Check if clicked on any layer
+  const clickedLayer = [...designData.layers]
+    .reverse()
+    .find(layer => {
+      if (!layer.visible) return false;
       
-      const minSize = 30;
-      const maxWidth = canvas.width - newX;
-      const maxHeight = canvas.height - newY;
+      const layerWidth = layer.width || 100;
+      const layerHeight = layer.height || 50;
       
-      switch (resizeDirection) {
-        case 'se': // bottom-right
-          newWidth = Math.max(minSize, Math.min(maxWidth, x - layer.x));
-          newHeight = Math.max(minSize, Math.min(maxHeight, y - layer.y));
+      return x >= layer.x && 
+            x <= layer.x + layerWidth && 
+            y >= layer.y && 
+            y <= layer.y + layerHeight;
+    });
+
+  if (clickedLayer) {
+    e.preventDefault(); // Only prevent default when actually handling drag
+    setSelectedLayer(clickedLayer.id);
+    setIsDragging(true);
+    setDragOffset({
+      x: x - clickedLayer.x,
+      y: y - clickedLayer.y
+    });
+  } else {
+    setSelectedLayer(null);
+  }
+}, [designData, selectedLayer, getResizeHandles, isPointInResizeHandle]);
+
+
+const handleTouchMove = useCallback((e) => {
+  if (!isDragging && !isResizing) return;
+  
+  // Prevent default only when we're actually dragging/resizing
+  e.preventDefault();
+  
+  const canvas = canvasRef.current;
+  if (!canvas) return;
+  
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (touch.clientX - rect.left) * scaleX;
+  const y = (touch.clientY - rect.top) * scaleY;
+
+  if (isDragging && selectedLayer) {
+    const layer = designData.layers.find(l => l.id === selectedLayer);
+    if (!layer) return;
+    
+    // Calculate new position
+    const newX = Math.max(0, Math.min(canvas.width - (layer.width || 100), x - dragOffset.x));
+    const newY = Math.max(0, Math.min(canvas.height - (layer.height || 50), y - dragOffset.y));
+
+    // Update layer position
+    dispatch(updateDesignLayer({
+      layerId: selectedLayer,
+      updates: { x: newX, y: newY }
+    }));
+    
+    // Redraw immediately for smooth dragging
+    drawCanvas().catch(console.error);
+  } else if (isResizing && selectedLayer) {
+    const layer = designData.layers.find(l => l.id === selectedLayer);
+    if (!layer) return;
+
+    const currentWidth = layer.width || 100;
+    const currentHeight = layer.height || 50;
+    let newWidth = currentWidth;
+    let newHeight = currentHeight;
+    let newX = layer.x;
+    let newY = layer.y;
+
+    // Calculate new dimensions based on resize direction
+    switch (resizeDirection) {
+      case 'nw':
+        newWidth = Math.max(20, layer.x + currentWidth - x);
+        newHeight = Math.max(20, layer.y + currentHeight - y);
+        newX = x;
+        newY = y;
+        break;
+      case 'ne':
+        newWidth = Math.max(20, x - layer.x);
+        newHeight = Math.max(20, layer.y + currentHeight - y);
+        newY = y;
+        break;
+      case 'sw':
+        newWidth = Math.max(20, layer.x + currentWidth - x);
+        newHeight = Math.max(20, y - layer.y);
+        newX = x;
+        break;
+      case 'se':
+        newWidth = Math.max(20, x - layer.x);
+        newHeight = Math.max(20, y - layer.y);
+        break;
+      case 'n':
+        newHeight = Math.max(20, layer.y + currentHeight - y);
+        newY = y;
+        break;
+      case 's':
+        newHeight = Math.max(20, y - layer.y);
+        break;
+      case 'w':
+        newWidth = Math.max(20, layer.x + currentWidth - x);
+        newX = x;
+        break;
+      case 'e':
+        newWidth = Math.max(20, x - layer.x);
+        break;
+    }
+
+    // Maintain aspect ratio if multi-touch
+    const isMultiTouch = e.touches.length > 1;
+    if (isMultiTouch && layer.type === 'image' && layer.originalWidth && layer.originalHeight) {
+      const aspectRatio = layer.originalWidth / layer.originalHeight;
+      
+      switch(resizeDirection) {
+        case 'nw':
+        case 'se':
+          newHeight = newWidth / aspectRatio;
+          if (resizeDirection === 'nw') {
+            newY = layer.y + currentHeight - newHeight;
+          }
           break;
-        case 'sw': // bottom-left
-          newWidth = Math.max(minSize, Math.min(layer.x + currentWidth, layer.x + currentWidth - x));
-          newHeight = Math.max(minSize, Math.min(maxHeight, y - layer.y));
-          newX = x;
+        case 'ne':
+        case 'sw':
+          newWidth = newHeight * aspectRatio;
+          if (resizeDirection === 'ne') {
+            newX = layer.x + currentWidth - newWidth;
+          }
           break;
-        case 'ne': // top-right
-          newWidth = Math.max(minSize, Math.min(maxWidth, x - layer.x));
-          newHeight = Math.max(minSize, Math.min(layer.y + currentHeight, layer.y + currentHeight - y));
-          newY = y;
+        case 'n':
+        case 's':
+          newWidth = newHeight * aspectRatio;
+          newX = layer.x - (newWidth - currentWidth) / 2;
           break;
-        case 'nw': // top-left
-          newWidth = Math.max(minSize, Math.min(layer.x + currentWidth, layer.x + currentWidth - x));
-          newHeight = Math.max(minSize, Math.min(layer.y + currentHeight, layer.y + currentHeight - y));
-          newX = x;
-          newY = y;
+        case 'w':
+        case 'e':
+          newHeight = newWidth / aspectRatio;
+          newY = layer.y - (newHeight - currentHeight) / 2;
           break;
       }
       
-      dispatch(updateDesignLayer({
-        layerId: selectedLayer,
-        updates: {
-          x: newX,
-          y: newY,
-          width: newWidth,
-          height: newHeight
-        }
-      }));
+      // Keep within bounds
+      newX = Math.max(0, Math.min(canvas.width - newWidth, newX));
+      newY = Math.max(0, Math.min(canvas.height - newHeight, newY));
     }
-  }, [isDragging, isResizing, selectedLayer, dragOffset, resizeDirection, designData, dispatch]);
 
-  const handleTouchEnd = useCallback(() => {
+    // Apply constraints
+    newWidth = Math.max(20, Math.min(canvas.width - newX, newWidth));
+    newHeight = Math.max(20, Math.min(canvas.height - newY, newHeight));
+
+    dispatch(updateDesignLayer({
+      layerId: selectedLayer,
+      updates: {
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight
+      }
+    }));
+    
+    // Redraw immediately for smooth resizing
+    drawCanvas().catch(console.error);
+  }
+}, [isDragging, isResizing, selectedLayer, dragOffset, resizeDirection, designData, dispatch, drawCanvas]);
+ 
+
+const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
     setIsResizing(false);
     setResizeDirection(null);
+    
+    // Final redraw
     drawCanvas().catch(console.error);
   }, [drawCanvas]);
 
@@ -610,14 +735,39 @@ const MobileCustomizationView = ({
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        // Calculate appropriate size based on canvas and image dimensions
+        const maxWidth = canvas.width * 0.5; // 50% of canvas width
+        const maxHeight = canvas.height * 0.5; // 50% of canvas height
+        
+        let width = img.width;
+        let height = img.height;
+        
+        // Scale down if image is larger than max dimensions
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.floor(width * ratio);
+          height = Math.floor(height * ratio);
+        }
+        
+        // Ensure minimum size
+        width = Math.max(100, width);
+        height = Math.max(100, height);
+        
+        // Center the image on canvas
+        const x = (canvas.width - width) / 2;
+        const y = (canvas.height - height) / 2;
+
         const newLayer = {
           id: `image_${Date.now()}`,
           type: 'image',
           src: e.target.result,
-          x: 50,
-          y: 50,
-          width: Math.min(img.width, 300),
-          height: Math.min(img.height, 300),
+          x: x,
+          y: y,
+          width: width,
+          height: height,
           originalWidth: img.width,
           originalHeight: img.height,
           visible: true,
@@ -680,8 +830,12 @@ const MobileCustomizationView = ({
       previewCanvas.height = 400;
       const previewCtx = previewCanvas.getContext('2d');
       
-      // Draw preview
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      const baseImageUrl = propSelectedImage?.imageUrl || 
+                          designData.selectedImage?.imageUrl || 
+                          propVariantImages[propActiveImageIndex]?.imageUrl ||
+                          variant?.variantImages?.[0]?.imageUrl || 
+                          product?.images?.[0]?.imageUrl;
+      
       if (baseImageUrl) {
         const baseImage = await loadImage(baseImageUrl);
         previewCtx.drawImage(baseImage, 0, 0, 400, 400);
@@ -696,15 +850,26 @@ const MobileCustomizationView = ({
       
       const preview = previewCanvas.toDataURL('image/png');
       
-      // Prepare design data
+      const cleanDesignData = {
+        layers: designData.layers.map(layer => ({
+          ...layer,
+          src: layer.type === 'image' && layer.src.startsWith('http') ? 
+               `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
+        })),
+        canvasSize: designData.canvasSize,
+        backgroundColor: designData.backgroundColor,
+        selectedImage: {
+          imageUrl: baseImageUrl,
+          index: propActiveImageIndex,
+          color: propSelectedColor
+        },
+        version: '1.0',
+        createdAt: new Date().toISOString()
+      };
+      
       const designDataToSave = {
         customizationId: customization.id,
-        designData: {
-          layers: designData.layers,
-          canvasSize: designData.canvasSize,
-          version: '1.0',
-          createdAt: new Date().toISOString()
-        },
+        designData: cleanDesignData,
         previewImage: preview,
         thumbnailImage: preview
       };
@@ -717,7 +882,7 @@ const MobileCustomizationView = ({
       console.error('Failed to save design:', error);
       alert('Failed to save design. Please try again.');
     }
-  }, [designData, canvasReady, variant, product, customization, createDesign, dispatch, onClose, loadImage, drawLayerOnCanvas]);
+  }, [designData, canvasReady, propSelectedImage, propVariantImages, propActiveImageIndex, propSelectedColor, variant, product, customization, createDesign, dispatch, onClose, loadImage, drawLayerOnCanvas]);
 
   const handleDeleteLayer = useCallback(() => {
     if (selectedLayer) {
@@ -841,15 +1006,36 @@ const MobileCustomizationView = ({
       exportCtx.fillStyle = '#ffffff';
       exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
       
-      // Draw product image
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      const baseImageUrl = propSelectedImage?.imageUrl || 
+                          designData.selectedImage?.imageUrl || 
+                          propVariantImages[propActiveImageIndex]?.imageUrl ||
+                          variant?.variantImages?.[0]?.imageUrl || 
+                          product?.images?.[0]?.imageUrl;
+      
       if (baseImageUrl) {
         try {
           const baseImage = await loadImage(baseImageUrl);
           exportCtx.drawImage(baseImage, 0, 0, exportCanvas.width, exportCanvas.height);
         } catch (error) {
           console.warn('Base image not available for export');
+          // Fallback background
+          exportCtx.fillStyle = '#f8f9fa';
+          exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+          exportCtx.fillStyle = '#6c757d';
+          exportCtx.font = `bold ${20 * scale}px Arial`;
+          exportCtx.textAlign = 'center';
+          exportCtx.textBaseline = 'middle';
+          exportCtx.fillText(product?.name || 'Product', exportCanvas.width / 2, exportCanvas.height / 2);
         }
+      } else {
+        // Fallback background
+        exportCtx.fillStyle = '#f8f9fa';
+        exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        exportCtx.fillStyle = '#6c757d';
+        exportCtx.font = `bold ${20 * scale}px Arial`;
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText(product?.name || 'Product', exportCanvas.width / 2, exportCanvas.height / 2);
       }
       
       // Draw layers
@@ -894,7 +1080,7 @@ const MobileCustomizationView = ({
       setIsExporting(false);
       throw error;
     }
-  }, [canvasReady, designData, exportFormat, exportQuality, exportSize, variant, product, loadImage, drawLayerOnCanvas]);
+  }, [canvasReady, designData, exportFormat, exportQuality, exportSize, propSelectedImage, propVariantImages, propActiveImageIndex, variant, product, loadImage, drawLayerOnCanvas]);
 
   const handleSaveAndExport = useCallback(async () => {
     try {
@@ -905,11 +1091,184 @@ const MobileCustomizationView = ({
     }
   }, [handleSaveDesign, exportDesign]);
 
+  // ==================== USE EFFECTS ====================
+
+  // Count images to load
+  useEffect(() => {
+    if (isOpen && designData) {
+      let count = 0;
+      
+      const baseImageUrl = propSelectedImage?.imageUrl || 
+                          designData.selectedImage?.imageUrl || 
+                          propVariantImages[propActiveImageIndex]?.imageUrl ||
+                          variant?.variantImages?.[0]?.imageUrl || 
+                          product?.images?.[0]?.imageUrl;
+      
+      if (baseImageUrl) count++;
+      
+      // Design layer images
+      designData.layers.forEach(layer => {
+        if (layer.type === 'image' && layer.visible !== false && layer.src) {
+          count++;
+        }
+      });
+      
+      setTotalImages(count);
+      setImagesLoaded(0);
+      setLoadingProgress(0);
+      setHasLoadingError(false);
+      retryCountRef.current = 0;
+    }
+  }, [isOpen, designData, variant, product, propSelectedImage, propVariantImages, propActiveImageIndex]);
+
+  // Initialize canvas
+  useEffect(() => {
+    if (isOpen && canvasRef.current) {
+      setCanvasReady(false);
+      
+      const initCanvas = async () => {
+        try {
+          await drawCanvas();
+          setCanvasReady(true);
+          setHasLoadingError(false);
+        } catch (error) {
+          console.error('Canvas init error:', error);
+          setHasLoadingError(true);
+          retryCountRef.current += 1;
+          
+          // Auto-retry once
+          if (retryCountRef.current < 2) {
+            setTimeout(async () => {
+              try {
+                await drawCanvas();
+                setCanvasReady(true);
+              } catch (retryError) {
+                console.error('Retry failed:', retryError);
+                setCanvasReady(true); // Still set ready to allow user interaction
+              }
+            }, 2000);
+          } else {
+            setCanvasReady(true); // Allow user to continue anyway
+          }
+        }
+      };
+      
+      initCanvas();
+    }
+  }, [isOpen, designData]);
+
+  // Update loading progress
+  useEffect(() => {
+    if (totalImages > 0) {
+      const progress = Math.min(100, Math.round((loadingProgress / totalImages) * 100));
+      setImagesLoaded(progress);
+    }
+  }, [loadingProgress, totalImages]);
+
+// Global touch handlers
+useEffect(() => {
+  const handleGlobalTouchEnd = () => {
+    handleTouchEnd();
+  };
+
+  const handleGlobalTouchMove = (event) => {
+    if (isDragging || isResizing) {
+      event.preventDefault(); // Add preventDefault here
+      handleTouchMove(event);
+    }
+  };
+
+  if (isOpen) {
+    document.addEventListener('touchend', handleGlobalTouchEnd);
+    document.addEventListener('touchmove', handleGlobalTouchMove, { 
+      passive: false // Explicitly set passive to false
+    });
+  }
+
+  return () => {
+    document.removeEventListener('touchend', handleGlobalTouchEnd);
+    document.removeEventListener('touchmove', handleGlobalTouchMove);
+  };
+}, [isOpen, isDragging, isResizing, handleTouchEnd, handleTouchMove]);
   // ==================== RENDER ====================
 
   if (!isOpen) return null;
 
   const selectedLayerData = designData.layers.find(layer => layer.id === selectedLayer);
+
+  // Image Selector Component
+  const ImageSelector = () => {
+    if (!propVariantImages || propVariantImages.length === 0) return null;
+    
+    return (
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 className="font-semibold mb-3 text-sm flex items-center">
+          <span className="mr-2">🖼️</span>
+          Product Image
+        </h4>
+        
+        {/* Color Selector */}
+        {propAvailableColors && propAvailableColors.length > 0 && (
+          <div className="mb-3">
+            <label className="block text-xs font-medium mb-2 text-gray-700">Color:</label>
+            <div className="flex flex-wrap gap-2">
+              {propAvailableColors.map(color => (
+                <button
+                  key={color.name}
+                  onClick={() => handleColorChange(color.name)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                    propSelectedColor === color.name 
+                      ? 'border-blue-500 ring-2 ring-blue-200' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  style={{
+                    backgroundImage: color.image ? `url(${color.image})` : 'none',
+                    backgroundColor: !color.image ? '#e5e7eb' : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Selected: <span className="font-medium">{propSelectedColor}</span>
+            </p>
+          </div>
+        )}
+        
+        {/* Image Thumbnails */}
+        <div>
+          <label className="block text-xs font-medium mb-2 text-gray-700">Choose Image:</label>
+          <div className="grid grid-cols-3 gap-2">
+            {propVariantImages.map((image, index) => (
+              <button
+                key={image.id || index}
+                onClick={() => handleImageSelect(image, index)}
+                className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  propActiveImageIndex === index 
+                    ? 'border-blue-500 ring-2 ring-blue-200' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <img
+                  src={image.imageUrl}
+                  alt={`Option ${index + 1}`}
+                  className="w-full h-12 object-cover"
+                  loading="lazy"
+                />
+                {propActiveImageIndex === index && (
+                  <div className="absolute inset-0 bg-blue-500 bg-opacity-30 flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">✓</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
@@ -944,17 +1303,30 @@ const MobileCustomizationView = ({
       {/* Main Canvas */}
       <div className="flex-1 pt-16 pb-20 overflow-hidden">
         <div className="h-full flex items-center justify-center p-2 bg-gray-50 relative">
-          <canvas
-            ref={canvasRef}
-            width={designData.canvasSize.width || 400}
-            height={designData.canvasSize.height || 400}
-            className="bg-white border-2 border-gray-300 rounded-lg shadow-lg max-w-full max-h-full touch-none"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-          />
-          
+<div className="relative">
+  <div 
+    className="absolute inset-0"
+    onTouchStart={handleTouchStart}
+    onTouchMove={handleTouchMove}
+    onTouchEnd={handleTouchEnd}
+    onTouchCancel={handleTouchEnd}
+    style={{
+      touchAction: 'none',
+      zIndex: 1
+    }}
+  />
+  <canvas
+    ref={canvasRef}
+    width={designData.canvasSize.width || 400}
+    height={designData.canvasSize.height || 400}
+    className="bg-white border-2 border-gray-300 rounded-lg shadow-lg max-w-full max-h-full relative"
+    style={{
+      touchAction: 'none',
+      userSelect: 'none'
+    }}
+  />
+</div>
+
           {/* Loading Overlay */}
           {!canvasReady && (
             <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center">
@@ -1073,6 +1445,8 @@ const MobileCustomizationView = ({
               {/* Tools Tab */}
               {activeTab === 'tools' && (
                 <div className="space-y-6">
+                  <ImageSelector />
+                  
                   {/* Text Tool */}
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2">
@@ -1385,7 +1759,6 @@ const MobileCustomizationView = ({
       )}
     </div>
   );
-
 };
 
 export default MobileCustomizationView;

@@ -486,42 +486,91 @@ const courierOptions = [
   };
 
   // Validate individual field
-  const validateField = (name, value) => {
-    switch (name) {
-      case 'name':
-        return value.trim().length >= 2 ? '' : 'Name must be at least 2 characters';
-      case 'email':
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? '' : 'Please enter a valid email';
-      case 'phone':
-        return /^\d{10}$/.test(value) ? '' : 'Please enter a valid 10-digit phone number';
-      case 'address':
-        return value.trim().length >= 10 ? '' : 'Address must be at least 10 characters';
-      case 'city':
-        return value.trim().length >= 2 ? '' : 'Please enter a valid city';
-      case 'state':
-        return value.trim().length >= 2 ? '' : 'Please enter a valid state';
-      case 'pincode':
-        return /^\d{6}$/.test(value) ? '' : 'Please enter a valid 6-digit pincode';
-      default:
-        return '';
-    }
-  };
-
-  // Validate form
-  const validateForm = () => {
-    const errors = {};
-    const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
+// Validate individual field with proper phone validation
+const validateField = (name, value) => {
+  switch (name) {
+    case 'name':
+      if (!value.trim()) return 'Name is required';
+      if (value.trim().length < 2) return 'Name must be at least 2 characters';
+      return '';
     
-    requiredFields.forEach(field => {
-      const error = validateField(field, orderData[field]);
-      if (error) {
-        errors[field] = error;
+    case 'email':
+      if (!value.trim()) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return 'Please enter a valid email address';
       }
-    });
+      return '';
+    
+    case 'phone':
+      if (!value.trim()) return 'Phone number is required';
+      // Allow only digits, remove any spaces, dashes, or plus sign
+      const cleanPhone = value.replace(/[\s\-+()]/g, '');
+      // Allow 10 digits (Indian) OR 12 digits with country code
+      if (!/^\d{10,12}$/.test(cleanPhone)) {
+        return 'Please enter a valid 10-digit phone number';
+      }
+      // Ensure it's exactly 10 digits (remove any leading country code)
+      const phoneDigits = cleanPhone.slice(-10);
+      if (!/^\d{10}$/.test(phoneDigits)) {
+        return 'Please enter a valid 10-digit phone number';
+      }
+      return '';
+    
+    case 'address':
+      if (!value.trim()) return 'Address is required';
+      if (value.trim().length < 10) return 'Address must be at least 10 characters';
+      return '';
+    
+    case 'city':
+      if (!value.trim()) return 'City is required';
+      if (value.trim().length < 2) return 'Please enter a valid city';
+      return '';
+    
+    case 'state':
+      if (!value.trim()) return 'State is required';
+      if (value.trim().length < 2) return 'Please enter a valid state';
+      return '';
+    
+    case 'pincode':
+      if (!value.trim()) return 'Pincode is required';
+      if (!/^\d{6}$/.test(value.trim())) return 'Please enter a valid 6-digit pincode';
+      return '';
+    
+    default:
+      return '';
+  }
+};
 
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+// Validate form and show specific toast errors
+const validateForm = () => {
+  const errors = {};
+  const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
+  
+  requiredFields.forEach(field => {
+    const error = validateField(field, orderData[field]);
+    if (error) {
+      errors[field] = error;
+    }
+  });
+
+  setFormErrors(errors);
+  
+  // If there are errors, show the first error in toast
+  if (Object.keys(errors).length > 0) {
+    const firstErrorField = Object.keys(errors)[0];
+    const firstErrorMessage = errors[firstErrorField];
+    
+    // Custom toast messages for each field
+    toast.error(firstErrorMessage, {
+      position: "top-center",
+      autoClose: 3000,
+    });
+    
+    return false;
+  }
+  
+  return true;
+};
 
   // Handle successful order completion
   const handleOrderSuccess = (successData) => {
@@ -544,7 +593,7 @@ const courierOptions = [
   // Handle Razorpay Payment
   const handleRazorpayPayment = async () => {
     if (!validateForm()) {
-      toast.error("Please fix the form errors before proceeding");
+      // Error already shown in validateForm via toast
       return;
     }
 
@@ -654,7 +703,7 @@ const courierOptions = [
   // Handle COD order
   const handleCODOrder = async () => {
     if (!validateForm()) {
-      toast.error("Please fix the form errors before proceeding");
+      // Error already shown in validateForm via toast
       return;
     }
 
@@ -706,6 +755,7 @@ const courierOptions = [
     }
   };
 
+  
   // Handle place order
   const handlePlaceOrder = () => {
     if (orderData.paymentMethod === "COD") {
@@ -715,6 +765,44 @@ const courierOptions = [
     }
   };
 
+
+  // Phone input handler to format and validate
+const handlePhoneInput = (e) => {
+  let value = e.target.value;
+  
+  // Remove all non-digit characters except + (for international format)
+  value = value.replace(/[^\d+]/g, '');
+  
+  // Limit to 15 characters
+  if (value.length > 15) {
+    value = value.slice(0, 15);
+  }
+  
+  // Auto-format: if user types +91, keep it
+  if (value.startsWith('+91')) {
+    // Allow +91 followed by up to 10 digits
+    const digits = value.slice(3);
+    if (digits.length > 10) {
+      value = '+91' + digits.slice(0, 10);
+    }
+  } else if (value.startsWith('91') && value.length >= 2) {
+    // If user types 91 at start, add + automatically
+    value = '+' + value;
+  }
+  
+  setOrderData(prev => ({
+    ...prev,
+    phone: value
+  }));
+
+  // Clear error when user starts typing
+  if (formErrors.phone) {
+    setFormErrors(prev => ({
+      ...prev,
+      phone: ''
+    }));
+  }
+};
   // Format file size
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -854,18 +942,33 @@ const courierOptions = [
                   </div>
                 </div>
                 
-                <div>
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone Number *"
-                    value={orderData.phone}
-                    onChange={handleInputChange}
-                    className={`w-full p-3 border ${formErrors.phone ? 'border-red-500' : borderColor} rounded-lg ${inputBg} ${textColor} transition-colors`}
-                    required
-                  />
-                  {formErrors.phone && <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
-                </div>
+<div>
+
+  <input
+    type="tel"
+    name="phone"
+    placeholder="e.g., 9876543210 or +919876543210"
+    value={orderData.phone}
+    onChange={handlePhoneInput}
+    className={`w-full p-3 border ${
+      formErrors.phone 
+        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+        : `${borderColor} focus:ring-blue-500 focus:border-blue-500`
+    } rounded-lg ${inputBg} ${textColor} transition-colors focus:outline-none focus:ring-2`}
+    required
+  />
+  {formErrors.phone && (
+    <p className="text-red-500 text-sm mt-1 flex items-center">
+      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+      </svg>
+      {formErrors.phone}
+    </p>
+  )}
+  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+    Enter your 10-digit mobile number
+  </p>
+</div>
                 
                 <div>
                   <input

@@ -1,14 +1,13 @@
-// components/desktop/DesktopCustomizationView.js
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  addDesignLayer, 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { addDesignLayer ,  updateDesignLayer, 
   removeDesignLayer, 
+  reorderDesignLayers, 
   resetDesign,
-  updateDesignLayer,
-  reorderDesignLayers,
-  setPreviewImage 
-} from '../../redux/slices/customizationSlice';
+  setPreviewImage } from "../../redux/slices/customizationSlice";
 
+
+  
+// components/Common/DesktopCustomizationView.jsx
 const DesktopCustomizationView = ({
   isOpen,
   onClose,
@@ -18,7 +17,16 @@ const DesktopCustomizationView = ({
   designData,
   isCreatingDesign,
   createDesign,
-  dispatch
+  dispatch,
+
+  // Rename these props to avoid conflict
+  variantImages: propVariantImages,
+  selectedColor: propSelectedColor,
+  handleColorChange,
+  activeImageIndex: propActiveImageIndex,
+  handleImageSelect,
+  availableColors: propAvailableColors, // Renamed
+  selectedImage: propSelectedImage,     // Renamed
 }) => {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -47,10 +55,82 @@ const DesktopCustomizationView = ({
   const [mobileView, setMobileView] = useState('canvas');
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-
-  // Available fonts and colors from customization
-  const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
+  const [resizeHandleSize, setResizeHandleSize] = useState(12);
+  // Use the renamed props
   const availableColors = customization?.allowedColors || ['#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+  const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
+
+
+  // Get resize handles for a layer
+const getResizeHandles = useCallback((layer) => {
+  if (!layer || !layer.width || !layer.height) return [];
+  
+  const width = layer.width;
+  const height = layer.height;
+  const handleSize = resizeHandleSize;
+  
+  return [
+    { 
+      x: layer.x - handleSize/2, 
+      y: layer.y - handleSize/2, 
+      direction: 'nw',
+      cursor: 'nwse-resize'
+    },
+    { 
+      x: layer.x + width - handleSize/2, 
+      y: layer.y - handleSize/2, 
+      direction: 'ne',
+      cursor: 'nesw-resize'
+    },
+    { 
+      x: layer.x - handleSize/2, 
+      y: layer.y + height - handleSize/2, 
+      direction: 'sw',
+      cursor: 'nesw-resize'
+    },
+    { 
+      x: layer.x + width - handleSize/2, 
+      y: layer.y + height - handleSize/2, 
+      direction: 'se',
+      cursor: 'nwse-resize'
+    },
+    // Middle handles for better control
+    { 
+      x: layer.x + width/2 - handleSize/2, 
+      y: layer.y - handleSize/2, 
+      direction: 'n',
+      cursor: 'ns-resize'
+    },
+    { 
+      x: layer.x + width/2 - handleSize/2, 
+      y: layer.y + height - handleSize/2, 
+      direction: 's',
+      cursor: 'ns-resize'
+    },
+    { 
+      x: layer.x - handleSize/2, 
+      y: layer.y + height/2 - handleSize/2, 
+      direction: 'w',
+      cursor: 'ew-resize'
+    },
+    { 
+      x: layer.x + width - handleSize/2, 
+      y: layer.y + height/2 - handleSize/2, 
+      direction: 'e',
+      cursor: 'ew-resize'
+    },
+  ];
+}, [resizeHandleSize]);
+
+
+// Check if point is inside a resize handle
+const isPointInResizeHandle = useCallback((pointX, pointY, handleX, handleY) => {
+  return pointX >= handleX && 
+         pointX <= handleX + resizeHandleSize && 
+         pointY >= handleY && 
+         pointY <= handleY + resizeHandleSize;
+}, [resizeHandleSize]);
+
 
   // Export size options
   const exportSizes = {
@@ -192,6 +272,27 @@ const DesktopCustomizationView = ({
     });
   }, [createPlaceholderImage, getOptimizedImageUrl]);
 
+  // Add global event listeners for mouse up
+useEffect(() => {
+  const handleGlobalMouseUp = () => {
+    handleMouseUp();
+  };
+
+  const handleGlobalMouseMove = (event) => {
+    handleMouseMove(event);
+  };
+
+  if (isOpen) {
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+  }
+
+  return () => {
+    document.removeEventListener('mouseup', handleGlobalMouseUp);
+    document.removeEventListener('mousemove', handleGlobalMouseMove);
+  };
+}, [isOpen, isDragging, isResizing, selectedLayer, dragOffset, resizeDirection]);
+
   // Count images to load
   useEffect(() => {
     if (isOpen && designData) {
@@ -253,50 +354,52 @@ const DesktopCustomizationView = ({
     }
   }, [isOpen, designData]);
 
-  // Draw everything on canvas
   const drawCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Could not get canvas context');
-    }
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('Could not get canvas context');
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     try {
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      // ✅ Use selected image from props
+      const baseImageUrl = propSelectedImage?.imageUrl || 
+                          designData.selectedImage?.imageUrl || 
+                          propVariantImages[propActiveImageIndex]?.imageUrl;
+      
       if (baseImageUrl) {
-        try {
-          const baseImage = await loadImage(baseImageUrl);
-          ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
-        } catch (error) {
-          console.warn('Base image failed, using fallback');
-          drawFallbackBackground(ctx, canvas);
-        }
+        const baseImage = await loadImage(baseImageUrl);
+        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
       } else {
         drawFallbackBackground(ctx, canvas);
       }
       
+      // Draw design layers
       for (const layer of designData.layers) {
         if (layer.visible !== false) {
           await drawLayerOnCanvas(ctx, layer);
         }
       }
       
+      // Draw selection if any
       if (selectedLayer) {
         const layer = designData.layers.find(l => l.id === selectedLayer);
         if (layer) {
           drawLayerSelection(ctx, layer);
         }
       }
+      
     } catch (error) {
       console.error('Error drawing canvas:', error);
       drawFallbackBackground(ctx, canvas);
     }
-  }, [variant, product, designData, selectedLayer, loadImage]);
+  }, [propSelectedImage, designData, propVariantImages, propActiveImageIndex, selectedLayer, loadImage]);
 
+
+
+  
   // Draw fallback background
   const drawFallbackBackground = useCallback((ctx, canvas) => {
     ctx.fillStyle = '#ffffff';
@@ -375,32 +478,60 @@ const DesktopCustomizationView = ({
   }, []);
 
   // Draw layer selection
-  const drawLayerSelection = useCallback((ctx, layer) => {
-    const width = layer.width || 100;
-    const height = layer.height || 50;
+// Draw improved layer selection with resize handles
+const drawLayerSelection = useCallback((ctx, layer) => {
+  if (!layer) return;
+  
+  const width = layer.width || 100;
+  const height = layer.height || 50;
+  
+  // Draw selection border
+  ctx.strokeStyle = '#007bff';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
+  ctx.setLineDash([]);
+  
+  if (layer.type === 'image' || layer.type === 'shape') {
+    const handles = getResizeHandles(layer);
     
-    ctx.strokeStyle = '#007bff';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
-    ctx.setLineDash([]);
-    
-    if (layer.type === 'image' || layer.type === 'shape') {
+    // Draw resize handles
+    handles.forEach(handle => {
+      // Fill handle with blue color
       ctx.fillStyle = '#007bff';
-      const handleSize = 8;
+      ctx.fillRect(handle.x, handle.y, resizeHandleSize, resizeHandleSize);
       
-      const corners = [
-        { x: layer.x - handleSize/2, y: layer.y - handleSize/2 },
-        { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2 },
-        { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2 },
-        { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2 }
-      ];
+      // Draw handle border
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(handle.x, handle.y, resizeHandleSize, resizeHandleSize);
       
-      corners.forEach(({ x, y }) => {
-        ctx.fillRect(x, y, handleSize, handleSize);
-      });
-    }
-  }, []);
+      // Add handle indicator based on direction
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      let indicator = '';
+      switch(handle.direction) {
+        case 'nw': indicator = '↖'; break;
+        case 'ne': indicator = '↗'; break;
+        case 'sw': indicator = '↙'; break;
+        case 'se': indicator = '↘'; break;
+        case 'n': indicator = '↑'; break;
+        case 's': indicator = '↓'; break;
+        case 'w': indicator = '←'; break;
+        case 'e': indicator = '→'; break;
+      }
+      
+      ctx.fillText(
+        indicator, 
+        handle.x + resizeHandleSize/2, 
+        handle.y + resizeHandleSize/2
+      );
+    });
+  }
+}, [getResizeHandles, resizeHandleSize]);
 
   // Handle retry loading
   const handleRetryLoad = useCallback(() => {
@@ -423,66 +554,91 @@ const DesktopCustomizationView = ({
   // ==================== EXPORT FUNCTIONALITY ====================
 
   // Export design as image file
-  const exportDesign = async () => {
-    if (!canvasReady) {
-      alert('Canvas is still loading. Please wait a moment and try again.');
-      return;
-    }
+// Export design as image file
+const exportDesign = async () => {
+  if (!canvasReady) {
+    alert('Canvas is still loading. Please wait a moment and try again.');
+    return;
+  }
 
-    if (designData.layers.length === 0) {
-      alert('Please add at least one design element before exporting.');
-      return;
-    }
+  if (designData.layers.length === 0) {
+    alert('Please add at least one design element before exporting.');
+    return;
+  }
 
-    setIsExporting(true);
+  setIsExporting(true);
 
-    try {
-      const exportCanvas = document.createElement('canvas');
-      const scale = exportSizes[exportSize].scale;
-      
-      exportCanvas.width = designData.canvasSize.width * scale;
-      exportCanvas.height = designData.canvasSize.height * scale;
-      
-      const exportCtx = exportCanvas.getContext('2d');
-      exportCtx.imageSmoothingEnabled = true;
-      exportCtx.imageSmoothingQuality = 'high';
-      
-      exportCtx.fillStyle = '#ffffff';
+  try {
+    const exportCanvas = document.createElement('canvas');
+    const scale = exportSizes[exportSize].scale;
+    
+    exportCanvas.width = designData.canvasSize.width * scale;
+    exportCanvas.height = designData.canvasSize.height * scale;
+    
+    const exportCtx = exportCanvas.getContext('2d');
+    exportCtx.imageSmoothingEnabled = true;
+    exportCtx.imageSmoothingQuality = 'high';
+    
+    exportCtx.fillStyle = '#ffffff';
+    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    
+    // FIX: Use the same base image URL as in drawCanvas
+    const baseImageUrl = propSelectedImage?.imageUrl || 
+                        designData.selectedImage?.imageUrl || 
+                        propVariantImages[propActiveImageIndex]?.imageUrl ||
+                        variant?.variantImages?.[0]?.imageUrl || 
+                        product?.images?.[0]?.imageUrl;
+    
+    if (baseImageUrl) {
+      try {
+        const baseImage = await loadImage(baseImageUrl);
+        exportCtx.drawImage(baseImage, 0, 0, exportCanvas.width, exportCanvas.height);
+      } catch (error) {
+        console.warn('Could not load base image for export:', error);
+        // Draw fallback background if image fails to load
+        exportCtx.fillStyle = '#f8f9fa';
+        exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        exportCtx.fillStyle = '#6c757d';
+        exportCtx.font = `bold ${20 * scale}px Arial`;
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText(product?.name || 'Product', exportCanvas.width / 2, exportCanvas.height / 2);
+      }
+    } else {
+      // Draw fallback background if no image
+      exportCtx.fillStyle = '#f8f9fa';
       exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-      
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
-      if (baseImageUrl) {
-        try {
-          const baseImage = await loadImage(baseImageUrl);
-          exportCtx.drawImage(baseImage, 0, 0, exportCanvas.width, exportCanvas.height);
-        } catch (error) {
-          console.warn('Could not load base image for export:', error);
-        }
-      }
-      
-      for (const layer of designData.layers) {
-        if (layer.visible !== false) {
-          await drawLayerForExport(exportCtx, layer, scale);
-        }
-      }
-      
-      let dataUrl;
-      const mimeType = exportFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
-      const quality = exportFormat === 'jpeg' ? exportQuality : undefined;
-      
-      dataUrl = exportCanvas.toDataURL(mimeType, quality);
-      downloadImage(dataUrl, mimeType);
-      
-      setIsExporting(false);
-      return dataUrl;
-      
-    } catch (error) {
-      console.error('❌ Export failed:', error);
-      alert('Export failed. Please try again or use a different format.');
-      setIsExporting(false);
-      throw error;
+      exportCtx.fillStyle = '#6c757d';
+      exportCtx.font = `bold ${20 * scale}px Arial`;
+      exportCtx.textAlign = 'center';
+      exportCtx.textBaseline = 'middle';
+      exportCtx.fillText(product?.name || 'Product', exportCanvas.width / 2, exportCanvas.height / 2);
     }
-  };
+    
+    // Draw design layers
+    for (const layer of designData.layers) {
+      if (layer.visible !== false) {
+        await drawLayerForExport(exportCtx, layer, scale);
+      }
+    }
+    
+    let dataUrl;
+    const mimeType = exportFormat === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const quality = exportFormat === 'jpeg' ? exportQuality : undefined;
+    
+    dataUrl = exportCanvas.toDataURL(mimeType, quality);
+    downloadImage(dataUrl, mimeType);
+    
+    setIsExporting(false);
+    return dataUrl;
+    
+  } catch (error) {
+    console.error('❌ Export failed:', error);
+    alert('Export failed. Please try again or use a different format.');
+    setIsExporting(false);
+    throw error;
+  }
+};
 
   // Draw layer for export (scaled version)
   const drawLayerForExport = async (ctx, layer, scale) => {
@@ -557,91 +713,109 @@ const DesktopCustomizationView = ({
   };
 
   // Save design to server
-  const handleSaveDesign = async () => {
-    if (!canvasReady) {
-      alert('Canvas is still loading. Please wait a moment and try again.');
-      return;
-    }
+const handleSaveDesign = async () => {
+  if (!canvasReady) {
+    alert('Canvas is still loading. Please wait a moment and try again.');
+    return;
+  }
 
-    if (designData.layers.length === 0) {
-      alert('Please add at least one design element before saving.');
-      return;
-    }
+  if (designData.layers.length === 0) {
+    alert('Please add at least one design element before saving.');
+    return;
+  }
 
-    try {
-      const previewCanvas = document.createElement('canvas');
-      previewCanvas.width = 400;
-      previewCanvas.height = 400;
-      const previewCtx = previewCanvas.getContext('2d');
-      
-      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
-      if (baseImageUrl) {
-        try {
-          const baseImage = await loadImage(baseImageUrl);
-          previewCtx.drawImage(baseImage, 0, 0, 400, 400);
-        } catch (error) {
-          previewCtx.fillStyle = '#ffffff';
-          previewCtx.fillRect(0, 0, 400, 400);
-        }
+  try {
+    const previewCanvas = document.createElement('canvas');
+    previewCanvas.width = 400;
+    previewCanvas.height = 400;
+    const previewCtx = previewCanvas.getContext('2d');
+    
+    // FIX: Use the same base image URL as in drawCanvas
+    const baseImageUrl = propSelectedImage?.imageUrl || 
+                        designData.selectedImage?.imageUrl || 
+                        propVariantImages[propActiveImageIndex]?.imageUrl ||
+                        variant?.variantImages?.[0]?.imageUrl || 
+                        product?.images?.[0]?.imageUrl;
+    
+    if (baseImageUrl) {
+      try {
+        const baseImage = await loadImage(baseImageUrl);
+        previewCtx.drawImage(baseImage, 0, 0, 400, 400);
+      } catch (error) {
+        previewCtx.fillStyle = '#ffffff';
+        previewCtx.fillRect(0, 0, 400, 400);
       }
-      
-      for (const layer of designData.layers) {
-        if (layer.visible !== false) {
-          await drawLayerOnCanvas(previewCtx, { 
-            ...layer, 
-            x: layer.x * 0.5, 
-            y: layer.y * 0.5, 
-            width: layer.width * 0.5, 
-            height: layer.height * 0.5, 
-            fontSize: layer.fontSize * 0.5 
-          });
-        }
-      }
-      
-      const preview = previewCanvas.toDataURL('image/png');
-      
-      const cleanDesignData = {
-        layers: designData.layers.map(layer => ({
+    } else {
+      previewCtx.fillStyle = '#ffffff';
+      previewCtx.fillRect(0, 0, 400, 400);
+    }
+    
+    // Draw design layers on preview (scaled down)
+    for (const layer of designData.layers) {
+      if (layer.visible !== false) {
+        const previewLayer = {
           ...layer,
-          src: layer.type === 'image' && layer.src.startsWith('http') ? 
-               `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
-        })),
-        canvasSize: designData.canvasSize,
-        backgroundColor: designData.backgroundColor,
-        version: '1.0',
-        createdAt: new Date().toISOString()
-      };
-
-      const designDataToSave = {
-        customizationId: customization.id,
-        designData: cleanDesignData,
-        previewImage: preview,
-        thumbnailImage: preview
-      };
-
-      const result = await createDesign(designDataToSave).unwrap();
-      dispatch(setPreviewImage(preview));
-      alert('🎉 Design saved successfully! You can now add it to your cart.');
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Failed to save design:', error);
-      
-      let errorMessage = 'Failed to save design. Please try again.';
-      
-      if (error.status === 500) {
-        errorMessage = 'Server error occurred. Please check the console for details.';
-      } else if (error.data?.message) {
-        errorMessage = error.data.message;
-      } else if (error.message?.includes('Tainted canvases') || error.message?.includes('security')) {
-        errorMessage = 'Some images could not be included due to security restrictions. The design has been saved with available elements.';
+          x: layer.x * 0.5,
+          y: layer.y * 0.5,
+          width: layer.width * 0.5,
+          height: layer.height * 0.5,
+          fontSize: layer.fontSize * 0.5
+        };
+        
+        await drawLayerOnCanvas(previewCtx, previewLayer);
       }
-      
-      alert(`❌ ${errorMessage}`);
-      throw error;
     }
-  };
+    
+    const preview = previewCanvas.toDataURL('image/png');
+    
+    // Save the currently selected image in design data
+    const cleanDesignData = {
+      layers: designData.layers.map(layer => ({
+        ...layer,
+        src: layer.type === 'image' && layer.src.startsWith('http') ? 
+             `[EXTERNAL:${new URL(layer.src).pathname.split('/').pop()}]` : layer.src
+      })),
+      canvasSize: designData.canvasSize,
+      backgroundColor: designData.backgroundColor,
+      selectedImage: {
+        imageUrl: baseImageUrl,
+        index: propActiveImageIndex,
+        color: propSelectedColor
+      },
+      version: '1.0',
+      createdAt: new Date().toISOString()
+    };
+
+    const designDataToSave = {
+      customizationId: customization.id,
+      designData: cleanDesignData,
+      previewImage: preview,
+      thumbnailImage: preview
+    };
+
+    const result = await createDesign(designDataToSave).unwrap();
+    dispatch(setPreviewImage(preview));
+    alert('🎉 Design saved successfully! You can now add it to your cart.');
+    
+    return result;
+    
+  } catch (error) {
+    console.error('❌ Failed to save design:', error);
+    
+    let errorMessage = 'Failed to save design. Please try again.';
+    
+    if (error.status === 500) {
+      errorMessage = 'Server error occurred. Please check the console for details.';
+    } else if (error.data?.message) {
+      errorMessage = error.data.message;
+    } else if (error.message?.includes('Tainted canvases') || error.message?.includes('security')) {
+      errorMessage = 'Some images could not be included due to security restrictions. The design has been saved with available elements.';
+    }
+    
+    alert(`❌ ${errorMessage}`);
+    throw error;
+  }
+};
 
   // Handle save and export
   const handleSaveAndExport = async () => {
@@ -686,7 +860,7 @@ const DesktopCustomizationView = ({
     drawCanvas().catch(console.error);
   };
 
-  // Add image layer
+    // Add image layer
   const handleAddImage = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -705,14 +879,39 @@ const DesktopCustomizationView = ({
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        // Calculate appropriate size based on canvas and image dimensions
+        const maxWidth = canvas.width * 0.5; // 50% of canvas width
+        const maxHeight = canvas.height * 0.5; // 50% of canvas height
+        
+        let width = img.width;
+        let height = img.height;
+        
+        // Scale down if image is larger than max dimensions
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.floor(width * ratio);
+          height = Math.floor(height * ratio);
+        }
+        
+        // Ensure minimum size
+        width = Math.max(100, width);
+        height = Math.max(100, height);
+        
+        // Center the image on canvas
+        const x = (canvas.width - width) / 2;
+        const y = (canvas.height - height) / 2;
+
         const newLayer = {
           id: `image_${Date.now()}`,
           type: 'image',
           src: e.target.result,
-          x: 50,
-          y: 50,
-          width: Math.min(img.width, 200),
-          height: Math.min(img.height, 200),
+          x: x,
+          y: y,
+          width: width,
+          height: height,
           originalWidth: img.width,
           originalHeight: img.height,
           visible: true,
@@ -759,52 +958,66 @@ const DesktopCustomizationView = ({
   // Handle canvas click for layer selection and resize
   const handleCanvasClick = (event) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Get scale factor for canvas
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    // Correct mouse coordinates
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
+    let clickedOnResizeHandle = false;
+    let clickedLayerId = null;
+    let clickedResizeDirection = null;
+
+    // Check if clicked on resize handle of selected layer
+    if (selectedLayer) {
+      const selectedLayerData = designData.layers.find(l => l.id === selectedLayer);
+      if (selectedLayerData && (selectedLayerData.type === 'image' || selectedLayerData.type === 'shape')) {
+        const handles = getResizeHandles(selectedLayerData);
+        
+        for (const handle of handles) {
+          if (isPointInResizeHandle(x, y, handle.x, handle.y)) {
+            clickedOnResizeHandle = true;
+            clickedLayerId = selectedLayer;
+            clickedResizeDirection = handle.direction;
+            break;
+          }
+        }
+      }
+    }
+
+    if (clickedOnResizeHandle) {
+      setIsResizing(true);
+      setResizeDirection(clickedResizeDirection);
+      setDragOffset({
+        x: x - selectedLayerData.x,
+        y: y - selectedLayerData.y
+      });
+      return;
+    }
+
+    // Check if clicked on any layer
     const clickedLayer = [...designData.layers]
       .reverse()
       .find(layer => {
         if (!layer.visible) return false;
         
-        if (selectedLayer === layer.id && (layer.type === 'image' || layer.type === 'shape')) {
-          const width = layer.width || 100;
-          const height = layer.height || 50;
-          const handleSize = 8;
-          
-          const handles = [
-            { x: layer.x - handleSize/2, y: layer.y - handleSize/2, dir: 'nw' },
-            { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2, dir: 'ne' },
-            { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2, dir: 'sw' },
-            { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2, dir: 'se' },
-          ];
-          
-          const clickedHandle = handles.find(handle => 
-            x >= handle.x && x <= handle.x + handleSize && 
-            y >= handle.y && y <= handle.y + handleSize
-          );
-          
-          if (clickedHandle) {
-            setIsResizing(true);
-            setResizeDirection(clickedHandle.dir);
-            setDragOffset({
-              x: x - layer.x,
-              y: y - layer.y
-            });
-            return true;
-          }
-        }
+        const layerWidth = layer.width || 100;
+        const layerHeight = layer.height || 50;
         
         return x >= layer.x && 
-               x <= layer.x + (layer.width || 100) && 
-               y >= layer.y && 
-               y <= layer.y + (layer.height || 50);
+              x <= layer.x + layerWidth && 
+              y >= layer.y && 
+              y <= layer.y + layerHeight;
       });
 
-    if (clickedLayer && !isResizing) {
+    if (clickedLayer) {
       setSelectedLayer(clickedLayer.id);
-    } else if (!clickedLayer) {
+    } else {
       setSelectedLayer(null);
     }
   };
@@ -814,9 +1027,16 @@ const DesktopCustomizationView = ({
     if (!selectedLayer) return;
 
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Get scale factor for canvas
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    // Correct mouse coordinates
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     const layer = designData.layers.find(l => l.id === selectedLayer);
     if (!layer) return;
@@ -824,54 +1044,98 @@ const DesktopCustomizationView = ({
     const width = layer.width || 100;
     const height = layer.height || 50;
 
+    // Check if clicked on resize handle
     if (layer.type === 'image' || layer.type === 'shape') {
-      const handleSize = 8;
-      const handles = [
-        { x: layer.x - handleSize/2, y: layer.y - handleSize/2, dir: 'nw' },
-        { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2, dir: 'ne' },
-        { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2, dir: 'sw' },
-        { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2, dir: 'se' },
-      ];
+      const handles = getResizeHandles(layer);
       
-      const clickedHandle = handles.find(handle => 
-        x >= handle.x && x <= handle.x + handleSize && 
-        y >= handle.y && y <= handle.y + handleSize
-      );
-      
-      if (clickedHandle) {
-        setIsResizing(true);
-        setResizeDirection(clickedHandle.dir);
-        setDragOffset({
-          x: x - layer.x,
-          y: y - layer.y
-        });
-        return;
+      for (const handle of handles) {
+        if (isPointInResizeHandle(x, y, handle.x, handle.y)) {
+          setIsResizing(true);
+          setResizeDirection(handle.direction);
+          setDragOffset({
+            x: x - layer.x,
+            y: y - layer.y
+          });
+          
+          // Set cursor based on handle direction
+          canvas.style.cursor = handle.cursor;
+          return;
+        }
       }
     }
 
+    // Check if clicked inside the layer for dragging
     if (x >= layer.x && x <= layer.x + width && y >= layer.y && y <= layer.y + height) {
       setIsDragging(true);
       setDragOffset({
         x: x - layer.x,
         y: y - layer.y
       });
+      canvas.style.cursor = 'move';
+      return true; // Prevent text selection
     }
+    
+    return false;
   };
-
+  
+  // Handle mouse move for drag and resize
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Get scale factor for canvas
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    // Correct mouse coordinates
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+
+    // Update cursor when hovering over resize handles
+    if (!isDragging && !isResizing && selectedLayer) {
+      const layer = designData.layers.find(l => l.id === selectedLayer);
+      if (layer && (layer.type === 'image' || layer.type === 'shape')) {
+        const handles = getResizeHandles(layer);
+        let cursorSet = false;
+        
+        for (const handle of handles) {
+          if (isPointInResizeHandle(x, y, handle.x, handle.y)) {
+            canvas.style.cursor = handle.cursor;
+            cursorSet = true;
+            break;
+          }
+        }
+        
+        if (!cursorSet) {
+          const width = layer.width || 100;
+          const height = layer.height || 50;
+          
+          if (x >= layer.x && x <= layer.x + width && y >= layer.y && y <= layer.y + height) {
+            canvas.style.cursor = 'move';
+          } else {
+            canvas.style.cursor = 'default';
+          }
+        }
+      }
+    }
 
     if (isDragging && selectedLayer) {
-      const newX = x - dragOffset.x;
-      const newY = y - dragOffset.y;
+      const layer = designData.layers.find(l => l.id === selectedLayer);
+      if (!layer) return;
+      
+      // Calculate new position
+      const newX = Math.max(0, Math.min(canvas.width - (layer.width || 100), x - dragOffset.x));
+      const newY = Math.max(0, Math.min(canvas.height - (layer.height || 50), y - dragOffset.y));
 
+      // Update layer position
       dispatch(updateDesignLayer({
         layerId: selectedLayer,
         updates: { x: newX, y: newY }
       }));
+      
+      // Redraw immediately for smooth dragging
+      drawCanvas().catch(console.error);
     } else if (isResizing && selectedLayer) {
       const layer = designData.layers.find(l => l.id === selectedLayer);
       if (!layer) return;
@@ -883,37 +1147,83 @@ const DesktopCustomizationView = ({
       let newX = layer.x;
       let newY = layer.y;
 
+      // Calculate new dimensions based on resize direction
       switch (resizeDirection) {
-        case 'se':
-          newWidth = Math.max(20, x - layer.x);
-          newHeight = Math.max(20, y - layer.y);
-          break;
-        case 'sw':
-          newWidth = Math.max(20, layer.x + currentWidth - x);
-          newHeight = Math.max(20, y - layer.y);
-          newX = x;
-          break;
-        case 'ne':
-          newWidth = Math.max(20, x - layer.x);
-          newHeight = Math.max(20, layer.y + currentHeight - y);
-          newY = y;
-          break;
         case 'nw':
           newWidth = Math.max(20, layer.x + currentWidth - x);
           newHeight = Math.max(20, layer.y + currentHeight - y);
           newX = x;
           newY = y;
           break;
+        case 'ne':
+          newWidth = Math.max(20, x - layer.x);
+          newHeight = Math.max(20, layer.y + currentHeight - y);
+          newY = y;
+          break;
+        case 'sw':
+          newWidth = Math.max(20, layer.x + currentWidth - x);
+          newHeight = Math.max(20, y - layer.y);
+          newX = x;
+          break;
+        case 'se':
+          newWidth = Math.max(20, x - layer.x);
+          newHeight = Math.max(20, y - layer.y);
+          break;
+        case 'n':
+          newHeight = Math.max(20, layer.y + currentHeight - y);
+          newY = y;
+          break;
+        case 's':
+          newHeight = Math.max(20, y - layer.y);
+          break;
+        case 'w':
+          newWidth = Math.max(20, layer.x + currentWidth - x);
+          newX = x;
+          break;
+        case 'e':
+          newWidth = Math.max(20, x - layer.x);
+          break;
       }
 
+      // Maintain aspect ratio if Shift is pressed
       if (event.shiftKey && layer.type === 'image' && layer.originalWidth && layer.originalHeight) {
         const aspectRatio = layer.originalWidth / layer.originalHeight;
-        if (resizeDirection === 'se' || resizeDirection === 'nw') {
-          newHeight = newWidth / aspectRatio;
-        } else {
-          newWidth = newHeight * aspectRatio;
+        
+        switch(resizeDirection) {
+          case 'nw':
+          case 'se':
+            newHeight = newWidth / aspectRatio;
+            if (resizeDirection === 'nw') {
+              newY = layer.y + currentHeight - newHeight;
+            }
+            break;
+          case 'ne':
+          case 'sw':
+            newWidth = newHeight * aspectRatio;
+            if (resizeDirection === 'ne') {
+              newX = layer.x + currentWidth - newWidth;
+            }
+            break;
+          case 'n':
+          case 's':
+            newWidth = newHeight * aspectRatio;
+            newX = layer.x - (newWidth - currentWidth) / 2;
+            break;
+          case 'w':
+          case 'e':
+            newHeight = newWidth / aspectRatio;
+            newY = layer.y - (newHeight - currentHeight) / 2;
+            break;
         }
+        
+        // Keep within bounds
+        newX = Math.max(0, Math.min(canvas.width - newWidth, newX));
+        newY = Math.max(0, Math.min(canvas.height - newHeight, newY));
       }
+
+      // Apply constraints
+      newWidth = Math.max(20, Math.min(canvas.width - newX, newWidth));
+      newHeight = Math.max(20, Math.min(canvas.height - newY, newHeight));
 
       dispatch(updateDesignLayer({
         layerId: selectedLayer,
@@ -924,13 +1234,24 @@ const DesktopCustomizationView = ({
           height: newHeight
         }
       }));
+      
+      // Redraw immediately for smooth resizing
+      drawCanvas().catch(console.error);
     }
   };
 
+  // Handle mouse up
   const handleMouseUp = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = 'default';
+    }
+    
     setIsDragging(false);
     setIsResizing(false);
     setResizeDirection(null);
+    
+    // Final redraw
     drawCanvas().catch(console.error);
   };
 
@@ -1021,13 +1342,90 @@ const DesktopCustomizationView = ({
     }
   };
 
+
+
   // Get selected layer
   const selectedLayerData = designData.layers.find(layer => layer.id === selectedLayer);
 
   if (!isOpen) return null;
   
+
+  const ImageSelector = () => {
+    if (!propVariantImages || propVariantImages.length === 0) return null;
+    
+    return (
+      <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h4 className="font-semibold mb-3 text-sm flex items-center">
+          <span className="mr-2">🖼️</span>
+          Product Image
+        </h4>
+        
+        {/* Color Selector */}
+        {propAvailableColors && propAvailableColors.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-xs font-medium mb-2 text-gray-700">Color:</label>
+            <div className="flex flex-wrap gap-2">
+              {propAvailableColors.map(color => (
+                <button
+                  key={color.name}
+                  onClick={() => handleColorChange(color.name)}
+                  className={`w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                    propSelectedColor === color.name 
+                      ? 'border-blue-500 ring-2 ring-blue-200' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  style={{
+                    backgroundImage: color.image ? `url(${color.image})` : 'none',
+                    backgroundColor: !color.image ? '#e5e7eb' : undefined,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Selected: <span className="font-medium">{propSelectedColor}</span>
+            </p>
+          </div>
+        )}
+        
+        {/* Image Thumbnails */}
+        <div>
+          <label className="block text-xs font-medium mb-2 text-gray-700">Choose Image:</label>
+          <div className="grid grid-cols-4 gap-2">
+            {propVariantImages.map((image, index) => (
+              <button
+                key={image.id || index}
+                onClick={() => handleImageSelect(image, index)}
+                className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  propActiveImageIndex === index 
+                    ? 'border-blue-500 ring-2 ring-blue-200' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <img
+                  src={image.imageUrl}
+                  alt={`Option ${index + 1}`}
+                  className="w-full h-16 object-cover"
+                  loading="lazy"
+                />
+                {propActiveImageIndex === index && (
+                  <div className="absolute inset-0 bg-blue-500 bg-opacity-30 flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">✓</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 select-none">
       <div className="bg-white rounded-lg w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl h-[85vh] sm:h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b flex-wrap gap-2">
@@ -1048,6 +1446,7 @@ const DesktopCustomizationView = ({
           <div className="w-full lg:w-64 bg-gray-50 border-b lg:border-b-0 lg:border-r p-3 sm:p-4 overflow-y-auto order-2 lg:order-1">
             <h3 className="font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Design Tools</h3>
             
+            <ImageSelector />
             {/* Loading indicator */}
             {!canvasReady && (
               <div className="mb-3 sm:mb-4 p-2 bg-blue-100 text-blue-800 text-xs sm:text-sm rounded flex items-center">
@@ -1763,23 +2162,28 @@ const DesktopCustomizationView = ({
               )}
               
               <div className="relative">
-                <canvas
-                  ref={canvasRef}
-                  width={designData.canvasSize.width}
-                  height={designData.canvasSize.height}
-                  onClick={handleCanvasClick}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  className="bg-white border-2 border-gray-300 shadow-lg cursor-crosshair max-w-full max-h-[50vh] sm:max-h-[60vh]"
-                  style={{
-                    maxWidth: '100%',
-                    maxHeight: '50vh',
-                    width: 'auto',
-                    height: 'auto'
-                  }}
-                />
+                    <canvas
+                      ref={canvasRef}
+                      width={designData.canvasSize.width}
+                      height={designData.canvasSize.height}
+                      onClick={handleCanvasClick}
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // Prevent text selection
+                        handleMouseDown(e);
+                      }}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      onMouseLeave={handleMouseUp}
+                      className="bg-white border-2 border-gray-300 shadow-lg cursor-default max-w-full max-h-[50vh] sm:max-h-[60vh] select-none"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '50vh',
+                        width: 'auto',
+                        height: 'auto',
+                        touchAction: 'none', // Prevent scrolling on touch devices
+                        userSelect: 'none' // Prevent text selection
+                      }}
+                    />
                 
                 {/* Canvas Instructions */}
                 {designData.layers.length === 0 && canvasReady && (

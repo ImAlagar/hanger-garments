@@ -28,6 +28,23 @@ export const authService = apiSlice.injectEndpoints({
       }),
     }),
 
+    // Add resend OTP endpoints
+    resendOTP: builder.mutation({
+      query: (email) => ({
+        url: '/auth/resend-otp',
+        method: 'POST',
+        body: { email },
+      }),
+    }),
+
+    resendWholesalerOTP: builder.mutation({
+      query: (email) => ({
+        url: '/auth/resend-otp',
+        method: 'POST',
+        body: { email },
+      }),
+    }),
+
     getProfile: builder.query({
       query: () => '/auth/profile',
       providesTags: ['Auth'],
@@ -52,7 +69,7 @@ export const authService = apiSlice.injectEndpoints({
 
     wholesalerRegister: builder.mutation({
       query: (wholesalerData) => ({
-        url: '/auth/register', // Use the existing register endpoint
+        url: '/auth/register',
         method: 'POST',
         body: wholesalerData,
       }),
@@ -96,7 +113,7 @@ export const authService = apiSlice.injectEndpoints({
       invalidatesTags: ['User'],
     }),
 
-        adminForgotPassword: builder.mutation({
+    adminForgotPassword: builder.mutation({
       query: (email) => ({
         url: '/auth/admin/forgot-password',
         method: 'POST',
@@ -112,9 +129,10 @@ export const authService = apiSlice.injectEndpoints({
       }),
     }),
 
-        validateAdminResetToken: builder.query({
+    validateAdminResetToken: builder.query({
       query: ({ token, adminId }) => `/auth/admin/validate-reset-token?token=${token}&adminId=${adminId}`,
     }),
+
     // Password management
     forgotPassword: builder.mutation({
       query: (email) => ({
@@ -124,14 +142,13 @@ export const authService = apiSlice.injectEndpoints({
       }),
     }),
 
-
     forgotPasswordWholesaler: builder.mutation({
-  query: (credentials) => ({
-    url: '/auth/forgot-password-wholesaler',
-    method: 'POST',
-    body: credentials,
-  }),
-}),
+      query: (credentials) => ({
+        url: '/auth/forgot-password-wholesaler',
+        method: 'POST',
+        body: credentials,
+      }),
+    }),
 
     resetPassword: builder.mutation({
       query: (resetData) => ({
@@ -185,6 +202,9 @@ export const {
   useLoginMutation,
   useRegisterMutation,
   useVerifyOTPMutation,
+  // Add the resend OTP hooks
+  useResendOTPMutation,
+  useResendWholesalerOTPMutation,
   useGetProfileQuery,
   useLogoutMutation,
   useGetPendingWholesalersQuery,
@@ -193,16 +213,16 @@ export const {
   useWholesalerLoginMutation,
   useWholesalerRegisterMutation,
   useSendOTPMutation,
-  useVerifyWholesalerOTPMutation,
-    useAdminForgotPasswordMutation,
+  useVerifyWholesalerOTPMutation, 
+  useAdminForgotPasswordMutation,
   useAdminResetPasswordMutation,
   useValidateAdminResetTokenQuery,
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useChangePasswordMutation,
-  useValidateResetTokenQuery, // Add this
-useForgotPasswordWholesalerMutation,
+  useValidateResetTokenQuery,
+  useForgotPasswordWholesalerMutation,
   useUpdateProfileMutation,
   useGetWholesalerProfileQuery,
   useUpdateWholesalerProfileMutation,
-} = authService;
+} = authService; 

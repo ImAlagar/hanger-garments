@@ -9,6 +9,8 @@ const initialState = {
     layers: [],
     canvasSize: { width: 800, height: 600 },
     backgroundColor: '#ffffff',
+    selectedImage: null, // ✅ STEP 1: Add selectedImage here
+    selectedColor: null  // ✅ STEP 1: Add selectedColor here
   },
   // Customization options
   customizationOptions: null,
@@ -34,6 +36,17 @@ const customizationSlice = createSlice({
     setDesignData: (state, action) => {
       state.designData = { ...state.designData, ...action.payload };
     },
+    
+    // ✅ STEP 2: Add setSelectedImage reducer
+    setSelectedImage: (state, action) => {
+      state.designData.selectedImage = action.payload;
+    },
+    
+    // ✅ STEP 3: Add setSelectedColor reducer
+    setSelectedColor: (state, action) => {
+      state.designData.selectedColor = action.payload;
+    },
+    
     updateDesignLayers: (state, action) => {
       state.designData.layers = action.payload;
     },
@@ -90,16 +103,24 @@ const customizationSlice = createSlice({
 
     // Reset state
     resetDesign: (state) => {
-      state.designData = initialState.designData;
+      // ✅ STEP 4: Update resetDesign to also reset selectedImage
+      state.designData = {
+        ...initialState.designData,
+        selectedImage: null,
+        selectedColor: null
+      };
       state.currentDesign = null;
     },
     resetCustomization: () => initialState,
   },
 });
 
+// ✅ STEP 5: Export the new actions
 export const {
   setCurrentDesign,
   setDesignData,
+  setSelectedImage,    // ✅ Export
+  setSelectedColor,    // ✅ Export
   updateDesignLayers,
   addDesignLayer,
   updateDesignLayer,
