@@ -66,7 +66,7 @@ const MobileCustomizationView = ({
     // Use proxy for external images
     if (url.includes('s3.amazonaws.com') || url.includes('velan-ecom-images.s3.ap-south-1.amazonaws.com')) {
       // Use your proxy endpoint
-      return `http://localhost:5000/api/images/proxy?url=${encodeURIComponent(url)}`;
+      return `https://tiruppurgarments.com/api/images/proxy?url=${encodeURIComponent(url)}`;
     }
     
     return url;
@@ -896,30 +896,46 @@ const MobileCustomizationView = ({
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Header - Fixed at top */}
-      <div className="fixed top-0 left-0 right-0 bg-white p-4 flex items-center justify-between z-20 border-b border-gray-200 shadow-sm">
-        <button
-          onClick={handleClose}
-          className="text-2xl text-gray-600 w-10 h-10 flex items-center justify-center"
-        >
-          ←
-        </button>
-        <div className="flex-1 px-2">
-          <h2 className="text-lg font-bold text-center truncate">
-            Customize {product?.name}
-          </h2>
-          <div className="text-xs text-gray-500 text-center mt-1">
-            {designData.layers.length} layer{designData.layers.length !== 1 ? 's' : ''}
-            {totalImages > 0 && imagesLoaded < totalImages && ` • Loading images...`}
-          </div>
-        </div>
-        <button
-          onClick={handleSaveDesign}
-          disabled={isCreatingDesign || designData.layers.length === 0 || !canvasReady}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium min-w-16"
-        >
-          {isCreatingDesign ? 'Saving...' : 'Save'}
-        </button>
-      </div>
+<div className="fixed top-0 left-0 right-0 bg-white p-3 flex items-center justify-between z-20 border-b border-gray-200 shadow-sm">
+
+  {/* Back Button */}
+  <button
+    onClick={handleClose}
+    className="text-xl sm:text-2xl text-gray-600 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center"
+  >
+    ←
+  </button>
+
+  {/* Title + Sub Info */}
+  <div className="flex-1 px-2 min-w-0">
+    <h2 className="text-sm sm:text-lg font-bold text-center truncate">
+      Customize {product?.name}
+    </h2>
+
+    <div className="text-[10px] sm:text-xs text-gray-500 text-center mt-1 truncate">
+      {designData.layers.length} layer{designData.layers.length !== 1 ? "s" : ""}
+      {totalImages > 0 &&
+        imagesLoaded < totalImages &&
+        ` • Loading images...`}
+    </div>
+  </div>
+
+  {/* Save Button */}
+  <button
+    onClick={handleSaveDesign}
+    disabled={
+      isCreatingDesign ||
+      designData.layers.length === 0 ||
+      !canvasReady
+    }
+    className="bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg 
+               disabled:opacity-50 disabled:cursor-not-allowed 
+               text-xs sm:text-sm font-medium min-w-[60px] sm:min-w-16"
+  >
+    {isCreatingDesign ? "Saving..." : "Save"}
+  </button>
+</div>
+
       
       {/* Main Canvas Area - Takes most of screen */}
       <div className="flex-1 pt-16 pb-20 overflow-hidden">

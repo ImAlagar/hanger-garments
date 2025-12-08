@@ -19,7 +19,9 @@ import {
   Clock,
   XCircle,
   Image,
-  Palette
+  Palette,
+  MessageSquare,
+  Package2
 } from 'lucide-react';
 
 const ViewOrder = () => {
@@ -80,6 +82,18 @@ const ViewOrder = () => {
     SUCCESS: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
     PENDING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
     FAILED: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  };
+
+  // Courier options mapping
+  const courierOptions = {
+    'delhivery': { label: 'Delhivery', description: 'Fast delivery (2-4 days)' },
+    'dtdc': { label: 'DTDC', description: 'Economy delivery (4-7 days)' },
+    'bluedart': { label: 'Blue Dart', description: 'Premium delivery (1-3 days)' },
+    'fedex': { label: 'FedEx', description: 'International & Express delivery' },
+    'xpressbees': { label: 'XpressBees', description: 'Reliable service across India' },
+    'ekart': { label: 'Ekart', description: "Flipkart's logistics service" },
+    'professional': { label: 'Professional Courier', description: 'Standard delivery (3-5 days)' },
+    'others': { label: 'Others', description: 'We will choose the best available courier' }
   };
 
   // Animation variants
@@ -168,6 +182,21 @@ const ViewOrder = () => {
     }
   };
 
+  // Get courier info
+  const getCourierInfo = () => {
+    if (!order.preferredCourier) return null;
+    
+    const courier = courierOptions[order.preferredCourier];
+    if (!courier) return null;
+    
+    return {
+      ...courier,
+      value: order.preferredCourier
+    };
+  };
+
+  const courierInfo = getCourierInfo();
+
   // Extract filename without extension for display
   const getDisplayFilename = (filename) => {
     if (!filename) return 'Custom Design';
@@ -203,7 +232,6 @@ const ViewOrder = () => {
               </p>
               </div>
           </div>
-
 
           </div>
         </div>
@@ -244,6 +272,56 @@ const ViewOrder = () => {
                   </span>
                 </div>
               </div>
+            </motion.div>
+
+            {/* Courier Information */}
+            <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
+              <h2 className={`text-lg font-semibold font-instrument mb-4 flex items-center ${currentTheme.text.primary}`}>
+                <Package2 className="w-5 h-5 mr-2" />
+                Courier Information
+              </h2>
+              
+              {courierInfo ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className={currentTheme.text.muted}>Preferred Courier</span>
+                    <span className={`font-medium ${currentTheme.text.primary}`}>
+                      {courierInfo.label}
+                    </span>
+                  </div>
+                  <div>
+                    <p className={`text-sm ${currentTheme.text.muted} mb-1`}>Service Description</p>
+                    <p className={`text-sm ${currentTheme.text.primary}`}>
+                      {courierInfo.description}
+                    </p>
+                  </div>
+                  
+                  {order.courierInstructions && (
+                    <div>
+                      <div className="flex items-center mb-1">
+                        <MessageSquare className="w-4 h-4 text-gray-500 mr-2" />
+                        <span className={`text-sm font-medium ${currentTheme.text.muted}`}>Customer Instructions</span>
+                      </div>
+                      <div className={`p-3 rounded-lg ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'
+                      }`}>
+                        <p className={`text-sm ${currentTheme.text.primary}`}>
+                          {order.courierInstructions}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={`p-4 rounded-lg text-center ${
+                  theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                }`}>
+                  <Truck className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className={`text-sm ${currentTheme.text.muted}`}>
+                    No courier preference specified by customer
+                  </p>
+                </div>
+              )}
             </motion.div>
 
             {/* Customer Information */}
@@ -499,6 +577,108 @@ const ViewOrder = () => {
                     </div>
                   )}
                 </div>
+              </motion.div>
+            )}
+
+            {/* Courier vs Actual Shipping Info */}
+            {(courierInfo || order.carrier) && (
+              <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
+                <h2 className={`text-xl font-semibold font-instrument mb-6 flex items-center ${currentTheme.text.primary}`}>
+                  <Package2 className="w-5 h-5 mr-2" />
+                  Shipping Comparison
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Customer Preference */}
+                  <div className={`p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-blue-50'
+                  }`}>
+                    <h3 className={`text-sm font-semibold mb-3 ${currentTheme.text.primary}`}>
+                      Customer Preference
+                    </h3>
+                    {courierInfo ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className={`text-xs ${currentTheme.text.muted}`}>Preferred Courier</label>
+                          <p className={`font-medium ${currentTheme.text.primary}`}>
+                            {courierInfo.label}
+                          </p>
+                        </div>
+                        <div>
+                          <label className={`text-xs ${currentTheme.text.muted}`}>Service Type</label>
+                          <p className={`text-sm ${currentTheme.text.primary}`}>
+                            {courierInfo.description}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={`text-sm ${currentTheme.text.muted}`}>
+                        No preference specified
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actual Shipping */}
+                  <div className={`p-4 rounded-lg ${
+                    theme === 'dark' ? 'bg-gray-700' : 'bg-green-50'
+                  }`}>
+                    <h3 className={`text-sm font-semibold mb-3 ${currentTheme.text.primary}`}>
+                      Actual Shipping
+                    </h3>
+                    {order.carrier ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className={`text-xs ${currentTheme.text.muted}`}>Courier Used</label>
+                          <p className={`font-medium ${currentTheme.text.primary}`}>
+                            {order.carrier}
+                          </p>
+                        </div>
+                        {order.trackingNumber && (
+                          <div>
+                            <label className={`text-xs ${currentTheme.text.muted}`}>Tracking Number</label>
+                            <p className={`font-mono text-sm ${currentTheme.text.primary}`}>
+                              {order.trackingNumber}
+                            </p>
+                          </div>
+                        )}
+                        {courierInfo && order.carrier && (
+                          <div className={`mt-2 p-2 rounded text-xs ${
+                            order.carrier.toLowerCase().includes(courierInfo.value.toLowerCase()) 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          }`}>
+                            {order.carrier.toLowerCase().includes(courierInfo.value.toLowerCase()) 
+                              ? '✓ Customer preference matched'
+                              : '⚠ Different courier used'
+                            }
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className={`text-sm ${currentTheme.text.muted}`}>
+                        Not shipped yet
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Courier Instructions Summary */}
+                {order.courierInstructions && (
+                  <div className="mt-4">
+                    <div className="flex items-center mb-2">
+                      <MessageSquare className="w-4 h-4 text-gray-500 mr-2" />
+                      <span className={`text-sm font-medium ${currentTheme.text.primary}`}>
+                        Customer Instructions Summary
+                      </span>
+                    </div>
+                    <div className={`p-3 rounded-lg border ${
+                      theme === 'dark' ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-blue-50'
+                    }`}>
+                      <p className={`text-sm ${currentTheme.text.primary}`}>
+                        {order.courierInstructions}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </div>

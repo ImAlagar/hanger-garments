@@ -13,11 +13,10 @@ import {
 import { clearCart } from "../../redux/slices/cartSlice";
 import { useGetAvailableCouponsQuery, useValidateCouponMutation } from "../../redux/services/couponService";
 import { useCalculateQuantityPriceMutation } from "../../redux/services/productService";
-import { CreditCard, MapPin, ShoppingCart, Shield, Truck, Upload, X, Percent, Tag } from "lucide-react";
+import { CreditCard, MapPin, ShoppingCart, Shield, Truck, Upload, X, Percent, Tag, Package } from "lucide-react";
 import razorpayService from "../../utils/razorpayService";
 
-import placeholderimage from "../../assets/images/placeholder.jpg"
-
+import placeholderimage from "../../assets/images/placeholder.jpg";
 
 const Checkout = () => {
   const { theme } = useTheme();
@@ -68,8 +67,22 @@ const Checkout = () => {
     city: "",
     state: "",
     pincode: "",
-    paymentMethod: "ONLINE"
+    paymentMethod: "ONLINE",
+    preferredCourier: "", // New field
+    courierInstructions: "" // New field
   });
+
+  // Courier options
+const courierOptions = [
+    { value: 'professional', label: 'Professional Courier', description: 'Standard delivery' },
+    { value: 'dtdc', label: 'DTDC', description: 'Economy delivery' },
+    { value: 'bluedart', label: 'Blue Dart', description: 'Premium domestic delivery' },
+    { value: 'delhivery', label: 'Delhivery', description: 'E-commerce delivery' },
+    { value: 'fedex', label: 'FedEx', description: 'International & Express delivery' },
+    { value: 'dhl', label: 'DHL', description: 'Worldwide logistics' },
+    { value: 'ekart', label: 'Ekart', description: 'Flipkart logistics' },
+    { value: 'others', label: 'Others', description: 'Other courier service' }
+];
 
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -388,6 +401,32 @@ const Checkout = () => {
     setImagePreviews([]);
   };
 
+  // Handle input changes with validation
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setOrderData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  // Handle courier selection
+  const handleCourierChange = (e) => {
+    const { name, value } = e.target;
+    setOrderData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   // Apply coupon
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
@@ -444,23 +483,6 @@ const Checkout = () => {
       handleApplyCoupon();
     }, 100);
     setShowAvailableCoupons(false);
-  };
-
-  // Handle input changes with validation
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setOrderData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Clear error when user starts typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
   };
 
   // Validate individual field
@@ -520,114 +542,115 @@ const Checkout = () => {
   };
 
   // Handle Razorpay Payment
+  const handleRazorpayPayment = async () => {
+    if (!validateForm()) {
+      toast.error("Please fix the form errors before proceeding");
+      return;
+    }
 
-const handleRazorpayPayment = async () => {
-  if (!validateForm()) {
-    toast.error("Please fix the form errors before proceeding");
-    return;
-  }
-
-  try {
-    setPaymentProcessing(true);
-    
-    const orderItemsData = getOrderItemsData();
-    
-    // Prepare custom images data
-    const customImageData = customImages.map((file, index) => ({
-      url: imagePreviews[index]?.url || '',
-      key: `custom-image-${Date.now()}-${index}`,
-      filename: file.name || `custom-image-${Date.now()}-${index}.jpg`
-    }));
-    
-    // Step 1: Initiate payment with backend (this will calculate quantity discounts)
-    const paymentData = {
-      orderData: {
-        ...orderData,
-        orderItems: orderItemsData,
-        couponCode: appliedCoupon?.code || null,
-        customImages: customImageData
-      }
-    };
-
-    const result = await initiatePayment(paymentData).unwrap();
-    
-    
-    if (result.success) {
-      const { razorpayOrder, tempOrderData, calculatedTotals } = result.data;
-
-      // Step 2: Open Razorpay checkout with the calculated amount
-      const razorpayResponse = await razorpayService.openRazorpayCheckout({
-        razorpayOrderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        name: "Tiruppur Garments",
-        description: `Order Payment - ${tempOrderData.orderNumber}`,
-        prefill: {
-          name: orderData.name,
-          email: orderData.email,
-          contact: orderData.phone
-        },
-        notes: {
-          orderNumber: tempOrderData.orderNumber
-        },
-        theme: {
-          color: "#3399cc"
-        }
-      });
-
-
-      // Step 3: Verify payment with backend
-      const verificationResult = await verifyPayment({
-        razorpay_order_id: razorpayResponse.razorpay_order_id,
-        razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-        razorpay_signature: razorpayResponse.razorpay_signature,
+    try {
+      setPaymentProcessing(true);
+      
+      const orderItemsData = getOrderItemsData();
+      
+      // Prepare custom images data
+      const customImageData = customImages.map((file, index) => ({
+        url: imagePreviews[index]?.url || '',
+        key: `custom-image-${Date.now()}-${index}`,
+        filename: file.name || `custom-image-${Date.now()}-${index}.jpg`
+      }));
+      
+      // Step 1: Initiate payment with backend (this will calculate quantity discounts)
+      const paymentData = {
         orderData: {
           ...orderData,
           orderItems: orderItemsData,
           couponCode: appliedCoupon?.code || null,
           customImages: customImageData
         }
-      }).unwrap();
+      };
 
+      const result = await initiatePayment(paymentData).unwrap();
+      
+      if (result.success) {
+        const { razorpayOrder, tempOrderData, calculatedTotals } = result.data;
 
-      if (verificationResult.success) {
-        // Payment successful
-        const order = verificationResult.data;
-        
-        const successData = {
-          orderNumber: order.orderNumber,
-          totalAmount: order.totalAmount,
-          items: cartItems,
-          paymentMethod: 'ONLINE',
-          status: 'confirmed',
-          timestamp: new Date().toISOString(),
-          razorpayPaymentId: razorpayResponse.razorpay_payment_id,
-          customImages: order.customImages || [],
-          calculatedTotals: calculatedTotals
-        };
-        
-        toast.success("Payment successful! Order confirmed.");
-        handleOrderSuccess(successData);
+        // Step 2: Open Razorpay checkout with the calculated amount
+        const razorpayResponse = await razorpayService.openRazorpayCheckout({
+          razorpayOrderId: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          name: "Tiruppur Garments",
+          description: `Order Payment - ${tempOrderData.orderNumber}`,
+          prefill: {
+            name: orderData.name,
+            email: orderData.email,
+            contact: orderData.phone
+          },
+          notes: {
+            orderNumber: tempOrderData.orderNumber
+          },
+          theme: {
+            color: "#3399cc"
+          }
+        });
+
+        // Step 3: Verify payment with backend
+        const verificationResult = await verifyPayment({
+          razorpay_order_id: razorpayResponse.razorpay_order_id,
+          razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+          razorpay_signature: razorpayResponse.razorpay_signature,
+          orderData: {
+            ...orderData,
+            orderItems: orderItemsData,
+            couponCode: appliedCoupon?.code || null,
+            customImages: customImageData
+          }
+        }).unwrap();
+
+        if (verificationResult.success) {
+          // Payment successful
+          const order = verificationResult.data;
+          
+          const successData = {
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            items: cartItems,
+            paymentMethod: 'ONLINE',
+            status: 'confirmed',
+            timestamp: new Date().toISOString(),
+            razorpayPaymentId: razorpayResponse.razorpay_payment_id,
+            customImages: order.customImages || [],
+            calculatedTotals: calculatedTotals,
+            courierInfo: {
+              preferredCourier: orderData.preferredCourier,
+              courierInstructions: orderData.courierInstructions
+            }
+          };
+          
+          toast.success("Payment successful! Order confirmed.");
+          handleOrderSuccess(successData);
+        }
       }
+    } catch (error) {
+      console.error("Payment processing failed:", error);
+      console.error("Error details:", {
+        status: error.status,
+        data: error.data,
+        message: error.message
+      });
+      
+      if (error.message === 'Payment cancelled by user') {
+        toast.info("Payment was cancelled");
+      } else {
+        const errorMessage = error.data?.message || "Payment processing failed";
+        toast.error(`Payment failed: ${errorMessage}`);
+      }
+    } finally {
+      setPaymentProcessing(false);
     }
-  } catch (error) {
-    console.error("Payment processing failed:", error);
-    console.error("Error details:", {
-      status: error.status,
-      data: error.data,
-      message: error.message
-    });
-    
-    if (error.message === 'Payment cancelled by user') {
-      toast.info("Payment was cancelled");
-    } else {
-      const errorMessage = error.data?.message || "Payment processing failed";
-      toast.error(`Payment failed: ${errorMessage}`);
-    }
-  } finally {
-    setPaymentProcessing(false);
-  }
-};
+  };
+
   // Handle COD order
   const handleCODOrder = async () => {
     if (!validateForm()) {
@@ -664,7 +687,11 @@ const handleRazorpayPayment = async () => {
           paymentMethod: 'COD',
           status: 'confirmed',
           timestamp: new Date().toISOString(),
-          customImages: result.data.customImages || [] // Get from order response
+          customImages: result.data.customImages || [], // Get from order response
+          courierInfo: {
+            preferredCourier: orderData.preferredCourier,
+            courierInstructions: orderData.courierInstructions
+          }
         };
         
         toast.success("Order placed successfully!");
@@ -889,6 +916,54 @@ const handleRazorpayPayment = async () => {
                       required
                     />
                     {formErrors.pincode && <p className="text-red-500 text-sm mt-1">{formErrors.pincode}</p>}
+                  </div>
+                </div>
+
+                {/* Courier Preference Section */}
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <span>Courier Preference (Optional)</span>
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Preferred Courier Service
+                      </label>
+                      <select
+                        name="preferredCourier"
+                        value={orderData.preferredCourier}
+                        onChange={handleCourierChange}
+                        className={`w-full p-3 border ${borderColor} rounded-lg ${inputBg} ${textColor} transition-colors`}
+                      >
+                        <option value="">Select a courier service (Optional)</option>
+                        {courierOptions.map((courier) => (
+                          <option key={courier.value} value={courier.value}>
+                            {courier.label} - {courier.description}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        We'll try to use your preferred courier, but availability may vary by location
+                      </p>
+                    </div>
+
+                    {orderData.preferredCourier && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Special Instructions for Courier (Optional)
+                        </label>
+                        <textarea
+                          name="courierInstructions"
+                          value={orderData.courierInstructions}
+                          onChange={handleCourierChange}
+                          rows={2}
+                          placeholder="e.g., Leave at security, Call before delivery, Deliver only on weekends, etc."
+                          className={`w-full p-3 border ${borderColor} rounded-lg ${inputBg} ${textColor} transition-colors`}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1180,51 +1255,50 @@ const handleRazorpayPayment = async () => {
               )}
 
               {/* Coupon Input Section */}
-<div className="flex flex-wrap gap-3">
-  <input
-    type="text"
-    placeholder="Enter coupon code"
-    value={couponCode}
-    onChange={(e) => setCouponCode(e.target.value)}
-    disabled={!!appliedCoupon}
-    className={`
-      flex-1 min-w-[200px] p-3 border ${borderColor} rounded-lg 
-      ${inputBg} ${textColor} 
-      ${appliedCoupon ? "opacity-50" : ""} 
-      transition-colors w-full sm:w-auto
-    `}
-  />
+              <div className="flex flex-wrap gap-3">
+                <input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  disabled={!!appliedCoupon}
+                  className={`
+                    flex-1 min-w-[200px] p-3 border ${borderColor} rounded-lg 
+                    ${inputBg} ${textColor} 
+                    ${appliedCoupon ? "opacity-50" : ""} 
+                    transition-colors w-full sm:w-auto
+                  `}
+                />
 
-  {!appliedCoupon ? (
-    <button
-      onClick={handleApplyCoupon}
-      disabled={loading || !couponCode.trim()}
-      className={`
-        px-6 py-3 rounded-lg font-semibold transition-all 
-        w-full sm:w-auto
-        ${
-          isDark
-            ? "bg-orange-600 text-white hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed"
-            : "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed"
-        }
-      `}
-    >
-      {loading ? "..." : "Apply"}
-    </button>
-  ) : (
-    <button
-      onClick={handleRemoveCoupon}
-      className="
-        px-6 py-3 bg-red-500 text-white rounded-lg font-semibold 
-        hover:bg-red-600 transition-colors 
-        w-full sm:w-auto
-      "
-    >
-      Remove
-    </button>
-  )}
-</div>
-
+                {!appliedCoupon ? (
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={loading || !couponCode.trim()}
+                    className={`
+                      px-6 py-3 rounded-lg font-semibold transition-all 
+                      w-full sm:w-auto
+                      ${
+                        isDark
+                          ? "bg-orange-600 text-white hover:bg-orange-700 disabled:bg-orange-400 disabled:cursor-not-allowed"
+                          : "bg-orange-500 text-white hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed"
+                      }
+                    `}
+                  >
+                    {loading ? "..." : "Apply"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="
+                      px-6 py-3 bg-red-500 text-white rounded-lg font-semibold 
+                      hover:bg-red-600 transition-colors 
+                      w-full sm:w-auto
+                    "
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
 
               {/* Applied Coupon Display */}
               {appliedCoupon && (
@@ -1302,8 +1376,6 @@ const handleRazorpayPayment = async () => {
                           {item.variant?.color || 'N/A'} | {item.variant?.size || 'N/A'} × {item.quantity}
                         </p>
                         {hasDiscount && renderItemDiscountType(item)}
-                        
-
                       </div>
                       <div className="text-right">
                         <span className="font-semibold text-sm">₹{itemTotal.toFixed(2)}</span>
@@ -1317,6 +1389,24 @@ const handleRazorpayPayment = async () => {
                   );
                 })}
               </div>
+
+              {/* Courier Preference in Order Summary */}
+              {orderData.preferredCourier && (
+                <div className="mb-4 p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400 mb-2">
+                    <Package className="w-4 h-4" />
+                    <span className="text-sm font-medium">Preferred Courier</span>
+                  </div>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">
+                    {courierOptions.find(c => c.value === orderData.preferredCourier)?.label}
+                  </p>
+                  {orderData.courierInstructions && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 truncate" title={orderData.courierInstructions}>
+                      📝 Instructions: {orderData.courierInstructions}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Custom Images Preview in Order Summary */}
               {imagePreviews.length > 0 && (
