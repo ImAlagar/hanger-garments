@@ -1,6 +1,13 @@
 // components/desktop/DesktopCustomizationView.js
-import React, { useState, useRef, useEffect } from 'react';
-import { addDesignLayer, setPreviewImage, updateDesignLayer } from '../../redux/slices/customizationSlice';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { 
+  addDesignLayer, 
+  removeDesignLayer, 
+  resetDesign,
+  updateDesignLayer,
+  reorderDesignLayers,
+  setPreviewImage 
+} from '../../redux/slices/customizationSlice';
 
 const DesktopCustomizationView = ({
   isOpen,
@@ -15,8 +22,8 @@ const DesktopCustomizationView = ({
 }) => {
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
-  
-  // Redux state
+  const retryCountRef = useRef(0);
+  const imageCacheRef = useRef(new Map());
   
   // Local state
   const [activeTool, setActiveTool] = useState('text');
@@ -30,13 +37,16 @@ const DesktopCustomizationView = ({
   const [resizeDirection, setResizeDirection] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [canvasReady, setCanvasReady] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [totalImages, setTotalImages] = useState(0);
+  const [hasLoadingError, setHasLoadingError] = useState(false);
   const [exportFormat, setExportFormat] = useState('png');
   const [exportQuality, setExportQuality] = useState(1.0);
   const [exportSize, setExportSize] = useState('original');
   const [activeMobileTab, setActiveMobileTab] = useState('tools');
-  const [mobileView, setMobileView] = useState('canvas'); // 'canvas', 'tools', 'layers'
+  const [mobileView, setMobileView] = useState('canvas');
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Available fonts and colors from customization
   const availableFonts = customization?.allowedFonts || ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
@@ -50,349 +60,367 @@ const DesktopCustomizationView = ({
     low: { label: 'Low (0.75x)', scale: 0.75 }
   };
 
-  // Convert S3 URL to proxy URL
-  const getProxiedImageUrl = (url) => {
-    if (!url || url.startsWith('data:') || url.startsWith('blob:')) {
+  // ==================== IMAGE LOADING UTILITIES ====================
+
+  // Create optimized placeholder
+  const createPlaceholderImage = useCallback(() => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      
+      // Gradient background
+      const gradient = ctx.createLinearGradient(0, 0, 400, 400);
+      gradient.addColorStop(0, '#f8f9fa');
+      gradient.addColorStop(1, '#e9ecef');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 400, 400);
+      
+      // Border
+      ctx.strokeStyle = '#dee2e6';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(50, 50, 300, 300);
+      
+      // Text
+      ctx.fillStyle = '#adb5bd';
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🖼️', 200, 150);
+      ctx.font = '16px Arial';
+      ctx.fillText('Image Loading', 200, 200);
+      ctx.font = '14px Arial';
+      ctx.fillText('Click + to upload', 200, 240);
+      
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.src = canvas.toDataURL('image/png');
+    });
+  }, []);
+
+  // Get optimized image URL
+  const getOptimizedImageUrl = useCallback((url) => {
+    if (!url) return null;
+    
+    // Already data URL or blob
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
       return url;
     }
     
-    if (url.includes('s3.amazonaws.com') || url.includes('velan-ecom-images.s3.ap-south-1.amazonaws.com')) {
-      return `https://tiruppurgarments.com/api/images/proxy?url=${encodeURIComponent(url)}`;
+    // Check cache
+    if (imageCacheRef.current.has(url)) {
+      return imageCacheRef.current.get(url);
     }
     
+    // For S3 URLs, use proxy
+    if (url.includes('amazonaws.com') || url.includes('s3.')) {
+      const proxyUrl = `https://tiruppurgarments.com/api/images/proxy?url=${encodeURIComponent(url)}&width=1200&quality=85`;
+      imageCacheRef.current.set(url, proxyUrl);
+      return proxyUrl;
+    }
+    
+    // For other URLs, use direct
+    imageCacheRef.current.set(url, url);
     return url;
-  };
+  }, []);
 
-  // Load image with CORS handling and proxy support
-  const loadImage = (src) => {
-    return new Promise((resolve, reject) => {
+  // Load image with retry logic
+  const loadImage = useCallback(async (src) => {
+    const imageUrl = getOptimizedImageUrl(src);
+    const cacheKey = imageUrl || src;
+    
+    // Check memory cache first
+    if (imageCacheRef.current.has(`loaded_${cacheKey}`)) {
+      return imageCacheRef.current.get(`loaded_${cacheKey}`);
+    }
+    
+    return new Promise((resolve) => {
       const img = new Image();
-      const proxiedSrc = getProxiedImageUrl(src);
+      
+      // Timeout for slow connections
+      const timeout = setTimeout(() => {
+        console.log(`⏰ Timeout for image: ${src.substring(0, 50)}...`);
+        img.src = '';
+        createPlaceholderImage().then(placeholderImg => {
+          imageCacheRef.current.set(`loaded_${cacheKey}`, placeholderImg);
+          resolve(placeholderImg);
+        });
+      }, 15000);
       
       img.crossOrigin = 'Anonymous';
+      img.loading = 'eager';
       
       img.onload = () => {
-        setImagesLoaded(prev => prev + 1);
+        clearTimeout(timeout);
+        setLoadingProgress(prev => prev + 1);
+        imageCacheRef.current.set(`loaded_${cacheKey}`, img);
         resolve(img);
       };
       
-      img.onerror = (err) => {
-        console.error('❌ Failed to load image:', src, err);
+      img.onerror = () => {
+        clearTimeout(timeout);
+        console.warn(`❌ Failed to load: ${src.substring(0, 50)}...`);
         
-        if (proxiedSrc !== src) {
-          const fallbackImg = new Image();
-          fallbackImg.onload = () => {
-            setImagesLoaded(prev => prev + 1);
-            resolve(fallbackImg);
-          };
-          fallbackImg.onerror = () => {
-            setImagesLoaded(prev => prev + 1);
-            createPlaceholderImage().then(resolve).catch(() => {
-              const basicImg = new Image();
-              basicImg.onload = () => {
-                setImagesLoaded(prev => prev + 1);
-                resolve(basicImg);
-              };
-              basicImg.src = createBasicPlaceholder();
-            });
-          };
-          fallbackImg.src = src;
-        } else {
-          setImagesLoaded(prev => prev + 1);
-          createPlaceholderImage().then(resolve).catch(() => {
-            const basicImg = new Image();
-            basicImg.onload = () => {
-              setImagesLoaded(prev => prev + 1);
-              resolve(basicImg);
+        // Try direct URL if proxy was used
+        if (imageUrl !== src && src.startsWith('http')) {
+          setTimeout(() => {
+            const fallbackImg = new Image();
+            fallbackImg.crossOrigin = 'Anonymous';
+            fallbackImg.onload = () => {
+              setLoadingProgress(prev => prev + 1);
+              imageCacheRef.current.set(`loaded_${cacheKey}`, fallbackImg);
+              resolve(fallbackImg);
             };
-            basicImg.src = createBasicPlaceholder();
+            fallbackImg.onerror = () => {
+              createPlaceholderImage().then(placeholderImg => {
+                imageCacheRef.current.set(`loaded_${cacheKey}`, placeholderImg);
+                resolve(placeholderImg);
+              });
+            };
+            fallbackImg.src = src;
+          }, 500);
+        } else {
+          createPlaceholderImage().then(placeholderImg => {
+            imageCacheRef.current.set(`loaded_${cacheKey}`, placeholderImg);
+            resolve(placeholderImg);
           });
         }
       };
       
-      img.src = proxiedSrc;
+      img.src = imageUrl || src;
     });
-  };
+  }, [createPlaceholderImage, getOptimizedImageUrl]);
 
-  // Create SVG placeholder
-  const createPlaceholderImage = () => {
-    return new Promise((resolve) => {
-      const svg = `
-        <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
-          <rect width="100%" height="100%" fill="#f8f9fa"/>
-          <rect x="50" y="50" width="300" height="300" fill="#e9ecef" stroke="#dee2e6" stroke-width="2"/>
-          <text x="200" y="180" font-family="Arial" font-size="16" text-anchor="middle" fill="#6c757d">Product Image</text>
-          <text x="200" y="210" font-family="Arial" font-size="12" text-anchor="middle" fill="#adb5bd">CORS Restricted</text>
-          <text x="200" y="230" font-family="Arial" font-size="10" text-anchor="middle" fill="#adb5bd">Upload custom images for full functionality</text>
-        </svg>
-      `;
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
-    });
-  };
-
-  // Create basic placeholder
-  const createBasicPlaceholder = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 400;
-    const ctx = canvas.getContext('2d');
-    
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(0, 0, 400, 400);
-    
-    ctx.fillStyle = '#e9ecef';
-    ctx.fillRect(50, 50, 300, 300);
-    
-    ctx.strokeStyle = '#dee2e6';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(50, 50, 300, 300);
-    
-    ctx.fillStyle = '#6c757d';
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Image Placeholder', 200, 200);
-    
-    return canvas.toDataURL();
-  };
-
-  // Count total images to load
+  // Count images to load
   useEffect(() => {
     if (isOpen && designData) {
-      let count = 1; // Base product image
+      let count = 0;
+      
+      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      if (baseImageUrl) count++;
+      
       designData.layers.forEach(layer => {
-        if (layer.type === 'image' && layer.visible !== false) {
+        if (layer.type === 'image' && layer.visible !== false && layer.src) {
           count++;
         }
       });
+      
       setTotalImages(count);
-      setImagesLoaded(0);
+      setLoadingProgress(0);
+      setHasLoadingError(false);
+      retryCountRef.current = 0;
     }
-  }, [isOpen, designData]);
+  }, [isOpen, designData, variant, product]);
+
+  // Calculate loading percentage
+  const imagesLoadedPercentage = totalImages > 0 
+    ? Math.min(100, Math.round((loadingProgress / totalImages) * 100))
+    : 0;
 
   // Initialize canvas when modal opens
   useEffect(() => {
     if (isOpen && canvasRef.current) {
       setCanvasReady(false);
-      setImagesLoaded(0);
-      drawCanvas().then(() => {
-        setCanvasReady(true);
-      }).catch(error => {
-        console.error('Canvas initialization error:', error);
-        setCanvasReady(true);
-      });
+      
+      const initCanvas = async () => {
+        try {
+          await drawCanvas();
+          setCanvasReady(true);
+          setHasLoadingError(false);
+        } catch (error) {
+          console.error('Canvas init error:', error);
+          setHasLoadingError(true);
+          retryCountRef.current += 1;
+          
+          if (retryCountRef.current < 2) {
+            setTimeout(async () => {
+              try {
+                await drawCanvas();
+                setCanvasReady(true);
+              } catch (retryError) {
+                console.error('Retry failed:', retryError);
+                setCanvasReady(true);
+              }
+            }, 2000);
+          } else {
+            setCanvasReady(true);
+          }
+        }
+      };
+      
+      initCanvas();
     }
   }, [isOpen, designData]);
 
   // Draw everything on canvas
-  const drawCanvas = async () => {
+  const drawCanvas = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Could not get canvas context');
+    }
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     try {
-      // Draw product base image
       const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
       if (baseImageUrl) {
-        const baseImage = await loadImage(baseImageUrl);
-        ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+        try {
+          const baseImage = await loadImage(baseImageUrl);
+          ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
+        } catch (error) {
+          console.warn('Base image failed, using fallback');
+          drawFallbackBackground(ctx, canvas);
+        }
       } else {
-        ctx.fillStyle = '#f0f0f0';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#666';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Product Image', canvas.width / 2, canvas.height / 2);
+        drawFallbackBackground(ctx, canvas);
       }
       
-      // Draw design layers
       for (const layer of designData.layers) {
         if (layer.visible !== false) {
-          await drawLayer(ctx, layer);
+          await drawLayerOnCanvas(ctx, layer);
+        }
+      }
+      
+      if (selectedLayer) {
+        const layer = designData.layers.find(l => l.id === selectedLayer);
+        if (layer) {
+          drawLayerSelection(ctx, layer);
         }
       }
     } catch (error) {
       console.error('Error drawing canvas:', error);
-      ctx.fillStyle = '#ffebee';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#d32f2f';
-      ctx.font = '14px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Error loading design', canvas.width / 2, canvas.height / 2);
+      drawFallbackBackground(ctx, canvas);
     }
-  };
+  }, [variant, product, designData, selectedLayer, loadImage]);
 
-  // Draw text layer
-  const drawTextLayer = (ctx, layer) => {
-    ctx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize}px ${layer.fontFamily}`;
-    ctx.fillStyle = layer.color;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+  // Draw fallback background
+  const drawFallbackBackground = useCallback((ctx, canvas) => {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    const metrics = ctx.measureText(layer.text);
-    const width = metrics.width;
-    const height = layer.fontSize;
-    
-    ctx.fillText(layer.text, layer.x, layer.y);
-    
-    return { width, height };
-  };
+    ctx.fillStyle = '#6c757d';
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛍️', canvas.width / 2, canvas.height / 2 - 40);
+    ctx.font = '18px Arial';
+    ctx.fillText(product?.name || 'Product', canvas.width / 2, canvas.height / 2);
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#adb5bd';
+    ctx.fillText('Add your design elements', canvas.width / 2, canvas.height / 2 + 40);
+  }, [product]);
 
-  const drawImageLayer = async (ctx, layer) => {
-    try {
-      const img = await loadImage(layer.src);
-      ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
-    } catch (error) {
-      ctx.fillStyle = '#e0e0e0';
-      ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
-      ctx.fillStyle = '#999';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2);
-    }
-  };
-
-  // Draw shape layer
-  const drawShapeLayer = (ctx, layer) => {
-    ctx.fillStyle = layer.fillColor || '#000000';
-    
-    switch (layer.shape) {
-      case 'rectangle':
-        ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
-        break;
-      case 'circle':
-        ctx.beginPath();
-        ctx.arc(layer.x + layer.width / 2, layer.y + layer.height / 2, layer.width / 2, 0, 2 * Math.PI);
-        ctx.fill();
-        break;
-    }
-  };
-
-  // Update drawLayer function with resize handles
-  const drawLayer = async (ctx, layer) => {
+  // Draw a single layer
+  const drawLayerOnCanvas = useCallback(async (ctx, layer) => {
     ctx.save();
     
     try {
-      let dimensions;
       switch (layer.type) {
         case 'text':
-          dimensions = drawTextLayer(ctx, layer);
+          ctx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize}px ${layer.fontFamily}`;
+          ctx.fillStyle = layer.color || '#000000';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(layer.text, layer.x, layer.y);
           break;
-        case 'image':
-          await drawImageLayer(ctx, layer);
-          break;
-        case 'shape':
-          drawShapeLayer(ctx, layer);
-          break;
-      }
-      
-      // Draw selection border and resize handles if layer is selected
-      if (selectedLayer === layer.id) {
-        const width = dimensions?.width || layer.width || 100;
-        const height = dimensions?.height || layer.height || 50;
-        
-        // Selection border
-        ctx.strokeStyle = '#007bff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
-        ctx.setLineDash([]);
-        
-        // Resize handles (only for images and shapes)
-        if (layer.type === 'image' || layer.type === 'shape') {
-          ctx.fillStyle = '#007bff';
-          const handleSize = 8;
-          const handles = [
-            { x: layer.x - handleSize/2, y: layer.y - handleSize/2 }, // top-left
-            { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2 }, // top-right
-            { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2 }, // bottom-left
-            { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2 }, // bottom-right
-          ];
           
-          handles.forEach(handle => {
-            ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
-          });
-        }
+        case 'image':
+          if (layer.src) {
+            try {
+              const img = await loadImage(layer.src);
+              ctx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
+            } catch (error) {
+              drawImagePlaceholder(ctx, layer);
+            }
+          }
+          break;
+          
+        case 'shape':
+          ctx.fillStyle = layer.fillColor || '#000000';
+          if (layer.shape === 'rectangle') {
+            ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+          } else if (layer.shape === 'circle') {
+            ctx.beginPath();
+            ctx.arc(layer.x + layer.width / 2, layer.y + layer.height / 2, layer.width / 2, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+          break;
       }
     } catch (error) {
-      console.error('Error drawing layer:', layer, error);
+      console.warn('Error drawing layer:', layer.type, error);
     }
     
     ctx.restore();
-  };
+  }, [loadImage]);
 
-  // Generate preview image
-  const generatePreview = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      console.error('Canvas not found');
-      return null;
-    }
+  // Draw image placeholder
+  const drawImagePlaceholder = useCallback((ctx, layer) => {
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+    ctx.strokeStyle = '#dee2e6';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
     
-    try {
-      canvas.toDataURL('image/png');
-      const preview = canvas.toDataURL('image/png');
-      return preview;
-    } catch (error) {
-      console.warn('⚠️ Canvas export blocked, creating safe preview:', error);
-      return createSafePreview();
-    }
-  };
+    ctx.fillStyle = '#adb5bd';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🖼️', layer.x + layer.width / 2, layer.y + layer.height / 2 - 10);
+    ctx.font = '12px Arial';
+    ctx.fillText('Image', layer.x + layer.width / 2, layer.y + layer.height / 2 + 10);
+  }, []);
 
-  // Create safe preview without CORS issues
-  const createSafePreview = () => {
-    const canvas = canvasRef.current;
-    const cleanCanvas = document.createElement('canvas');
-    cleanCanvas.width = canvas.width;
-    cleanCanvas.height = canvas.height;
-    const cleanCtx = cleanCanvas.getContext('2d');
+  // Draw layer selection
+  const drawLayerSelection = useCallback((ctx, layer) => {
+    const width = layer.width || 100;
+    const height = layer.height || 50;
     
-    cleanCtx.fillStyle = '#ffffff';
-    cleanCtx.fillRect(0, 0, cleanCanvas.width, cleanCanvas.height);
+    ctx.strokeStyle = '#007bff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(layer.x - 5, layer.y - 5, width + 10, height + 10);
+    ctx.setLineDash([]);
     
-    cleanCtx.strokeStyle = '#e0e0e0';
-    cleanCtx.lineWidth = 2;
-    cleanCtx.strokeRect(10, 10, cleanCanvas.width - 20, cleanCanvas.height - 20);
+    if (layer.type === 'image' || layer.type === 'shape') {
+      ctx.fillStyle = '#007bff';
+      const handleSize = 8;
+      
+      const corners = [
+        { x: layer.x - handleSize/2, y: layer.y - handleSize/2 },
+        { x: layer.x + width - handleSize/2, y: layer.y - handleSize/2 },
+        { x: layer.x - handleSize/2, y: layer.y + height - handleSize/2 },
+        { x: layer.x + width - handleSize/2, y: layer.y + height - handleSize/2 }
+      ];
+      
+      corners.forEach(({ x, y }) => {
+        ctx.fillRect(x, y, handleSize, handleSize);
+      });
+    }
+  }, []);
+
+  // Handle retry loading
+  const handleRetryLoad = useCallback(() => {
+    setHasLoadingError(false);
+    retryCountRef.current = 0;
+    imageCacheRef.current.clear();
+    setCanvasReady(false);
     
-    designData.layers.forEach(layer => {
-      if (layer.visible !== false) {
-        if (layer.type === 'text') {
-          cleanCtx.font = `${layer.fontWeight || 'normal'} ${layer.fontSize}px ${layer.fontFamily}`;
-          cleanCtx.fillStyle = layer.color;
-          cleanCtx.textAlign = 'left';
-          cleanCtx.textBaseline = 'top';
-          cleanCtx.fillText(layer.text, layer.x, layer.y);
-        } else if (layer.type === 'shape') {
-          cleanCtx.fillStyle = layer.fillColor || '#000000';
-          if (layer.shape === 'rectangle') {
-            cleanCtx.fillRect(layer.x, layer.y, layer.width, layer.height);
-          } else if (layer.shape === 'circle') {
-            cleanCtx.beginPath();
-            cleanCtx.arc(layer.x + layer.width / 2, layer.y + layer.height / 2, layer.width / 2, 0, 2 * Math.PI);
-            cleanCtx.fill();
-          }
-        } else if (layer.type === 'image' && layer.src.startsWith('data:')) {
-          const img = new Image();
-          img.onload = () => {
-            cleanCtx.drawImage(img, layer.x, layer.y, layer.width, layer.height);
-          };
-          img.src = layer.src;
-        }
+    setTimeout(async () => {
+      try {
+        await drawCanvas();
+        setCanvasReady(true);
+      } catch (error) {
+        console.error('Retry failed:', error);
+        setCanvasReady(true);
       }
-    });
-    
-    cleanCtx.fillStyle = 'rgba(0,0,0,0.3)';
-    cleanCtx.font = '10px Arial';
-    cleanCtx.textAlign = 'center';
-    cleanCtx.fillText('Preview - external images not included due to CORS', cleanCanvas.width / 2, cleanCanvas.height - 10);
-    
-    return cleanCanvas.toDataURL('image/png');
-  };
+    }, 500);
+  }, [drawCanvas]);
 
-  // EXPORT DESIGN FUNCTIONALITY
+  // ==================== EXPORT FUNCTIONALITY ====================
 
   // Export design as image file
   const exportDesign = async () => {
@@ -406,6 +434,8 @@ const DesktopCustomizationView = ({
       return;
     }
 
+    setIsExporting(true);
+
     try {
       const exportCanvas = document.createElement('canvas');
       const scale = exportSizes[exportSize].scale;
@@ -414,7 +444,6 @@ const DesktopCustomizationView = ({
       exportCanvas.height = designData.canvasSize.height * scale;
       
       const exportCtx = exportCanvas.getContext('2d');
-      
       exportCtx.imageSmoothingEnabled = true;
       exportCtx.imageSmoothingQuality = 'high';
       
@@ -444,11 +473,13 @@ const DesktopCustomizationView = ({
       dataUrl = exportCanvas.toDataURL(mimeType, quality);
       downloadImage(dataUrl, mimeType);
       
+      setIsExporting(false);
       return dataUrl;
       
     } catch (error) {
       console.error('❌ Export failed:', error);
       alert('Export failed. Please try again or use a different format.');
+      setIsExporting(false);
       throw error;
     }
   };
@@ -538,12 +569,37 @@ const DesktopCustomizationView = ({
     }
 
     try {
-      const previewImage = generatePreview();
+      const previewCanvas = document.createElement('canvas');
+      previewCanvas.width = 400;
+      previewCanvas.height = 400;
+      const previewCtx = previewCanvas.getContext('2d');
       
-      if (!previewImage) {
-        throw new Error('Failed to generate preview image');
+      const baseImageUrl = variant?.variantImages?.[0]?.imageUrl || product?.images?.[0]?.imageUrl;
+      if (baseImageUrl) {
+        try {
+          const baseImage = await loadImage(baseImageUrl);
+          previewCtx.drawImage(baseImage, 0, 0, 400, 400);
+        } catch (error) {
+          previewCtx.fillStyle = '#ffffff';
+          previewCtx.fillRect(0, 0, 400, 400);
+        }
       }
-
+      
+      for (const layer of designData.layers) {
+        if (layer.visible !== false) {
+          await drawLayerOnCanvas(previewCtx, { 
+            ...layer, 
+            x: layer.x * 0.5, 
+            y: layer.y * 0.5, 
+            width: layer.width * 0.5, 
+            height: layer.height * 0.5, 
+            fontSize: layer.fontSize * 0.5 
+          });
+        }
+      }
+      
+      const preview = previewCanvas.toDataURL('image/png');
+      
       const cleanDesignData = {
         layers: designData.layers.map(layer => ({
           ...layer,
@@ -559,12 +615,12 @@ const DesktopCustomizationView = ({
       const designDataToSave = {
         customizationId: customization.id,
         designData: cleanDesignData,
-        previewImage: previewImage,
-        thumbnailImage: previewImage
+        previewImage: preview,
+        thumbnailImage: preview
       };
 
       const result = await createDesign(designDataToSave).unwrap();
-      dispatch(setPreviewImage(previewImage));
+      dispatch(setPreviewImage(preview));
       alert('🎉 Design saved successfully! You can now add it to your cart.');
       
       return result;
@@ -627,6 +683,7 @@ const DesktopCustomizationView = ({
     dispatch(addDesignLayer(newLayer));
     setTextInput('');
     setSelectedLayer(newLayer.id);
+    drawCanvas().catch(console.error);
   };
 
   // Add image layer
@@ -696,6 +753,7 @@ const DesktopCustomizationView = ({
 
     dispatch(addDesignLayer(newLayer));
     setSelectedLayer(newLayer.id);
+    drawCanvas().catch(console.error);
   };
 
   // Handle canvas click for layer selection and resize
@@ -710,7 +768,6 @@ const DesktopCustomizationView = ({
       .find(layer => {
         if (!layer.visible) return false;
         
-        // Check if click is on resize handle
         if (selectedLayer === layer.id && (layer.type === 'image' || layer.type === 'shape')) {
           const width = layer.width || 100;
           const height = layer.height || 50;
@@ -739,7 +796,6 @@ const DesktopCustomizationView = ({
           }
         }
         
-        // Check if click is on layer body
         return x >= layer.x && 
                x <= layer.x + (layer.width || 100) && 
                y >= layer.y && 
@@ -768,7 +824,6 @@ const DesktopCustomizationView = ({
     const width = layer.width || 100;
     const height = layer.height || 50;
 
-    // Check if click is on resize handle
     if (layer.type === 'image' || layer.type === 'shape') {
       const handleSize = 8;
       const handles = [
@@ -794,7 +849,6 @@ const DesktopCustomizationView = ({
       }
     }
 
-    // Regular drag
     if (x >= layer.x && x <= layer.x + width && y >= layer.y && y <= layer.y + height) {
       setIsDragging(true);
       setDragOffset({
@@ -830,21 +884,21 @@ const DesktopCustomizationView = ({
       let newY = layer.y;
 
       switch (resizeDirection) {
-        case 'se': // bottom-right
+        case 'se':
           newWidth = Math.max(20, x - layer.x);
           newHeight = Math.max(20, y - layer.y);
           break;
-        case 'sw': // bottom-left
+        case 'sw':
           newWidth = Math.max(20, layer.x + currentWidth - x);
           newHeight = Math.max(20, y - layer.y);
           newX = x;
           break;
-        case 'ne': // top-right
+        case 'ne':
           newWidth = Math.max(20, x - layer.x);
           newHeight = Math.max(20, layer.y + currentHeight - y);
           newY = y;
           break;
-        case 'nw': // top-left
+        case 'nw':
           newWidth = Math.max(20, layer.x + currentWidth - x);
           newHeight = Math.max(20, layer.y + currentHeight - y);
           newX = x;
@@ -852,7 +906,6 @@ const DesktopCustomizationView = ({
           break;
       }
 
-      // Maintain aspect ratio for images if Shift key is pressed
       if (event.shiftKey && layer.type === 'image' && layer.originalWidth && layer.originalHeight) {
         const aspectRatio = layer.originalWidth / layer.originalHeight;
         if (resizeDirection === 'se' || resizeDirection === 'nw') {
@@ -878,6 +931,7 @@ const DesktopCustomizationView = ({
     setIsDragging(false);
     setIsResizing(false);
     setResizeDirection(null);
+    drawCanvas().catch(console.error);
   };
 
   // Update selected layer properties
@@ -888,6 +942,7 @@ const DesktopCustomizationView = ({
       layerId: selectedLayer,
       updates
     }));
+    drawCanvas().catch(console.error);
   };
 
   // Delete selected layer
@@ -896,6 +951,7 @@ const DesktopCustomizationView = ({
     
     dispatch(removeDesignLayer(selectedLayer));
     setSelectedLayer(null);
+    drawCanvas().catch(console.error);
   };
 
   // Duplicate selected layer
@@ -913,6 +969,7 @@ const DesktopCustomizationView = ({
       
       dispatch(addDesignLayer(duplicatedLayer));
       setSelectedLayer(duplicatedLayer.id);
+      drawCanvas().catch(console.error);
     }
   };
 
@@ -930,6 +987,7 @@ const DesktopCustomizationView = ({
         fromIndex: currentIndex,
         toIndex: newIndex
       }));
+      drawCanvas().catch(console.error);
     }
   };
 
@@ -948,6 +1006,7 @@ const DesktopCustomizationView = ({
     if (window.confirm('Are you sure you want to reset your design? This cannot be undone.')) {
       dispatch(resetDesign());
       setSelectedLayer(null);
+      imageCacheRef.current.clear();
       drawCanvas().catch(console.error);
     }
   };
@@ -994,20 +1053,32 @@ const DesktopCustomizationView = ({
               <div className="mb-3 sm:mb-4 p-2 bg-blue-100 text-blue-800 text-xs sm:text-sm rounded flex items-center">
                 <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-800 mr-2"></div>
                 Loading design editor...
+                {hasLoadingError && (
+                  <button
+                    onClick={handleRetryLoad}
+                    className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-1 rounded"
+                  >
+                    🔄 Retry
+                  </button>
+                )}
               </div>
             )}
 
-            {totalImages > 0 && imagesLoaded < totalImages && (
+            {/* Progress bar */}
+            {totalImages > 0 && (
               <div className="mb-3 sm:mb-4 p-2 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded">
-                <div className="flex items-center">
-                  <span className="mr-2">📸</span>
-                  <span>Loading images... ({imagesLoaded}/{totalImages})</span>
+                <div className="flex items-center justify-between">
+                  <span>Loading images...</span>
+                  <span>{imagesLoadedPercentage}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                   <div 
-                    className="bg-yellow-600 h-1 rounded-full transition-all duration-300"
-                    style={{ width: `${(imagesLoaded / totalImages) * 100}%` }}
+                    className="bg-yellow-600 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${imagesLoadedPercentage}%` }}
                   ></div>
+                </div>
+                <div className="text-xs mt-1">
+                  {loadingProgress}/{totalImages} images loaded
                 </div>
               </div>
             )}
@@ -1072,11 +1143,10 @@ const DesktopCustomizationView = ({
                     </button>
                   </div>
                   
-                  {/* Quick Actions */}
                   <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                     <h4 className="font-semibold text-sm mb-2 text-blue-800">Quick Tips</h4>
                     <ul className="text-xs text-blue-700 space-y-1">
-                      <li>• Tap and drag to move elements</li>
+                      <li>• Click and drag to move elements</li>
                       <li>• Use corners to resize images</li>
                       <li>• Hold Shift to maintain proportions</li>
                       <li>• Upload images for best quality</li>
@@ -1262,14 +1332,14 @@ const DesktopCustomizationView = ({
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <button
                         onClick={handleExportOnly}
-                        disabled={!canvasReady || designData.layers.length === 0}
+                        disabled={!canvasReady || designData.layers.length === 0 || isExporting}
                         className="bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs transition-all duration-200 active:scale-95"
                       >
-                        Export Only
+                        {isExporting ? 'Exporting...' : 'Export Only'}
                       </button>
                       <button
                         onClick={handleSaveAndExport}
-                        disabled={!canvasReady || designData.layers.length === 0}
+                        disabled={!canvasReady || designData.layers.length === 0 || isExporting}
                         className="bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs transition-all duration-200 active:scale-95"
                       >
                         Save & Export
@@ -1366,19 +1436,30 @@ const DesktopCustomizationView = ({
 
                   <div>
                     <label className="block text-sm font-medium mb-1">Color</label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {availableColors.map(color => (
-                        <button
-                          key={color}
-                          onClick={() => setTextColor(color)}
-                          className={`w-8 h-8 rounded border-2 transition-all duration-200 ${
-                            textColor === color ? 'border-blue-500 scale-110' : 'border-gray-300 hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={color}
-                        />
-                      ))}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <button
+                        onClick={() => setShowColorPicker(!showColorPicker)}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {showColorPicker ? 'Hide Colors' : 'Show Colors'}
+                      </button>
                     </div>
+                    
+                    {showColorPicker && (
+                      <div className="grid grid-cols-4 gap-2 mb-3 p-2 bg-gray-50 rounded">
+                        {availableColors.map(color => (
+                          <button
+                            key={color}
+                            onClick={() => setTextColor(color)}
+                            className={`w-8 h-8 rounded border-2 transition-all duration-200 ${
+                              textColor === color ? 'border-blue-500 scale-110' : 'border-gray-300 hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -1477,14 +1558,14 @@ const DesktopCustomizationView = ({
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <button
                       onClick={handleExportOnly}
-                      disabled={!canvasReady || designData.layers.length === 0}
+                      disabled={!canvasReady || designData.layers.length === 0 || isExporting}
                       className="text-xs bg-green-600 text-white py-2 px-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
                     >
-                      Export
+                      {isExporting ? 'Exporting...' : 'Export'}
                     </button>
                     <button
                       onClick={handleSaveAndExport}
-                      disabled={!canvasReady || designData.layers.length === 0}
+                      disabled={!canvasReady || designData.layers.length === 0 || isExporting}
                       className="text-xs bg-blue-600 text-white py-2 px-2 rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       Save & Export
@@ -1493,7 +1574,7 @@ const DesktopCustomizationView = ({
                 </div>
               </div>
 
-              {/* CORS Warning */}
+              {/* Image Loading Tip */}
               <div className="p-2 bg-orange-100 text-orange-800 text-xs rounded">
                 <strong>💡 Tip:</strong> Upload images from your computer for full functionality.
               </div>
@@ -1648,13 +1729,39 @@ const DesktopCustomizationView = ({
                 <div className="text-xs sm:text-sm text-gray-600">
                   {designData.layers.length} layer{designData.layers.length !== 1 ? 's' : ''}
                   {!canvasReady && ' • Loading...'}
-                  {totalImages > 0 && ` • Images: ${imagesLoaded}/${totalImages}`}
+                  {totalImages > 0 && ` • Images: ${imagesLoadedPercentage}% loaded`}
                 </div>
               </div>
             </div>
 
             {/* Canvas */}
-            <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-auto">
+            <div className="flex-1 bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-auto relative">
+              {!canvasReady && (
+                <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600 font-medium mb-2">Loading Design Editor</p>
+                    <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden mx-auto">
+                      <div 
+                        className="h-full bg-blue-600 transition-all duration-300"
+                        style={{ width: `${imagesLoadedPercentage}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {imagesLoadedPercentage}% • {loadingProgress}/{totalImages} images
+                    </p>
+                    {hasLoadingError && (
+                      <button
+                        onClick={handleRetryLoad}
+                        className="mt-3 bg-red-100 text-red-700 px-4 py-2 rounded text-sm"
+                      >
+                        🔄 Retry Loading
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               <div className="relative">
                 <canvas
                   ref={canvasRef}
@@ -1675,16 +1782,12 @@ const DesktopCustomizationView = ({
                 />
                 
                 {/* Canvas Instructions */}
-                {designData.layers.length === 0 && (
+                {designData.layers.length === 0 && canvasReady && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center text-gray-500 bg-white bg-opacity-90 p-4 sm:p-6 rounded-lg border max-w-[90%] sm:max-w-md">
-                      <p className="text-base sm:text-lg font-semibold mb-2">Start Designing!</p>
-                      <p className="text-xs sm:text-sm mb-2">Use the tools to add:</p>
-                      <ul className="text-xs text-left space-y-1 mb-3">
-                        <li>• 📝 Text with custom fonts and colors</li>
-                        <li>• 🖼️ Images from your computer</li>
-                        <li>• ⬜ Shapes and graphics</li>
-                      </ul>
+                    <div className="text-center text-gray-500 bg-white bg-opacity-90 p-6 rounded-lg border max-w-md">
+                      <p className="text-4xl mb-3">🎨</p>
+                      <p className="text-lg font-semibold mb-2">Start Designing!</p>
+                      <p className="text-sm mb-3">Use the tools to add text, images, and shapes</p>
                       <p className="text-xs text-orange-600">
                         💡 <strong>Tip:</strong> Upload images from your computer for best results
                       </p>
@@ -1826,7 +1929,7 @@ const DesktopCustomizationView = ({
           <div className="text-xs sm:text-sm text-gray-600">
             Max {customization?.maxTextLength || 100} characters • Max {customization?.maxImages || 5} images
             {!canvasReady && ' • Canvas loading...'}
-            {totalImages > 0 && imagesLoaded < totalImages && ` • Loading images... (${imagesLoaded}/${totalImages})`}
+            {totalImages > 0 && ` • Images: ${imagesLoadedPercentage}% loaded`}
           </div>
           <div className="flex space-x-2 sm:space-x-3 self-end sm:self-auto">
             <button
