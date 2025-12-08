@@ -57,7 +57,7 @@ const DesktopCustomizationView = ({
     }
     
     if (url.includes('s3.amazonaws.com') || url.includes('velan-ecom-images.s3.ap-south-1.amazonaws.com')) {
-      return `http://localhost:5000/api/images/proxy?url=${encodeURIComponent(url)}`;
+      return `https://tiruppurgarments.com/api/images/proxy?url=${encodeURIComponent(url)}`;
     }
     
     return url;
