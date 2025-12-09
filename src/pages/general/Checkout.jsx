@@ -72,17 +72,22 @@ const Checkout = () => {
     courierInstructions: "" // New field
   });
 
-  // Courier options
+  // Courier options (Updated)
 const courierOptions = [
-    { value: 'professional', label: 'Professional Courier', description: 'Standard delivery' },
-    { value: 'dtdc', label: 'DTDC', description: 'Economy delivery' },
-    { value: 'bluedart', label: 'Blue Dart', description: 'Premium domestic delivery' },
-    { value: 'delhivery', label: 'Delhivery', description: 'E-commerce delivery' },
-    { value: 'fedex', label: 'FedEx', description: 'International & Express delivery' },
-    { value: 'dhl', label: 'DHL', description: 'Worldwide logistics' },
-    { value: 'ekart', label: 'Ekart', description: 'Flipkart logistics' },
-    { value: 'others', label: 'Others', description: 'Other courier service' }
+  { 
+    value: 'professional', 
+    label: 'Professional Courier', 
+    description: 'Standard delivery' 
+  },
+  { 
+    value: 'stcourier', 
+    label: 'ST Courier', 
+    description: 'Fast domestic delivery' 
+  },
+      { value: 'others', label: 'Others', description: 'Other courier service' }
+
 ];
+
 
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -944,31 +949,31 @@ const handlePhoneInput = (e) => {
                 
 <div>
 
-  <input
-    type="tel"
-    name="phone"
-    placeholder="e.g., 9876543210 or +919876543210"
-    value={orderData.phone}
-    onChange={handlePhoneInput}
-    className={`w-full p-3 border ${
-      formErrors.phone 
-        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-        : `${borderColor} focus:ring-blue-500 focus:border-blue-500`
-    } rounded-lg ${inputBg} ${textColor} transition-colors focus:outline-none focus:ring-2`}
-    required
-  />
-  {formErrors.phone && (
-    <p className="text-red-500 text-sm mt-1 flex items-center">
-      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-      </svg>
-      {formErrors.phone}
-    </p>
-  )}
-  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-    Enter your 10-digit mobile number
-  </p>
-</div>
+          <input
+            type="tel"
+            name="phone"
+            placeholder="e.g., 9876543210 or +919876543210"
+            value={orderData.phone}
+            onChange={handlePhoneInput}
+            className={`w-full p-3 border ${
+              formErrors.phone 
+                ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                : `${borderColor} focus:ring-blue-500 focus:border-blue-500`
+            } rounded-lg ${inputBg} ${textColor} transition-colors focus:outline-none focus:ring-2`}
+            required
+          />
+          {formErrors.phone && (
+            <p className="text-red-500 text-sm mt-1 flex items-center">
+              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              {formErrors.phone}
+            </p>
+          )}
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Enter your 10-digit mobile number
+          </p>
+        </div>
                 
                 <div>
                   <input

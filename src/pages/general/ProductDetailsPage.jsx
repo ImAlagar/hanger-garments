@@ -840,6 +840,7 @@ const ratingStats = calculateRatingStats(ratings);
             <div className="hidden lg:flex flex-row space-x-4 lg:space-x-6">
               {/* Vertical Thumbnails - LEFT SIDE */}
               <div className="flex flex-col space-y-3 lg:space-y-4 overflow-y-auto pb-2 max-h-80 xl:max-h-96">
+                {/* Product variant images */}
                 {variantImages.map((image, index) => (
                   <button
                     key={image.id}
@@ -863,28 +864,69 @@ const ratingStats = calculateRatingStats(ratings);
                     <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200"></div>
                   </button>
                 ))}
+
+                                {/* Subcategory Image - MAKE IT CLICKABLE */}
+                {product.subcategory?.image && (
+                  <button
+                    onClick={() => {
+                      // Set subcategory image as active when clicked
+                      setActiveImageIndex(-1); // Use -1 to indicate subcategory image
+                    }}
+                    className={`flex-shrink-0 relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      activeImageIndex === -1
+                        ? `${themeColors.borderActive} ring-2 ${themeColors.ringActive} shadow-md`
+                        : `${themeColors.borderPrimary} hover:${themeColors.borderHover}`
+                    }`}
+                  >
+                    <img
+                      src={product.subcategory.image}
+                      alt={`${product.subcategory.name} category`}
+                      className="w-14 h-14 lg:w-16 lg:h-16 xl:w-18 xl:h-18 object-cover"
+                    />
+                    
+                    {activeImageIndex === -1 && (
+                      <div className={`absolute inset-0 border-2 ${themeColors.borderActive} rounded-lg`}></div>
+                    )}
+                    
+                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200"></div>
+                    
+                  </button>
+                )}
               </div>
 
-              {/* Main Large Image - RIGHT SIDE */}
+              {/* Main Large Image - RIGHT SIDE - UPDATED TO HANDLE SUBCATEGORY IMAGE */}
               <div className="flex-1">
                 <div 
                   className={`relative rounded-lg overflow-hidden cursor-zoom-in ${themeColors.bgSecondary}`}
-                  onClick={() => handleImageZoom(variantImages[activeImageIndex] || variantImages[0])}
+                  onClick={() => {
+                    if (activeImageIndex === -1) {
+                      // Zoom subcategory image
+                      handleImageZoom({ imageUrl: product.subcategory.image, name: product.subcategory.name });
+                    } else {
+                      // Zoom product image
+                      handleImageZoom(variantImages[activeImageIndex] || variantImages[0]);
+                    }
+                  }}
                 >
-                  <img
-                    src={mainProductImage}
-                    alt={`${product.name} - Main view`}
-                    className="w-full h-80 lg:h-96 xl:h-[500px] object-contain"
-                  />
+                  {/* Show subcategory image when activeImageIndex is -1 */}
+                  {activeImageIndex === -1 ? (
+                    <img
+                      src={product.subcategory.image}
+                      alt={`${product.subcategory.name} category`}
+                      className="w-full h-80 lg:h-96 xl:h-[500px] object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={mainProductImage}
+                      alt={`${product.name} - Main view`}
+                      className="w-full h-80 lg:h-96 xl:h-[500px] object-contain"
+                    />
+                  )}
                   
                   <div className="absolute top-4 right-4 bg-white bg-opacity-80 hover:bg-opacity-100 text-gray-800 rounded-full p-2 transition-all duration-300 shadow-lg">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
                     </svg>
-                  </div>
-
-                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-60 text-white text-sm px-3 py-1 rounded-full">
-                    {activeImageIndex + 1} / {variantImages.length}
                   </div>
                 </div>
               </div>
