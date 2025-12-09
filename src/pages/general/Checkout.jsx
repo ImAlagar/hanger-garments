@@ -1267,32 +1267,6 @@ const handlePhoneInput = (e) => {
                   )}
                 </div>
 
-                {/* COD Option */}
-                <div 
-                  className={`border-2 ${
-                    orderData.paymentMethod === "COD" 
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20" 
-                      : "border-gray-300 dark:border-gray-600"
-                  } rounded-lg p-4 cursor-pointer transition-all`}
-                  onClick={() => setOrderData(prev => ({ ...prev, paymentMethod: "COD" }))}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Truck className="w-6 h-6 text-green-500" />
-                      <div>
-                        <h3 className="font-semibold">Cash on Delivery</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Pay when you receive your order
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 ${
-                      orderData.paymentMethod === "COD" 
-                        ? "bg-green-500 border-green-500" 
-                        : "border-gray-400"
-                    }`}></div>
-                  </div>
-                </div>
               </div>
             </div>
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import tshirt from "../../assets/categories/tshirt.webp";
-import oversized from "../../assets/categories/oversized.webp";
-import polo from "../../assets/categories/polo.webp";
-import hoodie from "../../assets/categories/hoodie.webp";
-import acidwash from "../../assets/categories/acidwash.webp";
+import hoodie from "../../assets/subcategories/hoodie.jpg";
+import WomenOversized from "../../assets/subcategories/WomenOversized.jpg";
+import polo from "../../assets/subcategories/Polo.jpg";
+import HalfSleeves from "../../assets/subcategories/HalfSleeves.jpg";
+import Oversized from "../../assets/subcategories/Oversized.jpg";
 import { useTheme } from "../../context/ThemeContext";
 import { Link } from "react-router-dom";
 import { useGetAllSubcategoriesQuery } from "../../redux/services/subcategoryService";
@@ -36,7 +36,7 @@ export default function Categories() {
             catName: "T-Shirt", 
             subcategory: "T-Shirts",
             category: "men",
-            img: tshirt, 
+            img: hoodie, 
             tag: "Shop & Save" 
         },
         { 
@@ -45,14 +45,14 @@ export default function Categories() {
             catName: "Oversized", 
             subcategory: "Mens Oversized",
             category: "men",
-            img: oversized, 
+            img: Oversized, 
             tag: "New Arrivals" 
         },
         { 
             id: 3, 
             title: "Smart Style", 
             catName: "Polos", 
-            subcategory: "Polo T-Shirts",
+            subcategory: "womenMens Oversized",
             category: "men",
             img: polo, 
             tag: "Weekly Edit", 
@@ -64,7 +64,7 @@ export default function Categories() {
             catName: "Hoodies", 
             subcategory: "Hoodies",
             category: "men",
-            img: hoodie, 
+            img: WomenOversized, 
             tag: "Our Offers" 
         },
         { 
@@ -73,7 +73,7 @@ export default function Categories() {
             catName: "Acid Wash", 
             subcategory: "Acid Wash",
             category: "men",
-            img: acidwash, 
+            img: HalfSleeves, 
             tag: "Trending" 
         },
     ];
@@ -99,7 +99,7 @@ export default function Categories() {
                     category: category,
                     img: getCategoryImage(subcat.name, index),
                     tag: getCategoryTag(subcat.name),
-                    tall: index === 2
+                    tall: index === 4
                 };
             });
 
@@ -198,23 +198,23 @@ export default function Categories() {
     // Helper function to get appropriate image based on subcategory name
     const getCategoryImage = (subcategoryName, index) => {
         const imageMap = {
-            'T-Shirts': tshirt,
-            'Mens T-Shirts': tshirt,
-            'Oversized T-Shirts': oversized,
-            'Mens Oversized': oversized,
-            'Polo T-Shirts': polo,
-            'Hoodies': hoodie,
-            'Acid Wash': acidwash,
-            'Womens T-Shirts': tshirt,
-            'Womens Oversized': oversized,
-            'Womens Polo': polo,
-            'Womens Hoodies': hoodie,
-            'Womens Casual Shirts': tshirt,
-            'Womens Formal Shirts': tshirt,
-            'Kids T-Shirts': tshirt
+            'T-Shirts': WomenOversized,
+            'Mens T-Shirts': WomenOversized,
+            'Oversized T-Shirts': WomenOversized,
+            'Mens Oversized': WomenOversized,
+            'Polo T-Shirts': WomenOversized,
+            'Hoodies': WomenOversized,
+            'Acid Wash': WomenOversized,
+            'Womens T-Shirts': WomenOversized,
+            'Womens Oversized': WomenOversized,
+            'Womens Polo': WomenOversized,
+            'Womens Hoodies': WomenOversized,
+            'Womens Casual Shirts': WomenOversized,
+            'Womens Formal Shirts': WomenOversized,
+            'Kids T-Shirts': WomenOversized
         };
         
-        return imageMap[subcategoryName] || defaultCategories[index]?.img || tshirt;
+        return imageMap[subcategoryName] || defaultCategories[index]?.img || WomenOversized;
     };
 
     // Fixed function to generate shop URL without double encoding
@@ -336,16 +336,16 @@ export default function Categories() {
                         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/60 transition-all duration-500"></div>
                         <div className="absolute bottom-10 left-0 right-0 flex flex-col items-center text-center">
                             <h4 className="text-sm text-gray-200 uppercase tracking-[3px]">
-                                {dynamicCategories[2].tag}
+                                {dynamicCategories[3].tag}
                             </h4>
                             <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                                {dynamicCategories[2].catName}
+                                {dynamicCategories[3].catName}
                             </h3>
                             <h2 className="text-white text-3xl font-bold uppercase font-bai-jamjuree italic mt-2 group-hover:text-yellow-300 transition">
                                 {dynamicCategories[2].title}
                             </h2>
                             <Link 
-                                to={getShopUrl(dynamicCategories[2].category, dynamicCategories[2].subcategory)}
+                                to={getShopUrl(dynamicCategories[3].category, dynamicCategories[3].subcategory)}
                                 className="mt-4 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500"
                             >
                                 Explore Now
@@ -355,52 +355,115 @@ export default function Categories() {
                 )}
 
                 {/* RIGHT SIDE */}
-                <div className="flex flex-col gap-6">
-                    {dynamicCategories.slice(3).map((cat, i) => (
-                        <motion.div
-                            key={cat.id}
-                            custom={i + 3}
-                            variants={cardAnim}
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true }}
-                            className="relative group overflow-hidden rounded-2xl h-[400px]"
-                        >
-                            <img
-                                src={cat.img}
-                                alt={cat.title}
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
+<div className="flex flex-col gap-6">
+    {/* First card - index 3 */}
+    {dynamicCategories[3] && (() => {
+        const cat = dynamicCategories[3];
+        const catNameWords = cat.catName.split(' ');
+        const firstPart = catNameWords.slice(0, 3).join(' ');
+        const secondPart = catNameWords.slice(3).join(' ');
+        
+        return (
+            <motion.div
+                key={cat.id}
+                custom={3}
+                variants={cardAnim}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                className="relative group overflow-hidden rounded-2xl h-[400px]"
+            >
+                <img
+                    src={cat.img}
+                    alt={cat.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
 
-                            {/* Overlay Text */}
-                            <div className="absolute top-10 left-10">
-                                <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
-                                    {cat.tag}
-                                </h4>
-                                <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                                    {cat.catName}
-                                </h3>
-                                <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
-                                    {cat.title}
-                                </h2>
-                                <Link to={getShopUrl(cat.category, cat.subcategory)}>
-                                    <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
-                                        Explore
-                                    </button>
-                                </Link>
-                            </div>
-
-                            {/* Category Label Animation */}
-                            <motion.div
-                                initial={{ width: 0 }}
-                                whileHover={{ width: "100%" }}
-                                transition={{ duration: 0.5 }}
-                                className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
-                            ></motion.div>
-                        </motion.div>
-                    ))}
+                <div className="absolute top-10 left-10">
+                    <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                        {dynamicCategories[2].tag}
+                    </h4>
+                    <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
+                        WOMENS OVERSIZED T-SHIRTS
+                    </h3>
+                    <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                        {dynamicCategories[2].title}
+                    </h2>
+                    <Link to={getShopUrl(dynamicCategories[2].category, dynamicCategories[2].subcategory)}>
+                        <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                            Explore
+                        </button>
+                    </Link>
                 </div>
+
+                <motion.div
+                    initial={{ width: 0 }}
+                    whileHover={{ width: "100%" }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
+                ></motion.div>
+            </motion.div>
+        );
+    })()}
+    
+    {/* Second card - index 4 */}
+    {dynamicCategories[4] && (() => {
+        const cat = dynamicCategories[4];
+        const catNameWords = cat.catName.split(' ');
+        const firstPart = catNameWords.slice(0, 3).join(' ');
+        const secondPart = catNameWords.slice(3).join(' ');
+        
+        return (
+            <motion.div
+                key={cat.id}
+                custom={4}
+                variants={cardAnim}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                className="relative group overflow-hidden rounded-2xl h-[400px]"
+            >
+                <img
+                    src={cat.img}
+                    alt={cat.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
+
+                <div className="absolute top-10 left-10">
+                    <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                        {dynamicCategories[4].tag}
+                    </h4>
+                    <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
+                        {firstPart}
+                        {secondPart && (
+                            <>
+                                <br />
+                                {secondPart}
+                            </>
+                        )}
+                    </h3>
+                    <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                        {dynamicCategories[4].title}
+                    </h2>
+                    <Link to={getShopUrl(dynamicCategories[4].category, dynamicCategories[4].subcategory)}>
+                        <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                            Explore
+                        </button>
+                    </Link>
+                </div>
+
+                <motion.div
+                    initial={{ width: 0 }}
+                    whileHover={{ width: "100%" }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
+                ></motion.div>
+            </motion.div>
+        );
+    })()}
+</div>
             </div>
         </section>
     );

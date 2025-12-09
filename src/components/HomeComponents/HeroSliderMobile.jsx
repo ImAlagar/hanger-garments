@@ -95,7 +95,7 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
           transition={{ duration: 1 }}
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${banner.bg})`,
+            backgroundImage: `url(${banner.image})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -117,26 +117,6 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
             exit="exit"
             className="max-w-sm mx-auto text-center"
           >
-            {/* IMAGE */}
-            {banner.image && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="mb-8 flex justify-center"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  className="rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.35)]"
-                >
-                  <img
-                    src={banner.image}
-                    alt={banner.title}
-                    className="w-[260px] object-contain"
-                  />
-                </motion.div>
-              </motion.div>
-            )}
 
             {/* Subtitle */}
             {banner.subtitle && (
