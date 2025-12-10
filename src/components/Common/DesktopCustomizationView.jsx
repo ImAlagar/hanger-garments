@@ -220,7 +220,6 @@ const isPointInResizeHandle = useCallback((pointX, pointY, handleX, handleY) => 
       
       // Timeout for slow connections
       const timeout = setTimeout(() => {
-        console.log(`⏰ Timeout for image: ${src.substring(0, 50)}...`);
         img.src = '';
         createPlaceholderImage().then(placeholderImg => {
           imageCacheRef.current.set(`loaded_${cacheKey}`, placeholderImg);

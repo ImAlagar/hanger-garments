@@ -282,7 +282,7 @@ const UserLogin = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
+                className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {loginError}
               </motion.div>

@@ -215,7 +215,6 @@ const MobileCustomizationView = ({
       
       // Timeout for slow connections
       const timeout = setTimeout(() => {
-        console.log(`⏰ Timeout for image: ${src.substring(0, 50)}...`);
         img.src = ''; // Cancel loading
         const placeholder = createMobilePlaceholder();
         const placeholderImg = new Image();

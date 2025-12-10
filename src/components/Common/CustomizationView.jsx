@@ -33,7 +33,6 @@ const CustomizationView = ({
     setIsCreatingDesign(true);
     try {
       // Your API call here
-      console.log('Design saved:', designData);
       return { data: { success: true } };
     } catch (error) {
       throw error;

@@ -235,7 +235,7 @@ const AdminResetPassword = () => {
             </motion.p>
           </motion.div>
           <motion.div 
-            className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-6 shadow-2xl"
+            className=" backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-6 shadow-2xl"
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.7 }}
@@ -380,7 +380,7 @@ const AdminResetPassword = () => {
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
-                  className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm text-center"
+                  className=" border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm text-center"
                 >
                   <FaExclamationTriangle className="inline mr-2" />
                   {apiError}
@@ -508,7 +508,7 @@ const AdminResetPassword = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
-              className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg"
+              className="mt-6 p-4  border border-yellow-500/30 rounded-lg"
             >
               <p className={`text-sm text-center ${
                 theme === "dark" ? "text-yellow-300" : "text-yellow-700"

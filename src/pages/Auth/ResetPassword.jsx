@@ -117,8 +117,8 @@ const ResetPassword = () => {
     ? "bg-gray-900 text-white border-gray-700" 
     : "bg-gray-100 text-gray-900 border-gray-200";
   const inputBorder = theme === "dark" ? "border-gray-600" : "border-gray-400";
-  const warningBg = theme === "dark" ? "bg-yellow-500/20 border-yellow-500 text-yellow-300" : "bg-yellow-100 border-yellow-400 text-yellow-800";
-  const successBg = theme === "dark" ? "bg-green-500/20 border-green-500 text-green-300" : "bg-green-100 border-green-400 text-green-800";
+  const warningBg = theme === "dark" ? "bg-yellow-500/20 border-yellow-500 text-yellow-500" : "bg-yellow-100 border-yellow-400 text-yellow-800";
+  const successBg = theme === "dark" ? "bg-green-500/20 border-green-500 text-green-500" : "bg-green-100 border-green-400 text-green-800";
 
   // Animation variants
   const containerVariants = {
@@ -309,7 +309,7 @@ const ResetPassword = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm text-center"
+              className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-6 text-sm text-center"
             >
               <FaExclamationTriangle className="inline mr-2" />
               {errorMessage}
@@ -321,7 +321,7 @@ const ResetPassword = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-center"
+              className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-6 text-center"
             >
               <FaExclamationTriangle className="inline mr-2" />
               <p className="font-semibold">Invalid Reset Link</p>

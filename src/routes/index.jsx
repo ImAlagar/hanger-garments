@@ -230,7 +230,7 @@ export const router = createBrowserRouter([
     ]
   },
   {
-        path: "wholesaler/dashboard",
+        path: "dashboard/wholesaler",
         element: (
           <ProtectedRoute allowedRoles={['WHOLESALER']}>
             <WholesalerDashboard />

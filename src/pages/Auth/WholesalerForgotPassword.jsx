@@ -204,7 +204,7 @@ const WholesalerForgotPassword = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-4 rounded-lg mb-6 text-center"
+              className="bg-green-500/20 border border-green-500 text-green-500 px-4 py-4 rounded-lg mb-6 text-center"
             >
               <FaCheckCircle className="w-6 h-6 mx-auto mb-2" />
               <p className="font-semibold">Reset Email Sent!</p>
@@ -219,7 +219,7 @@ const WholesalerForgotPassword = () => {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg mb-6 text-sm text-center"
+              className="bg-red-500/20 border border-red-500 text-red-500 px-4 py-3 rounded-lg mb-6 text-sm text-center"
             >
               {errorMessage}
             </motion.div>

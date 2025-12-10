@@ -317,7 +317,7 @@ const WholesalerLogin = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-yellow-500/20 border border-yellow-500 text-yellow-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
+                className="bg-yellow-500/20 border border-yellow-500 text-yellow-600 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {error}
               </motion.div>
@@ -332,7 +332,7 @@ const WholesalerLogin = () => {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-green-500/20 border border-green-500 text-green-300 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
+                className="bg-green-500/20 border border-green-500 text-green-500 px-4 py-3 rounded-lg mb-6 text-sm overflow-hidden text-center font-instrument"
               >
                 {success}
               </motion.div>
