@@ -97,6 +97,7 @@ export const authService = apiSlice.injectEndpoints({
       providesTags: ['User'],
     }),
 
+    // In your RTK Query service file
     approveWholesaler: builder.mutation({
       query: (wholesalerId) => ({
         url: `/auth/admin/approve-wholesaler/${wholesalerId}`,

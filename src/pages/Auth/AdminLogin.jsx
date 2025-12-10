@@ -422,14 +422,7 @@ const AdminLogin = () => {
             transition={{ delay: 0.4 }}
             className="text-end"
           >
-            <button
-              onClick={() => navigate('/admin/forgot-password')}
-              className={`text-sm font-instrument hover:underline transition ${
-                theme === "dark" ? "text-purple-400 hover:text-purple-300" : "text-purple-600 hover:text-purple-700"
-              }`}
-            >
-              Forgot Admin Password?
-            </button>
+
           </motion.div>
 
 
@@ -455,8 +448,19 @@ const AdminLogin = () => {
                 </>
               )}
             </motion.button>
-          </motion.form>
 
+          </motion.form>
+ 
+ <div className="flex items-center justify-end pt-3">
+                  <button
+              onClick={() => navigate('/admin/forgot-password')}
+              className={`text-sm  font-instrument hover:underline transition ${
+                theme === "dark" ? "text-purple-400 hover:text-purple-300" : "text-purple-600 hover:text-purple-700"
+              }`}
+            >
+              Forgot Admin Password?
+            </button>
+ </div>
           {/* Action Buttons */}
           <motion.div
             initial={{ opacity: 0 }}

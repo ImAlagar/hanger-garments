@@ -11,12 +11,12 @@ const ProductInfo = ({ product, hasStock, styles }) => {
   
   return (
     <>
-      <p className={`${stockColor} font-instrument text-sm mt-2`}>
+      <p className={`${stockColor} font-instrument text-sm mt-2 px-2`}>
         {stockStatus}
       </p>
       
       <h3 className={` ${styles.textColor}
-        text-gray-800 font-italiana tracking-widest font-semibold 
+        text-gray-800 font-italiana tracking-widest font-semibold  px-2
         text-base lg:text-lg mt-1 leading-tight
         transition-all duration-200
         ${isExpanded 
@@ -29,7 +29,7 @@ const ProductInfo = ({ product, hasStock, styles }) => {
     
 
         
-      <div className="flex items-center gap-2 mt-1 flex-wrap">
+      <div className="flex items-center gap-2 mt-1 flex-wrap px-2">
         <p className={`${styles.textColor} font-medium font-instrument tracking-widest`}>
           {product.isWholesaleUser 
             ? `₹${product.wholesalePrice}` 
@@ -40,7 +40,7 @@ const ProductInfo = ({ product, hasStock, styles }) => {
         </p>
         
         {product.priceLabel && (
-          <span className={`text-xs px-1 py-0.5 rounded ${
+          <span className={`text-xs px-2 py-0.5 rounded ${
             product.isWholesaleUser 
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
               : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
@@ -50,7 +50,7 @@ const ProductInfo = ({ product, hasStock, styles }) => {
         )}
         
         {!product.isWholesaleUser && product.offerPrice && product.offerPrice < product.normalPrice && (
-          <p className={`${styles.subText} line-through text-sm`}>
+          <p className={`${styles.subText} line-through text-sm px-2`}>
             ₹{product.normalPrice}
           </p>
         )}

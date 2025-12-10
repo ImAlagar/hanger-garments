@@ -18,7 +18,7 @@ const VerticalAutoScrollBadge = lazy(() => import("../discount/VerticalAutoScrol
 
 // Loading components for lazy loading
 const ProductImageLoader = () => (
-  <div className="w-full h-96 bg-gray-200 rounded-lg animate-pulse"></div>
+  <div className="w-full bg-gray-200 rounded-lg animate-pulse"></div>
 );
 
 const ProductInfoLoader = () => (
@@ -260,7 +260,7 @@ const ProductCard = memo(({ product, onCartUpdate }) => {
         onClick={handleCardClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`flex flex-col shadow-2xl px-5 py-3 rounded-xl ${styles.cardBg} ${
+        className={`flex flex-col shadow-2xl rounded-xl ${styles.cardBg} ${
           styles.theme === "dark" ? "shadow-gray-800" : ""
         } items-start text-left group cursor-pointer relative transition-all duration-300 hover:shadow-xl overflow-hidden`}
       >

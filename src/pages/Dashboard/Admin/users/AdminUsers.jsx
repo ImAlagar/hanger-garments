@@ -24,9 +24,10 @@ import {
   useDeleteUserMutation,
   useToggleUserStatusMutation,
   useChangeUserRoleMutation,
-  useApproveWholesalerMutation,
   useGetUserStatsQuery,
 } from '../../../../redux/services/userService';
+
+import {useApproveWholesalerMutation} from "../../../../redux/services/authService"
 import {
   setPagination,
   setFilters
@@ -192,16 +193,15 @@ const AdminUsers = () => {
     }
   };
 
-  const handleWholesalerApproval = async (userId, currentApproval) => {
+// Replace the existing handleWholesalerApproval function with:
+  const handleWholesalerApproval = async (userId) => {
     try {
-      await approveWholesaler({ 
-        userId, 
-        isApproved: !currentApproval 
-      }).unwrap();
+      await approveWholesaler(userId).unwrap(); // Pass only the userId
     } catch (error) {
       console.error('Approval toggle failed:', error);
     }
   };
+
 
   const handleServerPageChange = (page) => {
     dispatch(setPagination({ 
@@ -292,38 +292,43 @@ const AdminUsers = () => {
       ),
       className: 'min-w-48'
     },
-    {
-      key: 'role',
-      title: 'Role',
-      dataIndex: 'role',
-      render: (value, record) => (
-        <div className="flex flex-col space-y-1">
-          <span className={getRoleBadgeStyle(value)}>
-            {value === 'ADMIN' && <FiShield className="w-3 h-3 mr-1" />}
-            {value === 'WHOLESALER' && <FiShoppingBag className="w-3 h-3 mr-1" />}
-            {value === 'CUSTOMER' && <FiUser className="w-3 h-3 mr-1" />}
-            {value}
-          </span>
-          {record.role === 'WHOLESALER' && (
-            <button
-              onClick={() => handleWholesalerApproval(record.id, record.isApproved)}
-              disabled={isApprovalLoading}
-              className={`text-xs px-2 py-1 rounded ${
-                record.isApproved
-                  ? theme === 'dark' 
-                    ? 'bg-green-900 text-green-200 hover:bg-green-800' 
-                    : 'bg-green-100 text-green-800 hover:bg-green-200'
-                  : theme === 'dark'
-                    ? 'bg-yellow-900 text-yellow-200 hover:bg-yellow-800'
-                    : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-              } ${isApprovalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isApprovalLoading ? '...' : record.isApproved ? 'Approved' : 'Pending'}
-            </button>
-          )}
-        </div>
-      )
-    },
+// In the role column render function, update the button:
+{
+  key: 'role',
+  title: 'Role',
+  dataIndex: 'role',
+  render: (value, record) => (
+    <div className="flex flex-col space-y-1 relative z-10">
+      <span className={getRoleBadgeStyle(value)}>
+        {value === 'ADMIN' && <FiShield className="w-3 h-3 mr-1" />}
+        {value === 'WHOLESALER' && <FiShoppingBag className="w-3 h-3 mr-1" />}
+        {value === 'CUSTOMER' && <FiUser className="w-3 h-3 mr-1" />}
+        {value}
+      </span>
+      
+      {record.role === 'WHOLESALER' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleWholesalerApproval(record.id); // Just pass record.id
+          }}
+          disabled={isApprovalLoading}
+          className={`text-xs px-2 py-1 rounded transition-colors z-20 relative pointer-events-auto ${
+            record.isApproved
+              ? theme === 'dark' 
+                ? 'bg-green-900 text-green-200 hover:bg-green-800' 
+                : 'bg-green-100 text-green-800 hover:bg-green-200'
+              : theme === 'dark'
+                ? 'bg-yellow-900 text-yellow-200 hover:bg-yellow-800'
+                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+          } ${isApprovalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isApprovalLoading ? '...' : record.isApproved ? 'Approved' : 'Pending'}
+        </button>
+      )}
+    </div>
+  )
+},
     {
       key: 'status',
       title: 'Status',
@@ -384,38 +389,7 @@ const AdminUsers = () => {
             <FiEye className="w-4 h-4" />
           </Link>
           
-          {/* Role Change Buttons */}
-          {record.role !== 'ADMIN' && (
-            <>
-              <button
-                onClick={() => openRoleChangeModal(record, 'ADMIN')}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'text-red-400 hover:bg-red-900'
-                    : 'text-red-600 hover:bg-red-50'
-                }`}
-                title="Make Admin"
-                disabled={isRoleLoading}
-                data-action-button="true"
-              >
-                <FiShield className="w-4 h-4" />
-              </button>
-              
-              <button
-                onClick={() => openRoleChangeModal(record, 'WHOLESALER')}
-                className={`p-2 rounded-lg transition-colors ${
-                  theme === 'dark'
-                    ? 'text-purple-400 hover:bg-purple-900'
-                    : 'text-purple-600 hover:bg-purple-50'
-                }`}
-                title="Make Wholesaler"
-                disabled={isRoleLoading}
-                data-action-button="true"
-              >
-                <FiShoppingBag className="w-4 h-4" />
-              </button>
-            </>
-          )}
+
           
           {/* Delete Button */}
           <button
@@ -437,7 +411,7 @@ const AdminUsers = () => {
   ];
 
   // Mobile card renderer (keep your existing renderUserCard function)
-  const renderUserCard = (user) => {
+const renderUserCard = (user) => {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -514,10 +488,34 @@ const AdminUsers = () => {
                   </span>
                 </button>
 
-                {/* Role badge */}
-                <span className={getRoleBadgeStyle(user.role)}>
-                  {user.role}
-                </span>
+                {/* Role badge and Approval button */}
+                <div className="flex flex-col items-end space-y-1">
+                  <span className={getRoleBadgeStyle(user.role)}>
+                    {user.role}
+                  </span>
+                  
+                  {/* Wholesaler Approval Button */}
+                  {user.role === 'WHOLESALER' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleWholesalerApproval(user.id);
+                      }}
+                      disabled={isApprovalLoading}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                        user.isApproved
+                          ? theme === 'dark' 
+                            ? 'bg-green-900 text-green-200 hover:bg-green-800' 
+                            : 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : theme === 'dark'
+                            ? 'bg-yellow-900 text-yellow-200 hover:bg-yellow-800'
+                            : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                      } ${isApprovalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {isApprovalLoading ? '...' : user.isApproved ? 'Approved' : 'Pending'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
