@@ -49,6 +49,7 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
 
   /* ========== Animations ========== */
 
+  // Slide animation for content
   const slideVariants = {
     enter: (direction) => ({
       x: direction > 0 ? 200 : -200,
@@ -69,12 +70,91 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
     }),
   }
 
-  const fadeUp = {
-    hidden: { opacity: 0, y: 20 },
+  // Staggered fade up for text elements
+  const containerVariants = {
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { y: 30, opacity: 0 },
+    visible: {
       y: 0,
-      transition: { duration: 0.5, ease: "easeOut" },
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 15,
+      },
+    },
+  }
+
+  // Special animation for title using Italiana font
+  const titleVariants = {
+    hidden: { 
+      y: 40, 
+      opacity: 0,
+      letterSpacing: "0.1em"
+    },
+    visible: {
+      y: 0,
+      opacity: 1,
+      letterSpacing: "0.05em",
+      transition: {
+        duration: 0.8,
+        ease: [0.19, 1.0, 0.22, 1.0],
+      },
+    },
+  }
+
+  // Button animation with hover effects
+  const buttonVariants = {
+    hidden: { scale: 0.8, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 200,
+        damping: 15,
+        delay: 0.4,
+      },
+    },
+    hover: {
+      scale: 1.05,
+      backgroundColor: "#F7F3FF",
+      transition: {
+        duration: 0.2,
+      },
+    },
+    tap: {
+      scale: 0.95,
+    },
+  }
+
+  // Background fade animation
+  const backgroundVariants = {
+    hidden: { opacity: 0, scale: 1.1 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 1.2,
+        ease: "easeOut",
+      },
+    },
+    exit: {
+      opacity: 0,
+      scale: 1.05,
+      transition: {
+        duration: 0.8,
+      },
     },
   }
 
@@ -85,14 +165,14 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Background */}
+      {/* Animated Background */}
       <AnimatePresence mode="wait">
         <motion.div
           key={banner.id}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1 }}
+          variants={backgroundVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="absolute inset-0"
           style={{
             backgroundImage: `url(${banner.image})`,
@@ -102,10 +182,14 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
         />
       </AnimatePresence>
 
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" />
+      {/* Gradient Overlay */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"
+      />
 
-      {/* Content */}
+      {/* Content Container */}
       <div className="relative min-h-screen flex flex-col justify-center px-5">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
@@ -117,84 +201,149 @@ const HeroSliderMobile = ({ banners, current, setCurrent }) => {
             exit="exit"
             className="max-w-sm mx-auto text-center"
           >
+            {/* Content with staggered animation */}
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="space-y-6"
+            >
+              {/* Subtitle with Instrument Sans font */}
+              {banner.subtitle && (
+                <motion.span
+                  variants={itemVariants}
+                  className="inline-block mb-4 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-xs uppercase tracking-widest text-white font-instrument"
+                >
+                  {banner.subtitle}
+                </motion.span>
+              )}
 
-            {/* Subtitle */}
-            {banner.subtitle && (
-              <motion.span
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                className="inline-block mb-4 px-4 py-2 bg-white/10 border border-white/20 rounded-full text-xs uppercase tracking-widest text-white"
-              >
-                {banner.subtitle}
-              </motion.span>
-            )}
+              {/* Title with Italiana font - Luxurious feel */}
+              {banner.title && (
+                <motion.h1
+                  variants={titleVariants}
+                  className="text-4xl md:text-5xl font-normal text-white mb-4 leading-tight font-italiana"
+                >
+                  {banner.title}
+                </motion.h1>
+              )}
 
-            {/* Title */}
-            {banner.title && (
-              <motion.h1
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                className="text-3xl font-bold text-white mb-4 leading-tight"
-              >
-                {banner.title}
-              </motion.h1>
-            )}
+              {/* Description with Bai Jamjuree - Elegant body text */}
+              {banner.description && (
+                <motion.p
+                  variants={itemVariants}
+                  className="text-base text-gray-200 mb-8 leading-relaxed font-light font-bai-jamjuree"
+                >
+                  {banner.description}
+                </motion.p>
+              )}
 
-            {/* Description */}
-            {banner.description && (
-              <motion.p
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: 0.1 }}
-                className="text-sm text-gray-200 mb-6 leading-relaxed line-clamp-3"
-              >
-                {banner.description}
-              </motion.p>
-            )}
-
-            {/* CTA */}
-            {banner.buttonText && (
-              <motion.a
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: 0.2 }}
-                href={banner.buttonLink}
-                className="inline-flex items-center gap-3 px-10 py-4 bg-white text-black font-bold rounded-xl shadow-xl"
-              >
-                {banner.buttonText}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-              </motion.a>
-            )}
+              {/* CTA Button with animated arrow */}
+              {banner.buttonText && (
+                <motion.div variants={itemVariants}>
+                  <motion.a
+                    variants={buttonVariants}
+                    initial="hidden"
+                    animate="visible"
+                    whileHover="hover"
+                    whileTap="tap"
+                    href={banner.buttonLink}
+                    className="inline-flex items-center gap-3 px-10 py-4 bg-white text-black font-semibold rounded-xl shadow-2xl hover:shadow-3xl transition-shadow font-instrument"
+                  >
+                    <span>{banner.buttonText}</span>
+                    <motion.svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      animate={{ x: [0, 5, 0] }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        repeatDelay: 1,
+                      }}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M14 5l7 7m0 0l-7 7m7-7H3"
+                      />
+                    </motion.svg>
+                  </motion.a>
+                </motion.div>
+              )}
+            </motion.div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Dots */}
+        {/* Dots Indicator with animation */}
         {banners.length > 1 && (
-          <div className="flex justify-center gap-3 mt-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="flex justify-center gap-3 mt-12"
+          >
             {banners.map((_, i) => (
-              <button
+              <motion.button
                 key={i}
                 onClick={() => {
                   setDirection(i > current ? 1 : -1)
                   setCurrent(i)
                 }}
-                className={`w-3 h-3 rounded-full ${
-                  i === current ? "bg-white" : "bg-white/40"
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                className={`relative w-2.5 h-2.5 rounded-full transition-colors ${
+                  i === current 
+                    ? "bg-white shadow-lg" 
+                    : "bg-white/30 hover:bg-white/60"
                 }`}
-              />
+              >
+                {i === current && (
+                  <motion.div
+                    layoutId="activeDot"
+                    className="absolute inset-0 rounded-full bg-white"
+                    transition={{
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 20,
+                    }}
+                  />
+                )}
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
+        )}
+
+        {/* Swipe hint (only shows initially) */}
+        {banners.length > 1 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.7 }}
+            transition={{ delay: 1 }}
+            className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/70 text-sm font-instrument flex items-center gap-2"
+          >
+            <motion.span
+              animate={{ x: [-5, 5, -5] }}
+              transition={{
+                repeat: Infinity,
+                duration: 1.5,
+              }}
+            >
+              ←
+            </motion.span>
+            <span>Swipe</span>
+            <motion.span
+              animate={{ x: [5, -5, 5] }}
+              transition={{
+                repeat: Infinity,
+                duration: 1.5,
+              }}
+            >
+              →
+            </motion.span>
+          </motion.div>
         )}
       </div>
     </section>
