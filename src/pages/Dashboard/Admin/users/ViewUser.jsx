@@ -235,14 +235,7 @@ const ViewUser = () => {
                     {user.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className={currentTheme.text.muted}>Email Verified</span>
-                  {user.isEmailVerified ? (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <XCircle className="w-5 h-5 text-red-500" />
-                  )}
-                </div>
+
                 {user.role === 'WHOLESALER' && (
                   <div className="flex items-center justify-between">
                     <span className={currentTheme.text.muted}>Approved</span>

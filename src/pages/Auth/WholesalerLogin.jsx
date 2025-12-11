@@ -35,7 +35,7 @@ const WholesalerLogin = () => {
   const [success, setSuccess] = useState("");
   const [showOTPField, setShowOTPField] = useState(false);
   const [otp, setOtp] = useState("");
-  const [countryCode] = useState("+91");
+  const [countryCode] = useState("");
   
   // Resend OTP state
   const [canResend, setCanResend] = useState(true);
