@@ -164,7 +164,7 @@ const categories = categoriesResponse?.data?.categories ||
     }
 
     if (!image) {
-      newErrors.image = 'Subcategory image is required';
+      newErrors.image = 'Size Chart image is required';
     }
 
     setErrors(newErrors);
@@ -329,13 +329,13 @@ const categories = categoriesResponse?.data?.categories ||
                       className="text-xl font-semibold font-instrument mb-6 flex items-center"
                     >
                       <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">2</span>
-                      Subcategory Image
+                      Sizechart Image
                     </motion.h2>
 
                     <motion.div variants={itemVariants} className="space-y-4">
                       <div>
                         <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
-                          Subcategory Image *
+                          Sizechart Image *
                         </label>
                         <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
                           Upload a high-quality image that represents this subcategory. Recommended size: 500x500px.

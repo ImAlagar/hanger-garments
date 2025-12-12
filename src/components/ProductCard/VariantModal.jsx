@@ -1,7 +1,6 @@
 import React, { memo, useMemo, useCallback } from "react";
 import placeholderimage from "../../assets/images/placeholder.jpg"
 
-
 const VariantModal = memo(({
   product,
   availableVariants,
@@ -12,7 +11,9 @@ const VariantModal = memo(({
   onVariantSelect,
   onQuantityChange,
   onAddToCart,
-  addingToCart = false
+  addingToCart = false,
+  // NEW: Add isWholesaleUser prop
+  isWholesaleUser = false
 }) => {
   // Memoized calculations
   const discountPercentage = useMemo(() => {
@@ -20,6 +21,12 @@ const VariantModal = memo(({
       ? Math.round(((product.normalPrice - product.offerPrice) / product.normalPrice) * 100)
       : 0;
   }, [product.offerPrice, product.normalPrice]);
+
+  // NEW: Calculate wholesale discount
+  const wholesaleDiscountPercentage = useMemo(() => {
+    if (!isWholesaleUser || !product.wholesalePrice || !product.offerPrice) return 0;
+    return Math.round(((product.offerPrice - product.wholesalePrice) / product.offerPrice) * 100);
+  }, [isWholesaleUser, product.wholesalePrice, product.offerPrice]);
 
   const productImage = useMemo(() => {
     const firstVariant = product.variants?.[0];
@@ -29,7 +36,29 @@ const VariantModal = memo(({
     return placeholderimage;
   }, [product.variants]);
 
-  const displayPrice = product.offerPrice || product.normalPrice;
+  // NEW: Determine display price based on user type
+  const displayPrice = useMemo(() => {
+    if (isWholesaleUser && product.wholesalePrice) {
+      return product.wholesalePrice;
+    }
+    return product.offerPrice || product.normalPrice;
+  }, [isWholesaleUser, product.wholesalePrice, product.offerPrice, product.normalPrice]);
+
+  // NEW: Determine original price for comparison
+  const originalPrice = useMemo(() => {
+    if (isWholesaleUser && product.wholesalePrice) {
+      return product.offerPrice || product.normalPrice;
+    }
+    return product.normalPrice;
+  }, [isWholesaleUser, product.wholesalePrice, product.offerPrice, product.normalPrice]);
+
+  // NEW: Check if showing discount
+  const showDiscount = useMemo(() => {
+    if (isWholesaleUser && product.wholesalePrice) {
+      return product.offerPrice && product.wholesalePrice < product.offerPrice;
+    }
+    return product.offerPrice && product.offerPrice < product.normalPrice;
+  }, [isWholesaleUser, product.wholesalePrice, product.offerPrice, product.normalPrice]);
 
   const handleClose = useCallback((e) => {
     e.stopPropagation();
@@ -87,21 +116,25 @@ const VariantModal = memo(({
           <div>
             <h2 className={`text-lg truncate font-semibold mb-1 ${styles.modalText}`}>{product.title}</h2>
 
-            {/* Price */}
+            {/* Price Section - Updated */}
             <div className="flex items-center gap-2 mb-1">
+              {/* Wholesale Badge */}
+              {isWholesaleUser && product.wholesalePrice && (
+                <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs px-2 py-1 rounded font-medium">
+                  WHOLESALE
+                </span>
+              )}
+
               <p className={`text-xl font-bold ${styles.modalText}`}>₹{displayPrice}</p>
 
-              {product.offerPrice && product.offerPrice < product.normalPrice && (
-                <>
-                  <p className={`line-through text-sm ${styles.isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    ₹{product.normalPrice}
-                  </p>
-                  <span className={`font-semibold text-sm ${styles.discountText}`}>
-                    ({discountPercentage}% off)
-                  </span>
-                </>
-              )}
             </div>
+
+            {/* Wholesale Info Note */}
+            {isWholesaleUser && product.wholesalePrice && (
+              <p className={`text-xs mb-1 ${styles.isDark ? 'text-green-400' : 'text-green-600'}`}>
+                💰 Special wholesale price applied
+              </p>
+            )}
 
             <p className={`text-xs mb-4 ${styles.isDark ? 'text-gray-400' : 'text-gray-500'}`}>(Inclusive of all taxes)</p>
 

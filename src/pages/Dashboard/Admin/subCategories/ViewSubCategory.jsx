@@ -173,7 +173,7 @@ const ViewSubCategory = () => {
           <div className="lg:col-span-1 space-y-6">
             {/* Subcategory Image */}
             <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
-              <h2 className={`text-lg font-semibold font-instrument mb-4 ${currentTheme.text.primary}`}>Subcategory Image</h2>
+              <h2 className={`text-lg font-semibold font-instrument mb-4 ${currentTheme.text.primary}`}>Sizechart Image</h2>
               {subcategory.image ? (
                 <div className="rounded-lg overflow-hidden">
                   <img

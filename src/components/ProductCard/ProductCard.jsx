@@ -299,7 +299,7 @@ const ProductCard = memo(({ product, onCartUpdate }) => {
 
         {/* Product Actions with Lazy Loading */}
         <Suspense fallback={<ProductActionsLoader />}>
-          <ProductActions
+          <ProductActions 
             product={safeProduct}
             hasStock={hasStock}
             availableVariants={availableVariants}
@@ -325,6 +325,8 @@ const ProductCard = memo(({ product, onCartUpdate }) => {
               onVariantSelect={handleVariantSelect}
               onQuantityChange={handleQuantityChange}
               onAddToCart={handleModalAddToCart}
+              // Add isWholesaleUser prop
+              isWholesaleUser={user?.role === 'WHOLESALER'}
             />
           </ModalPortal>
         </Suspense>

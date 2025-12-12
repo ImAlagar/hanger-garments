@@ -18,7 +18,7 @@ const ProductActions = ({
         handleAddToCart();
       }}
       disabled={!hasStock || addingToCart}
-      className={`w-full mt-3 py-2 px-4 rounded-lg font-instrument text-sm font-medium transition-all duration-200 relative overflow-hidden ${
+      className={`w-full mt-3  py-2 px-4 rounded-lg font-instrument text-sm font-medium transition-all duration-200 relative overflow-hidden ${
         !hasStock
           ? "bg-gray-300 text-gray-500 cursor-not-allowed"
           : addingToCart

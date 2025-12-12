@@ -203,6 +203,80 @@ const ViewOrder = () => {
     return filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' ');
   };
 
+
+  // Add these helper functions for wholesale price calculation
+const calculateItemPrice = (orderItem, userRole) => {
+  // Check if user is WHOLESALER
+  if (userRole === 'WHOLESALER' && orderItem.product?.wholesalePrice) {
+    return orderItem.product.wholesalePrice;
+  }
+  return orderItem.price || orderItem.product?.offerPrice || 0;
+};
+
+const calculateOrderTotal = (order) => {
+  // Get user role from order data
+  const userRole = order.user?.role;
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  
+  if (!order?.orderItems) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const itemPrice = calculateItemPrice(item, userRole);
+    const quantity = item.quantity || 1;
+    return total + (itemPrice * quantity);
+  }, 0);
+};
+
+// Calculate regular total for comparison
+const calculateRegularTotal = (order) => {
+  if (!order?.orderItems) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const itemPrice = item.price || item.product?.offerPrice || 0;
+    const quantity = item.quantity || 1;
+    return total + (itemPrice * quantity);
+  }, 0);
+};
+
+// Get price info for display
+const getOrderPriceInfo = (order) => {
+  const userRole = order.user?.role;
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  const wholesaleTotal = calculateOrderTotal(order);
+  const regularTotal = calculateRegularTotal(order);
+  const savings = regularTotal - wholesaleTotal;
+  
+  return {
+    userRole: userRole,
+    isWholesaleOrder: isWholesaleUser,
+    displayTotal: isWholesaleUser ? wholesaleTotal : regularTotal,
+    regularTotal: regularTotal,
+    savings: savings,
+    isPriceAdjusted: isWholesaleUser && wholesaleTotal !== regularTotal
+  };
+};
+
+// Get item price info
+const getItemPriceInfo = (item, userRole) => {
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  const wholesalePrice = item.product?.wholesalePrice || 0;
+  const itemPrice = calculateItemPrice(item, userRole);
+  const regularPrice = item.price || item.product?.offerPrice || 0;
+  const itemTotal = itemPrice * (item.quantity || 1);
+  const regularTotal = regularPrice * (item.quantity || 1);
+  const itemSavings = regularTotal - itemTotal;
+  
+  return {
+    itemPrice,
+    itemTotal,
+    regularPrice,
+    regularTotal,
+    wholesalePrice,
+    isWholesaleItem: isWholesaleUser && wholesalePrice > 0 && itemPrice === wholesalePrice,
+    itemSavings
+  };
+};
+
   return (
     <motion.div
       initial="hidden"
@@ -250,6 +324,15 @@ const ViewOrder = () => {
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusStyles[order.status]}`}>
                   {order.status}
                 </span>
+                
+                {/* Show wholesale badge */}
+                {order.user?.role === 'WHOLESALER' && (
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    theme === 'dark' ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
+                  }`}>
+                    WHOLESALE
+                  </span>
+                )}
               </div>
               
               <div className="space-y-3">
@@ -267,10 +350,27 @@ const ViewOrder = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className={currentTheme.text.muted}>Total Amount</span>
-                  <span className={`font-medium text-lg ${currentTheme.text.primary}`}>
-                    ₹{order.totalAmount}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-medium text-lg ${currentTheme.text.primary}`}>
+                      ₹{calculateOrderTotal(order)}
+                    </span>
+                    
+                  </div>
                 </div>
+                
+                {/* Show user role */}
+                {order.user?.role && (
+                  <div className="flex items-center justify-between">
+                    <span className={currentTheme.text.muted}>Account Type</span>
+                    <span className={`font-medium ${
+                      order.user.role === 'WHOLESALER' 
+                        ? 'text-purple-600 dark:text-purple-400' 
+                        : currentTheme.text.primary
+                    }`}>
+                      {order.user.role}
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -343,6 +443,26 @@ const ViewOrder = () => {
                   <Phone className="w-4 h-4 text-gray-500" />
                   <span className={currentTheme.text.primary}>{order.phone}</span>
                 </div>
+                
+                {/* Show user role */}
+                {order.user?.role && (
+                  <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      order.user.role === 'WHOLESALER'
+                        ? theme === 'dark' 
+                          ? 'bg-purple-900 text-purple-200' 
+                          : 'bg-purple-100 text-purple-800'
+                        : theme === 'dark'
+                          ? 'bg-gray-700 text-gray-300' 
+                          : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {order.user.role}
+                    </div>
+                    <span className={`text-xs ${currentTheme.text.muted}`}>
+                      Account Type
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -363,81 +483,105 @@ const ViewOrder = () => {
           {/* Right Column - Order Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Order Items */}
-            <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
-              <h2 className={`text-xl font-semibold font-instrument mb-6 ${currentTheme.text.primary}`}>Order Items</h2>
-              <div className="space-y-4">
-                {order.orderItems?.map((item, index) => (
-                  <div key={item.id} className={`p-4 rounded-lg ${
-                    theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+{/* Order Items */}
+<motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
+  <h2 className={`text-xl font-semibold font-instrument mb-6 ${currentTheme.text.primary}`}>Order Items</h2>
+  <div className="space-y-4">
+    {order.orderItems?.map((item, index) => {
+      const priceInfo = getItemPriceInfo(item, order.user?.role);
+      
+      return (
+        <div key={item.id} className={`p-4 rounded-lg ${
+          theme === 'dark' ? 'bg-gray-700' : 'bg-gray-50'
+        }`}>
+          <div className="flex items-start space-x-4">
+            {/* Product Image */}
+            <div className="flex-shrink-0">
+              {item.productVariant?.variantImages?.length > 0 ? (
+                <img
+                  src={item.productVariant.variantImages[0].imageUrl}
+                  alt={item.product?.name}
+                  className="w-16 h-16 rounded-lg object-cover"
+                />
+              ) : (
+                <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                  theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
+                }`}>
+                  <Package className="w-6 h-6 text-gray-500" />
+                </div>
+              )}
+            </div>
+            
+            {/* Product Details */}
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className={`font-medium ${currentTheme.text.primary}`}>
+                    {item.product?.name}
+                  </h3>
+                  <p className={`text-sm ${currentTheme.text.muted}`}>
+                    {item.productVariant?.color} • {item.productVariant?.size}
+                  </p>
+                  <p className={`text-sm ${currentTheme.text.muted}`}>
+                    Product Code: {item.product?.productCode}
+                  </p>
+                  <p className={`text-sm ${currentTheme.text.muted}`}>
+                    SKU: {item.productVariant?.sku}
+                  </p>
+                </div>
+                
+                {/* Wholesale badge for item */}
+                {priceInfo.isWholesaleItem && (
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                    theme === 'dark' ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
                   }`}>
-                    <div className="flex items-start space-x-4">
-                      {/* Product Image */}
-                      <div className="flex-shrink-0">
-                        {item.productVariant?.variantImages?.length > 0 ? (
-                          <img
-                            src={item.productVariant.variantImages[0].imageUrl}
-                            alt={item.product?.name}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
-                            theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
-                          }`}>
-                            <Package className="w-6 h-6 text-gray-500" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Product Details */}
-                      <div className="flex-1">
-                        <h3 className={`font-medium ${currentTheme.text.primary}`}>
-                          {item.product?.name}
-                        </h3>
-                        <p className={`text-sm ${currentTheme.text.muted}`}>
-                          {item.productVariant?.color} • {item.productVariant?.size}
-                        </p>
-                        <p className={`text-sm ${currentTheme.text.muted}`}>
-                          Product Code: {item.product?.productCode}
-                        </p>
-                        <p className={`text-sm ${currentTheme.text.muted}`}>
-                          SKU: {item.productVariant?.sku}
-                        </p>
-                      </div>
-                      
-                      {/* Price */}
-                      <div className="text-right">
-                        <p className={`font-medium ${currentTheme.text.primary}`}>
-                          ₹{item.price} x {item.quantity}
-                        </p>
-                        <p className={`text-lg font-semibold ${currentTheme.text.primary}`}>
-                          ₹{item.price * item.quantity}
-                        </p>
-                      </div>
-                    </div>
+                    Wholesale
+                  </span>
+                )}
+              </div>
+              
 
-                    {/* Variant Images Gallery */}
-                    {item.productVariant?.variantImages?.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className={`text-sm font-medium mb-2 flex items-center ${currentTheme.text.primary}`}>
-                          <Image className="w-4 h-4 mr-1" />
-                          Product Images
-                        </h4>
-                        <div className="flex space-x-2 overflow-x-auto pb-2">
-                          {item.productVariant.variantImages.map((variantImage, imgIndex) => (
-                            <img
-                              key={imgIndex}
-                              src={variantImage.imageUrl}
-                              alt={`${item.product?.name} - ${variantImage.color}`}
-                              className="w-20 h-20 rounded-lg object-cover border border-gray-300 dark:border-gray-600"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+            </div>
+            
+            {/* Price */}
+            <div className="text-right">
+              <p className={`font-medium ${currentTheme.text.primary}`}>
+                ₹{priceInfo.itemPrice} x {item.quantity}
+              </p>
+              <p className={`text-lg font-semibold ${
+                priceInfo.isWholesaleItem ? 'text-purple-600 dark:text-purple-400' : currentTheme.text.primary
+              }`}>
+                ₹{priceInfo.itemTotal}
+              </p>
+              
+
+            </div>
+          </div>
+
+          {/* Variant Images Gallery */}
+          {item.productVariant?.variantImages?.length > 0 && (
+            <div className="mt-4">
+              <h4 className={`text-sm font-medium mb-2 flex items-center ${currentTheme.text.primary}`}>
+                <Image className="w-4 h-4 mr-1" />
+                Product Images
+              </h4>
+              <div className="flex space-x-2 overflow-x-auto pb-2">
+                {item.productVariant.variantImages.map((variantImage, imgIndex) => (
+                  <img
+                    key={imgIndex}
+                    src={variantImage.imageUrl}
+                    alt={`${item.product?.name} - ${variantImage.color}`}
+                    className="w-20 h-20 rounded-lg object-cover border border-gray-300 dark:border-gray-600"
+                  />
                 ))}
               </div>
-            </motion.div>
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+</motion.div>
 
             {/* Custom Images Section */}
             {order.customImages && order.customImages.length > 0 && (
@@ -472,32 +616,80 @@ const ViewOrder = () => {
               </motion.div>
             )}
 
-            {/* Order Summary */}
-            <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
-              <h2 className={`text-xl font-semibold font-instrument mb-6 ${currentTheme.text.primary}`}>Order Summary</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className={currentTheme.text.muted}>Subtotal</span>
-                  <span className={currentTheme.text.primary}>₹{order.subtotal}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={currentTheme.text.muted}>Discount</span>
-                  <span className={currentTheme.text.primary}>-₹{order.discount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={currentTheme.text.muted}>Shipping Cost</span>
-                  <span className={currentTheme.text.primary}>₹{order.shippingCost}</span>
-                </div>
-                <div className={`border-t ${currentTheme.border} pt-3`}>
-                  <div className="flex justify-between">
-                    <span className={`font-semibold ${currentTheme.text.primary}`}>Total Amount</span>
-                    <span className={`font-semibold text-lg ${currentTheme.text.primary}`}>
-                      ₹{order.totalAmount}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+{/* Order Summary */}
+<motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>
+  <h2 className={`text-xl font-semibold font-instrument mb-6 ${currentTheme.text.primary}`}>Order Summary</h2>
+  
+  {order.user?.role === 'WHOLESALER' && (
+    <div className={`mb-4 p-3 rounded-lg ${
+      theme === 'dark' ? 'bg-purple-900/30' : 'bg-purple-50'
+    }`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-sm font-medium ${currentTheme.text.primary}`}>Wholesale Pricing Applied</span>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+          theme === 'dark' ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
+        }`}>
+          WHOLESALE
+        </span>
+      </div>
+    </div>
+  )}
+  
+  <div className="space-y-3">
+    {/* Regular Total for comparison (wholesale only) */}
+    {order.user?.role === 'WHOLESALER' && calculateRegularTotal(order) !== calculateOrderTotal(order) && (
+      <div className="flex justify-between items-center">
+        <span className={`text-sm ${currentTheme.text.muted}`}>
+          Regular Items Total
+          <span className="ml-2 text-xs text-gray-500">(for comparison)</span>
+        </span>
+        <span className={`text-sm line-through ${currentTheme.text.muted}`}>
+          ₹{calculateRegularTotal(order)}
+        </span>
+      </div>
+    )}
+    
+    {/* Wholesale Savings */}
+    {order.user?.role === 'WHOLESALER' && (
+      <div className="flex justify-between items-center">
+        <span className={`text-sm ${currentTheme.text.muted}`}>Wholesale Savings</span>
+        <span className="text-sm font-medium text-green-600">
+          -₹{calculateRegularTotal(order) - calculateOrderTotal(order)}
+        </span>
+      </div>
+    )}
+    
+    <div className="flex justify-between">
+      <span className={currentTheme.text.muted}>Items Subtotal</span>
+      <span className={`font-medium ${
+        order.user?.role === 'WHOLESALER' ? 'text-purple-600 dark:text-purple-400' : currentTheme.text.primary
+      }`}>
+        ₹{calculateOrderTotal(order)}
+      </span>
+    </div>
+    
+    <div className="flex justify-between">
+      <span className={currentTheme.text.muted}>Discount</span>
+      <span className="text-green-600">-₹{order.discount}</span>
+    </div>
+    
+    <div className="flex justify-between">
+      <span className={currentTheme.text.muted}>Shipping Cost</span>
+      <span className={currentTheme.text.primary}>₹{order.shippingCost}</span>
+    </div>
+    
+    <div className={`border-t ${currentTheme.border} pt-3`}>
+      <div className="flex justify-between">
+        <span className={`font-semibold ${currentTheme.text.primary}`}>Total Amount</span>
+        <span className={`font-semibold text-lg ${
+          order.user?.role === 'WHOLESALER' ? 'text-purple-600 dark:text-purple-400' : currentTheme.text.primary
+        }`}>
+          ₹{calculateOrderTotal(order) - order.discount + order.shippingCost}
+        </span>
+      </div>
+    </div>
+  </div>
+</motion.div>
 
             {/* Timeline Information */}
             <motion.div variants={itemVariants} className={`rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.shadow}`}>

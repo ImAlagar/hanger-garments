@@ -43,6 +43,8 @@ const AdminOrders = () => {
     filters 
   } = useSelector((state) => state.order);
 
+
+  
   // Local state
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [deleteModal, setDeleteModal] = useState({
@@ -166,6 +168,58 @@ const AdminOrders = () => {
     setDeleteModal({ isOpen: false, order: null });
   };
 
+
+  // Add these helper functions for wholesale price calculation
+const calculateItemPrice = (orderItem, userRole) => {
+  // Check if user is WHOLESALER
+  if (userRole === 'WHOLESALER' && orderItem.product?.wholesalePrice) {
+    return orderItem.product.wholesalePrice;
+  }
+  return orderItem.price || orderItem.product?.offerPrice || 0;
+};
+
+const calculateOrderTotal = (order) => {
+  // Get user role from order data
+  const userRole = order.user?.role;
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  
+  if (!order?.orderItems) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const itemPrice = calculateItemPrice(item, userRole);
+    const quantity = item.quantity || 1;
+    return total + (itemPrice * quantity);
+  }, 0);
+};
+
+// Calculate regular total for comparison
+const calculateRegularTotal = (order) => {
+  if (!order?.orderItems) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const itemPrice = item.price || item.product?.offerPrice || 0;
+    const quantity = item.quantity || 1;
+    return total + (itemPrice * quantity);
+  }, 0);
+};
+
+// Get price info for display
+const getOrderPriceInfo = (order) => {
+  const userRole = order.user?.role;
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  const wholesaleTotal = calculateOrderTotal(order);
+  const regularTotal = calculateRegularTotal(order);
+  const savings = regularTotal - wholesaleTotal;
+  
+  return {
+    userRole: userRole,
+    isWholesaleOrder: isWholesaleUser,
+    displayTotal: isWholesaleUser ? wholesaleTotal : regularTotal,
+    regularTotal: regularTotal,
+    savings: savings,
+    isPriceAdjusted: isWholesaleUser && wholesaleTotal !== regularTotal
+  };
+};
   // Table columns configuration
   const columns = [
     {
@@ -183,18 +237,33 @@ const AdminOrders = () => {
       ),
       className: 'min-w-32'
     },
-    {
-      key: 'customer',
-      title: 'Customer',
-      dataIndex: 'name',
-      render: (value, record) => (
-        <div className="min-w-0">
+{
+  key: 'customer',
+  title: 'Customer',
+  dataIndex: 'name',
+  render: (value, record) => {
+    const userRole = record.user?.role;
+    
+    return (
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 mb-1">
           <p className={`font-medium ${themeStyles.text.primary}`}>{value}</p>
-          <p className={`text-sm ${themeStyles.text.muted}`}>{record.email}</p>
+          {userRole && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              userRole === 'WHOLESALER'
+                ? theme === 'dark' ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'
+                : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+            }`}>
+              {userRole}
+            </span>
+          )}
         </div>
-      ),
-      className: 'min-w-48'
-    },
+        <p className={`text-sm ${themeStyles.text.muted}`}>{record.email}</p>
+      </div>
+    );
+  },
+  className: 'min-w-48'
+},
     {
       key: 'items',
       title: 'Items',
@@ -208,17 +277,43 @@ const AdminOrders = () => {
         </span>
       )
     },
-    {
-      key: 'amount',
-      title: 'Amount',
-      dataIndex: 'totalAmount',
-      sortable: true,
-      render: (value) => (
-        <span className={`font-medium ${themeStyles.text.primary}`}>
-          ₹{parseFloat(value || 0).toFixed(2)}
-        </span>
-      )
-    },
+{
+  key: 'amount',
+  title: 'Amount',
+  dataIndex: 'totalAmount',
+  sortable: true,
+  render: (value, record) => {
+    const priceInfo = getOrderPriceInfo(record);
+    const userRole = record.user?.role;
+    const isWholesaleUser = userRole === 'WHOLESALER';
+    
+    return (
+      <div className="min-w-0">
+        {/* User Role Badge */}
+        <div className="flex items-center gap-2 mb-1">
+          {userRole && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              userRole === 'WHOLESALER'
+                ? theme === 'dark' ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
+                : theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+            }`}>
+              {userRole}
+            </span>
+          )}
+        </div>
+        
+        {/* Main Amount */}
+        <div className="flex items-center gap-2">
+          <span className={`font-medium ${themeStyles.text.primary}`}>
+            ₹{parseFloat(priceInfo.displayTotal).toFixed(2)}
+          </span>
+          
+        </div>
+        
+      </div>
+    );
+  }
+},
     {
       key: 'status',
       title: 'Status',
@@ -299,134 +394,153 @@ const AdminOrders = () => {
   ];
 
   // Mobile card renderer
-  const renderOrderCard = (order) => {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`rounded-lg border p-4 shadow-sm hover:shadow-md transition-all ${themeStyles.card}`}
-      >
-        <div className="flex flex-col space-y-3">
-          
-          {/* Header: Order ID + Date */}
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className={`font-mono font-medium text-sm ${themeStyles.text.primary}`}>
-                {order.orderNumber}
-              </h3>
-              <p className={`text-xs ${themeStyles.text.muted}`}>
-                {new Date(order.createdAt).toLocaleDateString()}
-              </p>
-            </div>
+// Mobile card renderer
+const renderOrderCard = (order) => {
+  const priceInfo = getOrderPriceInfo(order);
+  const userRole = order.user?.role;
+  const isWholesaleUser = userRole === 'WHOLESALER';
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-lg border p-4 shadow-sm hover:shadow-md transition-all ${themeStyles.card}`}
+    >
+      <div className="flex flex-col space-y-3">
+        
+        {/* Header: Order ID + Date + Role */}
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className={`font-mono font-medium text-sm ${themeStyles.text.primary}`}>
+              {order.orderNumber}
+            </h3>
+            <p className={`text-xs ${themeStyles.text.muted}`}>
+              {new Date(order.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
               statusStyles[order.status] || statusStyles.PENDING
             }`}>
               {order.status}
             </span>
-          </div>
-
-          {/* Customer Info */}
-          <div className="flex items-center space-x-2">
-            <FiUser className={`w-4 h-4 ${themeStyles.text.muted}`} />
-            <div>
-              <p className={`text-sm font-medium ${themeStyles.text.primary}`}>
-                {order.name}
-              </p>
-              <p className={`text-xs ${themeStyles.text.muted}`}>
-                {order.email}
-              </p>
-            </div>
-          </div>
-
-          {/* Order Details */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className={themeStyles.text.muted}>Items</p>
-              <p className={`font-medium ${themeStyles.text.primary}`}>
-                {order.orderItems?.length || 0}
-              </p>
-            </div>
-            <div>
-              <p className={themeStyles.text.muted}>Amount</p>
-              <p className={`font-medium ${themeStyles.text.primary}`}>
-                ₹{parseFloat(order.totalAmount || 0).toFixed(2)}
-              </p>
-            </div>
-            <div>
-              <p className={themeStyles.text.muted}>Payment</p>
-              <p className={`font-medium ${themeStyles.text.primary}`}>
-                {order.paymentMethod}
-              </p>
-            </div>
-            <div>
-              <p className={themeStyles.text.muted}>Status</p>
-              <select
-                value={order.status}
-                onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                disabled={isStatusLoading}
-                className={`text-xs px-2 py-1 rounded border-0 w-full ${
-                  statusStyles[order.status] || statusStyles.PENDING
-                } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="PROCESSING">Processing</option>
-                <option value="SHIPPED">Shipped</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="REFUNDED">Refunded</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className={`flex justify-between pt-3 border-t ${
-            theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-          }`}>
-            <Link
-              to={`/dashboard/orders/view/${order.id}`}
-              className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
-                theme === 'dark' 
-                  ? 'text-blue-400 hover:bg-blue-900' 
-                  : 'text-blue-600 hover:bg-blue-50'
-              }`}
-              data-action-button="true"
-            >
-              <FiEye className="w-3 h-3" />
-              <span>View</span>
-            </Link>
-            
-            <Link
-              to={`/dashboard/orders/edit/${order.id}`}
-              className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
-                theme === 'dark' 
-                  ? 'text-green-400 hover:bg-green-900' 
-                  : 'text-green-600 hover:bg-green-50'
-              }`}
-              data-action-button="true"
-            >
-              <FiEdit2 className="w-3 h-3" />
-              <span>Edit</span>
-            </Link>
-            
-            <button
-              onClick={() => openDeleteModal(order)}
-              className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
-                theme === 'dark' 
-                  ? 'text-red-400 hover:bg-red-900' 
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
-              disabled={isDeleting}
-              data-action-button="true"
-            >
-              <FiTrash2 className="w-3 h-3" />
-              <span>Delete</span>
-            </button>
+            {userRole && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                userRole === 'WHOLESALER'
+                  ? theme === 'dark' ? 'bg-purple-900 text-purple-200' : 'bg-purple-100 text-purple-800'
+                  : 'text-gray-600'
+              }`}>
+                {userRole}
+              </span>
+            )}
           </div>
         </div>
-      </motion.div>
-    );
-  };
+
+        {/* Customer Info */}
+        <div className="flex items-center space-x-2">
+          <FiUser className={`w-4 h-4 ${themeStyles.text.muted}`} />
+          <div>
+            <p className={`text-sm font-medium ${themeStyles.text.primary}`}>
+              {order.name}
+            </p>
+            <p className={`text-xs ${themeStyles.text.muted}`}>
+              {order.email}
+            </p>
+          </div>
+        </div>
+
+        {/* Order Details */}
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className={themeStyles.text.muted}>Items</p>
+            <p className={`font-medium ${themeStyles.text.primary}`}>
+              {order.orderItems?.length || 0}
+            </p>
+          </div>
+          <div>
+            <p className={themeStyles.text.muted}>Amount</p>
+            <div>
+              <p className={`font-medium ${themeStyles.text.primary}`}>
+                ₹{parseFloat(priceInfo.displayTotal).toFixed(2)}
+              </p>
+
+            </div>
+          </div>
+          <div>
+            <p className={themeStyles.text.muted}>Payment</p>
+            <p className={`font-medium ${themeStyles.text.primary}`}>
+              {order.paymentMethod}
+            </p>
+          </div>
+          <div>
+            <p className={themeStyles.text.muted}>Status</p>
+            <select
+              value={order.status}
+              onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
+              disabled={isStatusLoading}
+              className={`text-xs px-2 py-1 rounded border-0 w-full ${
+                statusStyles[order.status] || statusStyles.PENDING
+              } ${isStatusLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <option value="PENDING">Pending</option>
+              <option value="CONFIRMED">Confirmed</option>
+              <option value="PROCESSING">Processing</option>
+              <option value="SHIPPED">Shipped</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="REFUNDED">Refunded</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className={`flex justify-between pt-3 border-t ${
+          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+          <Link
+            to={`/dashboard/orders/view/${order.id}`}
+            className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
+              theme === 'dark' 
+                ? 'text-blue-400 hover:bg-blue-900' 
+                : 'text-blue-600 hover:bg-blue-50'
+            }`}
+            data-action-button="true"
+          >
+            <FiEye className="w-3 h-3" />
+            <span>View</span>
+          </Link>
+          
+          <Link
+            to={`/dashboard/orders/edit/${order.id}`}
+            className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
+              theme === 'dark' 
+                ? 'text-green-400 hover:bg-green-900' 
+                : 'text-green-600 hover:bg-green-50'
+            }`}
+            data-action-button="true"
+          >
+            <FiEdit2 className="w-3 h-3" />
+            <span>Edit</span>
+          </Link>
+          
+          <button
+            onClick={() => openDeleteModal(order)}
+            className={`flex items-center space-x-1 px-3 py-1 rounded text-sm ${
+              theme === 'dark' 
+                ? 'text-red-400 hover:bg-red-900' 
+                : 'text-red-600 hover:bg-red-50'
+            }`}
+            disabled={isDeleting}
+            data-action-button="true"
+          >
+            <FiTrash2 className="w-3 h-3" />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 ${themeStyles.background}`}>

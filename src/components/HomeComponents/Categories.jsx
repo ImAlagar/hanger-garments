@@ -270,11 +270,18 @@ export default function Categories() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* LEFT SIDE */}
-                <div className="flex flex-col gap-6">
-                    {dynamicCategories.slice(0, 2).map((cat, i) => (
+            <div className="flex flex-col gap-6">
+                {/* First card - index 3 */}
+                {dynamicCategories[1] && (() => {
+                    const cat = dynamicCategories[0];
+                    const catNameWords = cat.catName.split(' ');
+                    const firstPart = catNameWords.slice(0, 2).join(' ');
+                    const secondPart = catNameWords.slice(3).join(' ');
+                    
+                    return (
                         <motion.div
                             key={cat.id}
-                            custom={i}
+                            custom={1}
                             variants={cardAnim}
                             initial="hidden"
                             whileInView="visible"
@@ -286,28 +293,25 @@ export default function Categories() {
                                 alt={cat.title}
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                             />
-                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/50 transition-all duration-500"></div>
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
 
-                            {/* Overlay Text */}
-                            <div className="absolute inset-0 flex flex-col justify-center px-8">
-                                <h4 className="text-sm uppercase text-gray-200 tracking-[4px]">
-                                    {cat.tag}
+                            <div className="absolute top-10 left-10">
+                                <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                                    {dynamicCategories[2].tag}
                                 </h4>
                                 <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                                    {cat.catName}
+                                    HOODIE
                                 </h3>
-                                <h2 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                                    {cat.title}
+                                <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                                    {dynamicCategories[2].title}
                                 </h2>
-                                <Link 
-                                    to={getShopUrl(cat.category, cat.subcategory)} 
-                                    className="mt-4 w-fit px-6 py-2 border border-white text-white uppercase tracking-wider text-sm hover:bg-white hover:text-black transition-all duration-500"
-                                >
-                                    Explore
+                                <Link to={'/shop/men?subcategories=hoodie'}>
+                                    <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                        Explore
+                                    </button>
                                 </Link>
                             </div>
 
-                            {/* Category Name Label (Bottom Overlay) */}
                             <motion.div
                                 initial={{ width: 0 }}
                                 whileHover={{ width: "100%" }}
@@ -315,8 +319,59 @@ export default function Categories() {
                                 className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
                             ></motion.div>
                         </motion.div>
-                    ))}
-                </div>
+                    );
+                })()}
+                
+                {dynamicCategories[2] && (() => {
+                    const cat = dynamicCategories[1];
+                    const catNameWords = cat.catName.split(' ');
+                    const firstPart = catNameWords.slice(0, 3).join(' ');
+                    const secondPart = catNameWords.slice(3).join(' ');
+                    
+                    return (
+                        <motion.div
+                            key={cat.id}
+                            custom={1}
+                            variants={cardAnim}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            className="relative group overflow-hidden rounded-2xl h-[400px]"
+                        >
+                            <img
+                                src={cat.img}
+                                alt={cat.title}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
+
+                            <div className="absolute top-10 left-10">
+                                <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                                    {dynamicCategories[4].tag}
+                                </h4>
+                                <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
+                                OVERSIZED 240 GSM
+                                </h3>
+                                <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                                    {dynamicCategories[4].title}
+                                </h2>
+                                <Link to={'/shop/men?subcategories=oversized-240-gsm'}>
+                                    <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                        Explore
+                                    </button>
+                                </Link>
+                            </div>
+
+                            <motion.div
+                                initial={{ width: 0 }}
+                                whileHover={{ width: "100%" }}
+                                transition={{ duration: 0.5 }}
+                                className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
+                            ></motion.div>
+                        </motion.div>
+                    );
+                })()}
+            </div>
 
                 {/* MIDDLE */}
                 {dynamicCategories[2] && (
@@ -339,13 +394,13 @@ export default function Categories() {
                                 {dynamicCategories[3].tag}
                             </h4>
                             <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                                {dynamicCategories[3].catName}
+                                POLO
                             </h3>
                             <h2 className="text-white text-3xl font-bold uppercase font-bai-jamjuree italic mt-2 group-hover:text-yellow-300 transition">
                                 {dynamicCategories[2].title}
                             </h2>
                             <Link 
-                                to={getShopUrl(dynamicCategories[3].category, dynamicCategories[3].subcategory)}
+                                to={'/shop/men?subcategories=polo'}
                                 className="mt-4 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500"
                             >
                                 Explore Now
@@ -355,115 +410,108 @@ export default function Categories() {
                 )}
 
                 {/* RIGHT SIDE */}
-<div className="flex flex-col gap-6">
-    {/* First card - index 3 */}
-    {dynamicCategories[3] && (() => {
-        const cat = dynamicCategories[3];
-        const catNameWords = cat.catName.split(' ');
-        const firstPart = catNameWords.slice(0, 3).join(' ');
-        const secondPart = catNameWords.slice(3).join(' ');
-        
-        return (
-            <motion.div
-                key={cat.id}
-                custom={3}
-                variants={cardAnim}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="relative group overflow-hidden rounded-2xl h-[400px]"
-            >
-                <img
-                    src={cat.img}
-                    alt={cat.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
+            <div className="flex flex-col gap-6">
+                {/* First card - index 3 */}
+                {dynamicCategories[3] && (() => {
+                    const cat = dynamicCategories[3];
+                    const catNameWords = cat.catName.split(' ');
+                    const firstPart = catNameWords.slice(0, 3).join(' ');
+                    const secondPart = catNameWords.slice(3).join(' ');
+                    
+                    return (
+                        <motion.div
+                            key={cat.id}
+                            custom={3}
+                            variants={cardAnim}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            className="relative group overflow-hidden rounded-2xl h-[400px]"
+                        >
+                            <img
+                                src={cat.img}
+                                alt={cat.title}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
 
-                <div className="absolute top-10 left-10">
-                    <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
-                        {dynamicCategories[2].tag}
-                    </h4>
-                    <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                        WOMENS OVERSIZED T-SHIRTS
-                    </h3>
-                    <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
-                        {dynamicCategories[2].title}
-                    </h2>
-                    <Link to={getShopUrl(dynamicCategories[2].category, dynamicCategories[2].subcategory)}>
-                        <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
-                            Explore
-                        </button>
-                    </Link>
-                </div>
+                            <div className="absolute top-10 left-10">
+                                <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                                    {dynamicCategories[2].tag}
+                                </h4>
+                                <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
+                                    WOMENS OVERSIZED T-SHIRTS
+                                </h3>
+                                <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                                    {dynamicCategories[2].title}
+                                </h2>
+                                <Link to={'/shop/women?subcategories=oversized-t-shirt'}>
+                                    <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                        Explore
+                                    </button>
+                                </Link>
+                            </div>
 
-                <motion.div
-                    initial={{ width: 0 }}
-                    whileHover={{ width: "100%" }}
-                    transition={{ duration: 0.5 }}
-                    className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
-                ></motion.div>
-            </motion.div>
-        );
-    })()}
-    
-    {/* Second card - index 4 */}
-    {dynamicCategories[4] && (() => {
-        const cat = dynamicCategories[4];
-        const catNameWords = cat.catName.split(' ');
-        const firstPart = catNameWords.slice(0, 3).join(' ');
-        const secondPart = catNameWords.slice(3).join(' ');
-        
-        return (
-            <motion.div
-                key={cat.id}
-                custom={4}
-                variants={cardAnim}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="relative group overflow-hidden rounded-2xl h-[400px]"
-            >
-                <img
-                    src={cat.img}
-                    alt={cat.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
+                            <motion.div
+                                initial={{ width: 0 }}
+                                whileHover={{ width: "100%" }}
+                                transition={{ duration: 0.5 }}
+                                className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
+                            ></motion.div>
+                        </motion.div>
+                    );
+                })()}
+                
+                {dynamicCategories[4] && (() => {
+                    const cat = dynamicCategories[4];
+                    const catNameWords = cat.catName.split(' ');
+                    const firstPart = catNameWords.slice(0, 3).join(' ');
+                    const secondPart = catNameWords.slice(3).join(' ');
+                    
+                    return (
+                        <motion.div
+                            key={cat.id}
+                            custom={4}
+                            variants={cardAnim}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            className="relative group overflow-hidden rounded-2xl h-[400px]"
+                        >
+                            <img
+                                src={cat.img}
+                                alt={cat.title}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/50 transition-all duration-500"></div>
 
-                <div className="absolute top-10 left-10">
-                    <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
-                        {dynamicCategories[4].tag}
-                    </h4>
-                    <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
-                        {firstPart}
-                        {secondPart && (
-                            <>
-                                <br />
-                                {secondPart}
-                            </>
-                        )}
-                    </h3>
-                    <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
-                        {dynamicCategories[4].title}
-                    </h2>
-                    <Link to={getShopUrl(dynamicCategories[4].category, dynamicCategories[4].subcategory)}>
-                        <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
-                            Explore
-                        </button>
-                    </Link>
-                </div>
+                            <div className="absolute top-10 left-10">
+                                <h4 className="text-sm uppercase text-gray-200 tracking-[3px]">
+                                    {dynamicCategories[4].tag}
+                                </h4>
+                                <h3 className="text-white italic text-3xl font-bold mt-2 leading-tight group-hover:text-yellow-300 transition">
+                                HALF SLEEVES 180 GSM
+                                </h3>
+                                <h2 className="text-white text-3xl font-bold mt-3 italic group-hover:text-yellow-300 transition">
+                                    {dynamicCategories[4].title}
+                                </h2>
+                                <Link to={'/shop/men?subcategories=half-sleeves-180-gsm'}>
+                                    <button className="mt-6 px-6 py-2 border border-white text-white uppercase tracking-widest text-sm hover:bg-white hover:text-black transition-all duration-500">
+                                        Explore
+                                    </button>
+                                </Link>
+                            </div>
 
-                <motion.div
-                    initial={{ width: 0 }}
-                    whileHover={{ width: "100%" }}
-                    transition={{ duration: 0.5 }}
-                    className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
-                ></motion.div>
-            </motion.div>
-        );
-    })()}
-</div>
+                            <motion.div
+                                initial={{ width: 0 }}
+                                whileHover={{ width: "100%" }}
+                                transition={{ duration: 0.5 }}
+                                className="absolute bottom-0 left-0 h-[3px] bg-yellow-400"
+                            ></motion.div>
+                        </motion.div>
+                    );
+                })()}
+            </div>
             </div>
         </section>
     );

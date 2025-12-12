@@ -191,6 +191,51 @@ const WholesalerDashboard = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+
+  // Add this helper function to calculate item price based on user role
+const calculateItemPrice = (orderItem, isWholesale = false) => {
+  if (isWholesale && orderItem.product?.wholesalePrice) {
+    return orderItem.product.wholesalePrice;
+  }
+  return orderItem.price || orderItem.product?.offerPrice || 0;
+};
+
+const calculateItemTotal = (orderItem, isWholesale = false) => {
+  const price = calculateItemPrice(orderItem, isWholesale);
+  return price * (orderItem.quantity || 1);
+};
+
+
+// Add these helper functions after the existing formatCurrency function
+
+const calculateWholesaleTotalAmount = (order) => {
+  if (!order?.orderItems || !isWholesaleUser) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const wholesalePrice = item.product?.wholesalePrice || 0;
+    const quantity = item.quantity || 1;
+    return total + (wholesalePrice * quantity);
+  }, 0);
+};
+
+const calculateRegularTotalAmount = (order) => {
+  if (!order?.orderItems) return order.totalAmount || 0;
+  
+  return order.orderItems.reduce((total, item) => {
+    const itemPrice = item.price || item.product?.offerPrice || 0;
+    const quantity = item.quantity || 1;
+    return total + (itemPrice * quantity);
+  }, 0);
+};
+
+const calculateWholesaleSavings = (order) => {
+  if (!isWholesaleUser || !order?.orderItems) return 0;
+  
+  const regularTotal = calculateRegularTotalAmount(order);
+  const wholesaleTotal = calculateWholesaleTotalAmount(order);
+  return regularTotal - wholesaleTotal;
+};
+
   const getViewModeCount = (mode) => {
     switch (mode) {
       case 'active':
@@ -354,36 +399,40 @@ const tabs = [
       <div className="container mx-auto px-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8"
-          >
-            <div className="flex items-center space-x-3 mb-4 lg:mb-0">
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md"
-              >
-                <FaShoppingBag className="w-6 h-6 text-white" />
-              </motion.div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-900 bg-clip-text text-transparent">
-                  My Orders {isWholesaleUser && <span className="text-sm font-normal bg-blue-100 text-blue-800 px-2 py-1 rounded-full ml-2">Wholesale</span>}
-                </h1>
-                <p className="text-gray-600 text-sm mt-1">Track and manage your purchases</p>
-              </div>
-            </div>
-            
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to="/shop"
-                className="group flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 transition-all duration-300 text-sm"
-              >
-                <FaStore className="w-4 h-4 text-blue-600 group-hover:text-blue-700" />
-                <span className="font-medium text-gray-700 group-hover:text-blue-700">Continue Shopping</span>
-              </Link>
-            </motion.div>
-          </motion.div>
+<motion.div
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8"
+>
+  <div className="flex items-center space-x-3 mb-4 lg:mb-0">
+    <motion.div
+      whileHover={{ scale: 1.05, rotate: 5 }}
+      className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-md"
+    >
+      <FaShoppingBag className="w-6 h-6 text-white" />
+    </motion.div>
+    <div>
+      <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-900 bg-clip-text text-transparent">
+        My Orders {isWholesaleUser && <span className="text-sm font-normal bg-blue-100 text-blue-800 px-2 py-1 rounded-full ml-2">Wholesale Account</span>}
+      </h1>
+      <p className="text-gray-600 text-sm mt-1">
+        {isWholesaleUser ? "Track and manage your wholesale purchases" : "Track and manage your purchases"}
+      </p>
+    </div>
+  </div>
+  
+  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+    <Link
+      to="/shop"
+      className="group flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 transition-all duration-300 text-sm"
+    >
+      <FaStore className="w-4 h-4 text-blue-600 group-hover:text-blue-700" />
+      <span className="font-medium text-gray-700 group-hover:text-blue-700">
+        {isWholesaleUser ? "Browse Wholesale Products" : "Continue Shopping"}
+      </span>
+    </Link>
+  </motion.div>
+</motion.div>
 
           {/* Filter and Search Section */}
           <motion.div
@@ -570,17 +619,24 @@ const tabs = [
                               </div>
                             </div>
                             
-                            <div className="flex items-center space-x-2">
-                              <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-xs">
-                                <FaMoneyBillWave className="w-4 h-4 text-green-500" />
-                              </div>
-                              <div>
-                                <p className="text-gray-600">Total Amount</p>
-                                <p className="font-semibold text-gray-900">
-                                  {formatCurrency(order.totalAmount)}
-                                </p>
-                              </div>
-                            </div>
+<div className="flex items-center space-x-2">
+  <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-xs">
+    <FaMoneyBillWave className="w-4 h-4 text-green-500" />
+  </div>
+  <div>
+    <p className="text-gray-600">Total Amount</p>
+    <div className="flex items-center gap-2">
+      <p className="font-semibold text-gray-900">
+        {formatCurrency(
+          isWholesaleUser 
+            ? calculateWholesaleTotalAmount(order)
+            : order.totalAmount
+        )}
+      </p>
+
+    </div>
+  </div>
+</div>
                             
                             <div className="flex items-center space-x-2">
                               <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-xs">
@@ -685,81 +741,161 @@ const tabs = [
                               className="min-h-[300px]"
                             >
                               {/* Order Items Tab */}
-                              {activeTab === 'items' && (
-                                <div className="space-y-4">
-                                  <div className="flex items-center justify-between">
-                                    <h4 className="text-lg font-semibold text-gray-900">
-                                      Order Items ({order.orderItems?.length || 0})
-                                    </h4>
-                                    <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
-                                      Total: {formatCurrency(order.totalAmount)}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="grid gap-3">
-                                    {order.orderItems?.map((item, index) => (
-                                      <motion.div
-                                        key={item.id || index}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className="flex items-start space-x-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300"
-                                      >
-                                        <motion.img
-                                          whileHover={{ scale: 1.05 }}
-                                          src={getProductImage(item)}
-                                          alt={item.product?.name || "Product"}
-                                          className="w-16 h-16 object-cover rounded-lg bg-gray-100 flex-shrink-0"
-                                          onError={(e) => {
-                                            e.target.src = placeholderimage;
-                                          }}
-                                        />
-                                        
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
-                                            <h5 className="font-semibold text-gray-900 text-sm leading-tight">
-                                              {item.product?.name || "Product Name"}
-                                            </h5>
-                                            <span className="font-semibold text-gray-900 text-sm">
-                                              {formatCurrency(item.price * item.quantity)}
-                                            </span>
-                                          </div>
-                                          
-                                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                                            <div className="flex items-center space-x-2 text-gray-600">
-                                              <FaTag className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                              <span>Qty: <strong>{item.quantity}</strong></span>
-                                            </div>
-                                            
-                                            <div className="flex items-center space-x-2 text-gray-600">
-                                              <FaMoneyBillWave className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                              <span>Unit: <strong>{formatCurrency(item.price)}</strong></span>
-                                            </div>
-                                            
-                                            {item.productVariant?.color && (
-                                              <div className="flex items-center space-x-2 text-gray-600">
-                                                <div 
-                                                  className="w-3 h-3 rounded-full border border-gray-300"
-                                                  style={{ backgroundColor: item.productVariant.color.toLowerCase() }}
-                                                />
-                                                <span>Color: <strong>{item.productVariant.color}</strong></span>
-                                              </div>
-                                            )}
-                                            
-                                            {item.productVariant?.size && (
-                                              <div className="flex items-center space-x-2 text-gray-600">
-                                                <span>Size: <strong>{item.productVariant.size}</strong></span>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </motion.div>
-                                    ))}
-                                  </div>
-
-                                  
-                                </div>
-                              )}
+{activeTab === 'items' && (
+  <div className="space-y-4">
+    <div className="flex items-center justify-between">
+      <h4 className="text-lg font-semibold text-gray-900">
+        Order Items ({order.orderItems?.length || 0})
+      </h4>
+      <div className="flex items-center gap-2">
+        {isWholesaleUser && (
+          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+            Wholesale Price Applied
+          </span>
+        )}
+        <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border">
+          Total: {formatCurrency(
+            isWholesaleUser 
+              ? calculateWholesaleTotalAmount(order)
+              : order.totalAmount
+          )}
+        </span>
+      </div>
+    </div>
+    
+    <div className="grid gap-3">
+      {order.orderItems?.map((item, index) => {
+        const wholesalePrice = item.product?.wholesalePrice || 0;
+        const itemPrice = isWholesaleUser ? wholesalePrice : (item.price || item.product?.offerPrice || 0);
+        const itemTotal = itemPrice * (item.quantity || 1);
+        const originalPrice = item.price || item.product?.offerPrice || 0;
+        const originalTotal = originalPrice * (item.quantity || 1);
+        
+        return (
+          <motion.div
+            key={item.id || index}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="flex items-start space-x-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300"
+          >
+            <motion.img
+              whileHover={{ scale: 1.05 }}
+              src={getProductImage(item)}
+              alt={item.product?.name || "Product"}
+              className="w-16 h-16 object-cover rounded-lg bg-gray-100 flex-shrink-0"
+              onError={(e) => {
+                e.target.src = placeholderimage;
+              }}
+            />
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                <h5 className="font-semibold text-gray-900 text-sm leading-tight">
+                  {item.product?.name || "Product Name"}
+                </h5>
+                <div className="flex flex-col items-end">
+                  <span className="font-semibold text-gray-900 text-sm">
+                    {formatCurrency(itemTotal)}
+                  </span>
+                  {isWholesaleUser && wholesalePrice > 0 && originalTotal !== itemTotal && (
+                    <span className="text-xs text-gray-500 line-through">
+                      {formatCurrency(originalTotal)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <FaTag className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                  <span>Qty: <strong>{item.quantity}</strong></span>
+                </div>
+                
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <FaMoneyBillWave className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1">
+                      <span>Unit: <strong>{formatCurrency(itemPrice)}</strong></span>
+                      {isWholesaleUser && wholesalePrice > 0 && (
+                        <span className="text-blue-600 font-medium text-xs">(Wholesale)</span>
+                      )}
+                    </div>
+                    {isWholesaleUser && wholesalePrice > 0 && originalPrice !== itemPrice && (
+                      <span className="text-gray-500 text-xs line-through">
+                        Regular: {formatCurrency(originalPrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {item.productVariant?.color && (
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <div 
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: item.productVariant.color.toLowerCase() }}
+                    />
+                    <span>Color: <strong>{item.productVariant.color}</strong></span>
+                  </div>
+                )}
+                
+                {item.productVariant?.size && (
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <span>Size: <strong>{item.productVariant.size}</strong></span>
+                  </div>
+                )}
+              </div>
+              
+              {isWholesaleUser && wholesalePrice > 0 && originalTotal !== itemTotal && (
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-2 text-green-600">
+                      <FaTag className="w-3 h-3" />
+                      <span className="font-medium">Wholesale Savings:</span>
+                    </div>
+                    <span className="font-semibold text-green-600">
+                      {formatCurrency(originalTotal - itemTotal)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+    
+    {/* Summary for wholesale orders */}
+    {isWholesaleUser && order.orderItems?.length > 0 && (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-xs text-gray-600 mb-1">Regular Price Total</p>
+            <p className="font-semibold text-gray-700 text-sm line-through">
+              {formatCurrency(calculateRegularTotalAmount(order))}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-600 mb-1">Wholesale Price Total</p>
+            <p className="font-bold text-blue-700 text-lg">
+              {formatCurrency(calculateWholesaleTotalAmount(order))}
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-600 mb-1">Total Savings</p>
+            <p className="font-bold text-green-600 text-lg">
+              {formatCurrency(calculateWholesaleSavings(order))}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </div>
+)}
 
                               {/* Custom Designs Tab */}
                               {activeTab === 'custom' && (
@@ -857,97 +993,108 @@ const tabs = [
                               )}
 
                               {/* Order Summary Tab */}
-                              {activeTab === 'summary' && (
-                                <div className="space-y-4">
-                                  <h4 className="text-lg font-semibold text-gray-900">Order Summary</h4>
-                                  
-                                  <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
-                                  >
-                                    <div className="space-y-3 mb-6">
-                                      {[
-                                        { label: 'Items Subtotal', value: order.subtotal, icon: FaShoppingBag },
-                                        { label: 'Shipping Cost', value: order.shippingCost, icon: FaShippingFast },
-                                        ...(order.discount > 0 ? [{ 
-                                          label: 'Discount', 
-                                          value: -order.discount, 
-                                          icon: FaTag,
-                                          color: 'text-green-600' 
-                                        }] : []),
-                                      ].map((item, index) => (
-                                        <motion.div
-                                          key={item.label}
-                                          initial={{ opacity: 0, x: -10 }}
-                                          animate={{ opacity: 1, x: 0 }}
-                                          transition={{ delay: index * 0.1 }}
-                                          className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                                        >
-                                          <div className="flex items-center space-x-3">
-                                            <item.icon className="w-4 h-4 text-gray-400" />
-                                            <span className="text-gray-600 text-sm">{item.label}</span>
-                                          </div>
-                                          <span className={`font-semibold text-sm ${item.color || 'text-gray-900'}`}>
-                                            {item.value < 0 ? '-' : ''}{formatCurrency(Math.abs(item.value))}
-                                          </span>
-                                        </motion.div>
-                                      ))}
-                                    </div>
-                                    
-                                    <motion.div
-                                      initial={{ opacity: 0, scale: 0.95 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      transition={{ delay: 0.3 }}
-                                      className="border-t border-gray-200 pt-4"
-                                    >
-                                      <div className="flex justify-between items-center py-2">
-                                        <span className="text-base font-semibold text-gray-900">Total Amount</span>
-                                        <span className="text-lg font-bold text-gray-900">
-                                          {formatCurrency(order.totalAmount)}
-                                        </span>
-                                      </div>
-                                    </motion.div>
+{activeTab === 'summary' && (
+  <div className="space-y-4">
+    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      Order Summary
+      {isWholesaleUser && (
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+          Wholesale
+        </span>
+      )}
+    </h4>
+    
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
+    >
+      <div className="space-y-3 mb-6">
+        {isWholesaleUser && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex justify-between items-center py-3 bg-blue-50 rounded-lg px-3"
+          >
+            <div className="flex items-center space-x-3">
+              <FaStore className="w-4 h-4 text-blue-600" />
+              <span className="text-gray-700 font-medium text-sm">Wholesale Discount</span>
+            </div>
+            <span className="font-semibold text-green-600 text-sm">
+              -{formatCurrency(
+                order.orderItems?.reduce((total, item) => {
+                  const original = (item.price || item.product?.offerPrice || 0) * (item.quantity || 1);
+                  const wholesale = (item.product?.wholesalePrice || item.price || 0) * (item.quantity || 1);
+                  return total + (original - wholesale);
+                }, 0)
+              )}
+            </span>
+          </motion.div>
+        )}
+        
+        {[
+          { 
+            label: 'Items Subtotal', 
+            value: order.subtotal, 
+            icon: FaShoppingBag 
+          },
+          { 
+            label: 'Shipping Cost', 
+            value: order.shippingCost, 
+            icon: FaShippingFast 
+          },
+          ...(order.discount > 0 ? [{ 
+            label: 'Coupon Discount', 
+            value: -order.discount, 
+            icon: FaTag,
+            color: 'text-green-600' 
+          }] : []),
+        ].map((item, index) => (
+          <motion.div
+            key={item.label}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+          >
+            <div className="flex items-center space-x-3">
+              <item.icon className="w-4 h-4 text-gray-400" />
+              <span className="text-gray-600 text-sm">{item.label}</span>
+            </div>
+            <span className={`font-semibold text-sm ${item.color || 'text-gray-900'}`}>
+              {item.value < 0 ? '-' : ''}{formatCurrency(Math.abs(item.value))}
+            </span>
+          </motion.div>
+        ))}
+      </div>
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3 }}
+        className="border-t border-gray-200 pt-4"
+      >
+        <div className="flex justify-between items-center py-2">
+          <span className="text-base font-semibold text-gray-900">Total Amount</span>
+          <span className="text-lg font-bold text-gray-900">
+            {formatCurrency(order.totalAmount)}
+          </span>
+        </div>
 
-                                    <motion.div
-                                      initial={{ opacity: 0 }}
-                                      animate={{ opacity: 1 }}
-                                      transition={{ delay: 0.4 }}
-                                      className="mt-6 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4"
-                                    >
-                                      <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-blue-200">
-                                          <FaCreditCard className="w-4 h-4 text-blue-600" />
-                                        </div>
-                                        <div>
-                                          <p className="text-xs text-gray-500 font-medium">Payment Method</p>
-                                          <p className="font-semibold text-gray-900 text-sm capitalize">
-                                            {order.paymentMethod?.toLowerCase()}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      
-                                      <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-100">
-                                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-green-200">
-                                          <FaCheckCircle className="w-4 h-4 text-green-600" />
-                                        </div>
-                                        <div>
-                                          <p className="text-xs text-gray-500 font-medium">Payment Status</p>
-                                          <p className={`font-semibold text-sm ${
-                                            order.paymentStatus === 'PAID' || order.paymentStatus === 'paid' 
-                                              ? 'text-green-600' 
-                                              : order.paymentStatus === 'PENDING' || order.paymentStatus === 'pending' 
-                                              ? 'text-yellow-600' 
-                                              : 'text-red-600'
-                                          }`}>
-                                            {order.paymentStatus}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </motion.div>
-                                  </motion.div>
-                                </div>
-                              )}
+
+        
+        {isWholesaleUser && (
+          <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded-lg">
+            <div className="flex items-center gap-1">
+              <FaInfoCircle className="w-3 h-3" />
+              <span>Wholesale prices have been applied to your order</span>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  </div>
+)}
 
                               {/* Tracking Tab */}
                               {activeTab === 'tracking' && (

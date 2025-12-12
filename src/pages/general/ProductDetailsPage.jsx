@@ -46,6 +46,10 @@ const ProductDetailsPage = () => {
   // Add to existing state variables
   const [showReviews, setShowReviews] = useState(false);
   const [ratingFilter, setRatingFilter] = useState(0);
+// In your component, add these states
+const [showSizeChart, setShowSizeChart] = useState(false);
+const [showSizeChartModal, setShowSizeChartModal] = useState(false);
+
 
   const { theme } = useTheme();
   const user = useSelector((state) => state.auth.user);
@@ -84,7 +88,11 @@ const ProductDetailsPage = () => {
     success: isDark ? 'text-green-400' : 'text-green-600',
     warning: isDark ? 'text-orange-400' : 'text-orange-600',
     error: isDark ? 'text-red-400' : 'text-red-600',
-    info: isDark ? 'text-blue-400' : 'text-blue-600'
+    info: isDark ? 'text-blue-400' : 'text-blue-600',
+      fontProductTitle: isDark ? 'font-bai-jamjuree' : 'font-bai-jamjuree',
+  fontProductInfo: isDark ? 'font-instrument' : 'font-instrument',
+  fontProductDesc: isDark ? 'font-instrument' : 'font-instrument',
+  fontProductPrice: isDark ? 'font-bai-jamjuree' : 'font-bai-jamjuree',
   };
 
   const userRole = user?.role;
@@ -417,6 +425,18 @@ const ratingStats = calculateRatingStats(ratings);
     // Update URL after state is set
     updateURLWithColor(newColor);
   };
+
+const handleSizeChartClick = () => {
+  if (product?.subcategory?.image) {
+    setShowSizeChartModal(true);
+  }
+};
+
+const handleBackToProductImages = () => {
+  setShowSizeChart(false);
+  setActiveImageIndex(0);
+};
+
 
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
@@ -768,7 +788,7 @@ const ratingStats = calculateRatingStats(ratings);
     return (
       <div className={`min-h-screen ${themeColors.bgPrimary} ${themeColors.textPrimary}`}>
         <div className="container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
+          <h1 className={`text-2xl font-bold mb-4 ${themeColors.fontProductTitle}`}>Product Not Found</h1>
           <button 
             onClick={() => window.history.back()}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
@@ -781,7 +801,7 @@ const ratingStats = calculateRatingStats(ratings);
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${themeColors.bgPrimary} ${themeColors.textPrimary}`}>
+    <div className={`min-h-screen transition-colors duration-500 ${themeColors.fontProductTitle} ${themeColors.bgPrimary} ${themeColors.textPrimary}`}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Product Details */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 mb-12 sm:mb-16">
@@ -865,33 +885,7 @@ const ratingStats = calculateRatingStats(ratings);
                   </button>
                 ))}
 
-                                {/* Subcategory Image - MAKE IT CLICKABLE */}
-                {product.subcategory?.image && (
-                  <button
-                    onClick={() => {
-                      // Set subcategory image as active when clicked
-                      setActiveImageIndex(-1); // Use -1 to indicate subcategory image
-                    }}
-                    className={`flex-shrink-0 relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                      activeImageIndex === -1
-                        ? `${themeColors.borderActive} ring-2 ${themeColors.ringActive} shadow-md`
-                        : `${themeColors.borderPrimary} hover:${themeColors.borderHover}`
-                    }`}
-                  >
-                    <img
-                      src={product.subcategory.image}
-                      alt={`${product.subcategory.name} category`}
-                      className="w-14 h-14 lg:w-16 lg:h-16 xl:w-18 xl:h-18 object-cover"
-                    />
-                    
-                    {activeImageIndex === -1 && (
-                      <div className={`absolute inset-0 border-2 ${themeColors.borderActive} rounded-lg`}></div>
-                    )}
-                    
-                    <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200"></div>
-                    
-                  </button>
-                )}
+
               </div>
 
               {/* Main Large Image - RIGHT SIDE - UPDATED TO HANDLE SUBCATEGORY IMAGE */}
@@ -955,7 +949,105 @@ const ratingStats = calculateRatingStats(ratings);
                 </span>
               )}
             </div>
+
+
           </div>
+          {showSizeChartModal && product?.subcategory?.image && (
+            <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+              <div className="relative max-w-xl w-full max-h-[90vh] bg-white dark:bg-gray-900 rounded-xl overflow-hidden">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div>
+                    <h2 className={`text-xl sm:text-2xl font-bold ${themeColors.textPrimary} ${themeColors.fontProductTitle}`}>
+                      Size Chart
+                    </h2>
+                    <p className={`text-sm ${themeColors.textSecondary} ${themeColors.fontProductInfo} mt-1`}>
+                      {product.name} - {product.subcategory?.name || 'Product Sizing'}
+                    </p>
+                  </div>
+                  
+                  {/* Close Button */}
+                  <button
+                    onClick={() => setShowSizeChartModal(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                    aria-label="Close size chart"
+                  >
+                    <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Size Chart Image */}
+                <div className="p-4 sm:p-6 overflow-auto max-h-[calc(90vh-80px)]">
+                  <div className="relative">
+                    <img
+                      src={product.subcategory.image}
+                      alt={`${product.name} Size Chart`}
+                      className="w-full h-auto object-contain rounded-lg"
+                      loading="lazy"
+                    />
+                    
+                    {/* Zoom Button */}
+                    <button
+                      onClick={() => handleImageZoom({ imageUrl: product.subcategory.image, name: `${product.name} Size Chart` })}
+                      className="absolute top-4 right-4 bg-white bg-opacity-90 hover:bg-opacity-100 text-gray-800 rounded-full p-2 transition-all duration-300 shadow-lg"
+                      aria-label="Zoom size chart"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {/* Size Guide Tips */}
+                  <div className={`mt-6 p-4 rounded-lg ${themeColors.bgSecondary}`}>
+                    <h3 className={`font-semibold mb-2 ${themeColors.textPrimary} ${themeColors.fontProductTitle}`}>
+                      📏 How to Measure
+                    </h3>
+                    <ul className={`space-y-2 text-sm ${themeColors.textSecondary} ${themeColors.fontProductInfo}`}>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Measure your body, not your clothes</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Use a soft measuring tape</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Measure chest/bust at the fullest part</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>For waist, measure at the narrowest point</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>All measurements are in inches/centimeters</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                
+                {/* Modal Footer */}
+                <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                  <button
+                    onClick={() => setShowSizeChartModal(false)}
+                    className={`px-4 py-2 rounded-lg ${themeColors.bgCard} ${themeColors.textPrimary} border ${themeColors.borderPrimary} hover:${themeColors.borderHover} transition-colors ${themeColors.fontProductInfo}`}
+                  >
+                    Close
+                  </button>
+                  
+                  <div className="text-right">
+                    <p className={`text-xs ${themeColors.textTertiary} ${themeColors.fontProductInfo}`}>
+                      Need help? Contact customer support
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Product Info - RIGHT SIDE */}
           <div className="space-y-4 sm:space-y-6 lg:space-y-8">
@@ -1070,6 +1162,16 @@ const ratingStats = calculateRatingStats(ratings);
               <p className={`font-medium text-sm sm:text-base ${themeColors.success}`}>
                 ✅ Inclusive of All Taxes + Free Shipping
               </p>
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={handleSizeChartClick}
+                className={`text-sm font-medium ${themeColors.textPrimary} underline hover:no-underline transition-all duration-200 flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400`}
+              >
+                <span>📐</span>
+                <span className={themeColors.fontProductInfo}>Size Chart</span>
+              </button>
             </div>
 
             {/* Stock Status */}

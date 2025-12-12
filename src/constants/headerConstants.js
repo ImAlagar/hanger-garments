@@ -1,5 +1,5 @@
 export const topbarMessages = [
-    "🚚 Free shipping for all orders",
+    "🚚 Free shipping for retail orders",
     "✨ New Arrivals Available", 
     "💳 Secure Payment & Accept all cards",
   "⭐ Premium Quality Cotton T-shirts!",

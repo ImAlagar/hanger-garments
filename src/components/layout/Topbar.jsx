@@ -14,7 +14,7 @@ const Topbar = () => {
 
   // Content for scrolling animation
   const topbarContent = [
-    "🚚 Free shipping for all orders",
+    "🚚 Free shipping for retail orders",
     "✨ New Arrivals Available", 
     "💳 Secure Payment & Accept all cards"
   ];
