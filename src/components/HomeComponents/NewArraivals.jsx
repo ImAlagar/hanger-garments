@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useTheme } from "../../context/ThemeContext"; 
 import ProductCard from "../ProductCard/ProductCard";
 import { useGetNewArrivalsQuery } from "../../redux/services/productService";
 import { useSelector } from "react-redux";
 import CartSidebar from "../layout/CartSidebar";
 import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function NewArrivals() {
   const { theme } = useTheme();
@@ -17,16 +18,43 @@ export default function NewArrivals() {
 
   // Cart sidebar state
   const [showCartSidebar, setShowCartSidebar] = useState(false);
+  
+  // Scroll ref for horizontal scrolling
+  const scrollRef = useRef(null);
 
   // Dynamic styles based on theme
   const isDark = theme === "dark";
   const bgColor = isDark ? "bg-black" : "bg-white";
   const textColor = isDark ? "text-white" : "text-black";
   const subText = isDark ? "text-gray-400" : "text-gray-600";
+  const arrowButtonBg = isDark ? "bg-gray-800 hover:bg-gray-700" : "bg-white hover:bg-gray-100";
+  const arrowButtonText = isDark ? "text-gray-300" : "text-gray-700";
+  const arrowButtonBorder = isDark ? "border-gray-700" : "border-gray-300";
 
   // Cart update handler
   const handleCartUpdate = () => {
     setShowCartSidebar(true);
+  };
+
+  // Scroll handlers
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      const scrollAmount = scrollRef.current.offsetWidth;
+      scrollRef.current.scrollBy({
+        left: -scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      const scrollAmount = scrollRef.current.offsetWidth;
+      scrollRef.current.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+    }
   };
 
   // Function to split products by color (same as in Shop page)
@@ -143,10 +171,8 @@ export default function NewArrivals() {
     }
   }
 
-  // Split each product by color and limit to maximum 8 color-based products
-  const colorBasedProducts = productsArray
-    .flatMap(product => splitProductsByColor(product))
-    .slice(0, 8); // Limit to 8 color-based products
+  // Split each product by color
+  const colorBasedProducts = productsArray.flatMap(product => splitProductsByColor(product));
 
   // Loading state
   if (isLoading) {
@@ -159,17 +185,30 @@ export default function NewArrivals() {
           </h2>
           <div className="w-40 h-[2px] bg-red-500 mx-auto mt-2"></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 px-6 md:px-16">
-          {[...Array(4)].map((_, index) => (
-            <div key={index} className="animate-pulse">
-              <div className="bg-gray-300 rounded-lg aspect-square"></div>
-              <div className="mt-2 space-y-2">
-                <div className="h-4 bg-gray-300 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-300 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+        <div className="relative px-4 md:px-8 lg:px-16">
+          {/* Left Arrow Placeholder */}
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-gray-300 dark:bg-gray-700 rounded-full opacity-50">
+            <ArrowLeft className="h-6 w-6" />
+          </div>
+          
+          {/* Products Grid Placeholder */}
+          <div className="flex space-x-4 overflow-x-auto pb-4 px-8">
+            {[...Array(5)].map((_, index) => (
+              <div key={index} className="flex-shrink-0 w-64 md:w-72 animate-pulse">
+                <div className="bg-gray-300 dark:bg-gray-700 rounded-lg aspect-square"></div>
+                <div className="mt-2 space-y-2">
+                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/3"></div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          
+          {/* Right Arrow Placeholder */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-gray-300 dark:bg-gray-700 rounded-full opacity-50">
+            <ArrowRight className="h-6 w-6" />
+          </div>
         </div>
       </section>
     );
@@ -196,7 +235,7 @@ export default function NewArrivals() {
   }
 
   return (
-    <section className={`py-8 transition-colors duration-500 ${bgColor}`}>
+    <section className={`py-12 transition-colors duration-500 ${bgColor}`}>
       {/* Title */}
       <div className="text-center mb-10">
         <h2 className={`text-4xl md:text-5xl font-italiana tracking-widest font-bold ${textColor}`}>
@@ -217,19 +256,79 @@ export default function NewArrivals() {
         )}
       </div>
 
-      {/* Product Grid */}
+      {/* Product Horizontal Scroller */}
       {colorBasedProducts.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8 px-6 md:px-16">
-            {colorBasedProducts.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onCartUpdate={handleCartUpdate}
-                selectedColor={product.selectedColor} // Pass color info
-              />
-            ))}
+          <div className="relative px-4 md:px-8 lg:px-16">
+            {/* Left Arrow - Show only if there are items to scroll to */}
+            {colorBasedProducts.length > 4 && (
+              <button
+                onClick={scrollLeft}
+                className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 p-3 ${arrowButtonBg} ${arrowButtonText} rounded-full shadow-lg border ${arrowButtonBorder} hover:shadow-xl transition-all duration-300`}
+                aria-label="Scroll left"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </button>
+            )}
+
+            {/* Products Horizontal Scroller */}
+            <div
+              ref={scrollRef}
+              className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide"
+              style={{ 
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            >
+              {colorBasedProducts.map((product) => (
+                <div 
+                  key={product.id} 
+                  className="flex-shrink-0 w-64 md:w-72 lg:w-80"
+                >
+                  <ProductCard 
+                    product={product} 
+                    onCartUpdate={handleCartUpdate}
+                    selectedColor={product.selectedColor}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Right Arrow - Show only if there are items to scroll to */}
+            {colorBasedProducts.length > 4 && (
+              <button
+                onClick={scrollRight}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 p-3 ${arrowButtonBg} ${arrowButtonText} rounded-full shadow-lg border ${arrowButtonBorder} hover:shadow-xl transition-all duration-300`}
+                aria-label="Scroll right"
+              >
+                <ArrowRight className="h-6 w-6" />
+              </button>
+            )}
           </div>
+
+          {/* Scroll Indicator Dots */}
+          {colorBasedProducts.length > 4 && (
+            <div className="flex justify-center mt-6 space-x-2">
+              {[...Array(Math.min(4, Math.ceil(colorBasedProducts.length / 4)))].map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (scrollRef.current) {
+                      const scrollAmount = scrollRef.current.offsetWidth * index;
+                      scrollRef.current.scrollTo({
+                        left: scrollAmount,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    isDark ? 'bg-gray-600 hover:bg-gray-400' : 'bg-gray-300 hover:bg-gray-500'
+                  }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* View All Products Button */}
           {productsArray.length > 0 && (
@@ -240,8 +339,8 @@ export default function NewArrivals() {
                   px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 
                   transform hover:scale-105 active:scale-95 border-2
                   ${isDark 
-                    ? 'bg-transparent border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white' 
-                    : 'bg-transparent border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white'
+                    ? 'bg-transparent border-green-500 text-green-400 hover:bg-green-500 hover:text-white' 
+                    : 'bg-transparent border-green-600 text-green-600 hover:bg-green-600 hover:text-white'
                   }
                   shadow-lg hover:shadow-xl
                 `}
@@ -269,8 +368,8 @@ export default function NewArrivals() {
                   px-8 py-3 rounded-lg font-semibold text-lg transition-all duration-300 
                   transform hover:scale-105 active:scale-95 border-2
                   ${isDark 
-                    ? 'bg-transparent border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white' 
-                    : 'bg-transparent border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white'
+                    ? 'bg-transparent border-green-500 text-green-400 hover:bg-green-500 hover:text-white' 
+                    : 'bg-transparent border-green-600 text-green-600 hover:bg-green-600 hover:text-white'
                   }
                   shadow-lg hover:shadow-xl
                 `}

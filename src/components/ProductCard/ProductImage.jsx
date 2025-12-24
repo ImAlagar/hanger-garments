@@ -94,7 +94,7 @@ const ProductImage = memo(({ product, styles, isInWishlist, user, togglingWishli
 
       {/* Optimized Image Container */}
       <div 
-        className="w-full h-96 bg-gray-200 rounded-lg overflow-hidden relative"
+        className="w-full h-80 bg-gray-200 rounded-lg overflow-hidden relative"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
