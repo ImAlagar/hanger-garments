@@ -201,7 +201,7 @@ const FilterSidebar = ({
   return (
     <div className={`
       ${showFilterSidebar ? 'fixed inset-0 z-50 lg:static lg:z-auto' : 'hidden lg:block'}
-      w-80 flex-shrink-0
+      w-64 flex-shrink-0
     `}>
       {showFilterSidebar && (
         <div 
@@ -564,7 +564,7 @@ const LazyProductGrid = ({ products, onCartUpdate }) => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-2">
       {products.map((product, index) => {
         const isVisible = visibleProducts.some(p => p.id === product.id);
         
@@ -1002,7 +1002,7 @@ const clearAllFilters = useCallback(() => {
         <h1 className="text-3xl font-bold font-italiana tracking-widest lg:text-5xl text-center mb-10 capitalize">
           {category ? categoryDisplayName : "All Products"}
         </h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(8)].map((_, index) => (
             <ProductCardLoader key={index} />
           ))}
