@@ -631,9 +631,8 @@ const handlePageSizeChange = (newSize) => {
     const isAnyActionLoading = isProductActionLoading(product.id);
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
+
         className={`rounded-lg border p-4 shadow-sm hover:shadow-md transition-all ${themeStyles.card}`}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center sm:space-x-4 space-y-3 sm:space-y-0">
@@ -868,16 +867,13 @@ const handlePageSizeChange = (newSize) => {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   };
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 ${themeStyles.background}`}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+      <div
         className="max-w-7xl mx-auto"
       >
         {/* Header Section */}
@@ -1042,7 +1038,7 @@ const handlePageSizeChange = (newSize) => {
           isLoading={isDeleting || isBulkDeleting}
           theme={theme}
         />
-      </motion.div>
+      </div>
     </div>
   );
 };

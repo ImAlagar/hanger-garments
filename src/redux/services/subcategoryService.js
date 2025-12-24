@@ -136,13 +136,24 @@ export const subcategoryService = apiSlice.injectEndpoints({
     }),
 
     createSubcategory: builder.mutation({
-      query: (subcategoryData) => {
+      query: (subcategoryData) => {    
         const formData = new FormData();
         formData.append('name', subcategoryData.name);
         formData.append('description', subcategoryData.description);
         formData.append('categoryId', subcategoryData.categoryId);
+        
         if (subcategoryData.image) {
           formData.append('image', subcategoryData.image);
+        }
+        
+        if (subcategoryData.sizeImage) {
+
+          formData.append('sizeImage', subcategoryData.sizeImage);
+        } 
+        // Debug: Check FormData contents MORE DETAILED
+        let hasSizeImage = false;
+        for (let [key, value] of formData.entries()) {
+          if (key === 'sizeImage') hasSizeImage = true;
         }
 
         return {

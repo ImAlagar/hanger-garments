@@ -33,6 +33,9 @@ const categories = categoriesResponse?.data?.categories ||
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [sizeImage, setSizeImage] = useState(null);
+  const [sizeImagePreview, setSizeImagePreview] = useState(null);
+
   const [errors, setErrors] = useState({});
 
   // Theme-based styling
@@ -138,6 +141,34 @@ const categories = categoriesResponse?.data?.categories ||
     }
   };
 
+const handleSizeImageUpload = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setSizeImage(file);
+    setSizeImagePreview(URL.createObjectURL(file));
+        
+    // Clear image error
+    if (errors.sizeImage) {
+      setErrors(prev => ({
+        ...prev,
+        sizeImage: ''
+      }));
+    }
+  } 
+};
+
   // Remove image
   const removeImage = () => {
     setImage(null);
@@ -145,6 +176,14 @@ const categories = categoriesResponse?.data?.categories ||
       URL.revokeObjectURL(imagePreview);
     }
     setImagePreview(null);
+  };
+
+    const removeSizeImage = () => {
+    setSizeImage(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setSizeImagePreview(null);
   };
 
   // Form validation
@@ -164,53 +203,59 @@ const categories = categoriesResponse?.data?.categories ||
     }
 
     if (!image) {
-      newErrors.image = 'Size Chart image is required';
+      newErrors.image = 'Subcategory Chart image is required';
+    }
+
+    if (!sizeImage) {
+      newErrors.sizeImage = 'Size Chart image is required';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+// Handle form submission
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
 
-    setLoading(true);
+  if (!validateForm()) {
+    return;
+  }
 
-    try {
-      const subcategoryData = {
-        name: formData.name.trim(),
-        description: formData.description.trim(),
-        categoryId: formData.categoryId, // Updated to categoryId
-        image: image
-      };
+  setLoading(true);
 
-      await createSubcategory(subcategoryData).unwrap();
-      
-      toast.success('Subcategory created successfully!');
-      
-      // Reset form
-      setFormData({
-        name: '',
-        description: '',
-        categoryId: '', // Updated to categoryId
-      });
-      removeImage();
-      setErrors({});
-      
-      // Navigate back to subcategories list
-      navigate('/dashboard/subcategories');
-    } catch (error) {
-      console.error('Create subcategory error:', error);
-      toast.error(error?.data?.message || 'Failed to create subcategory. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const subcategoryData = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      categoryId: formData.categoryId,
+      image: image,
+      sizeImage: sizeImage
+    };
+
+    await createSubcategory(subcategoryData).unwrap();
+    
+    toast.success('Subcategory created successfully!');
+    
+    // Reset form
+    setFormData({
+      name: '',
+      description: '',
+      categoryId: '',
+    });
+    removeImage();
+    removeSizeImage();
+    setErrors({});
+    
+    navigate('/dashboard/subcategories');
+  } catch (error) {
+    console.error('Create subcategory error:', error);
+    toast.error(error?.data?.message || 'Failed to create subcategory. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <motion.section
@@ -329,13 +374,13 @@ const categories = categoriesResponse?.data?.categories ||
                       className="text-xl font-semibold font-instrument mb-6 flex items-center"
                     >
                       <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">2</span>
-                      Sizechart Image
+                      Subcategory Image
                     </motion.h2>
 
                     <motion.div variants={itemVariants} className="space-y-4">
                       <div>
                         <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
-                          Sizechart Image *
+                          Subcategory Image *
                         </label>
                         <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
                           Upload a high-quality image that represents this subcategory. Recommended size: 500x500px.
@@ -390,6 +435,76 @@ const categories = categoriesResponse?.data?.categories ||
                     </motion.div>
                   </motion.section>
 
+                  {/* Sizechart Image Upload */}
+                  <motion.section
+                    variants={containerVariants}
+                    className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
+                  >
+                    <motion.h2 
+                      variants={itemVariants}
+                      className="text-xl font-semibold font-instrument mb-6 flex items-center"
+                    >
+                      <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">2</span>
+                      SizeChart Image
+                    </motion.h2>
+
+                    <motion.div variants={itemVariants} className="space-y-4">
+                      <div>
+                        <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
+                          SizeChart Image *
+                        </label>
+                        <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
+                          Upload a high-quality image that represents this subcategory. Recommended size: 500x500px.
+                        </p>
+                        
+                        {!sizeImagePreview ? (
+                          <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                            errors.sizeImage ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : `${currentTheme.border} hover:border-blue-500`
+                          }`}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSizeImageUpload}
+                              className="hidden"
+                              id="sizechart-image"
+                            />
+                            <label
+                              htmlFor="sizechart-image"
+                              className="cursor-pointer flex flex-col items-center"
+                            >
+                              <Upload className="w-12 h-12 text-gray-400 mb-4" />
+                              <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
+                                Click to upload image
+                              </p>
+                              <p className={`text-sm ${currentTheme.text.muted}`}>
+                                PNG, JPG, JPEG up to 5MB
+                              </p>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <div className={`border rounded-lg p-4 ${currentTheme.border}`}>
+                              <img
+                                src={sizeImagePreview}
+                                alt="Subcategory preview"
+                                className="w-48 h-48 object-cover rounded-lg mx-auto"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={removeSizeImage}
+                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        )}
+                        {errors.sizeImage && (
+                          <p className="text-red-500 text-sm mt-2">{errors.sizeImage}</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  </motion.section>
                   {/* Submit Section */}
                   <motion.section
                     variants={containerVariants}

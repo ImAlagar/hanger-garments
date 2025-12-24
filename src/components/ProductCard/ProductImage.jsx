@@ -104,7 +104,7 @@ const ProductImage = memo(({ product, styles, isInWishlist, user, togglingWishli
         <img
           src={currentImage}
           alt={product.name}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
+          className={`w-full object-cover transition-opacity duration-300 ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={handleImageLoad}

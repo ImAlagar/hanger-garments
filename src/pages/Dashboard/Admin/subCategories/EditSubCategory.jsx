@@ -24,7 +24,7 @@ const EditSubCategory = () => {
   const [updateSubcategory] = useUpdateSubcategoryMutation();
 
   const subcategory = subcategoryData?.data;
-const categories = categoriesResponse?.data?.categories || 
+  const categories = categoriesResponse?.data?.categories || 
                   categoriesResponse?.categories || 
                   categoriesResponse?.data || 
                   categoriesResponse || 
@@ -40,6 +40,8 @@ const categories = categoriesResponse?.data?.categories ||
 
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [sizeImage, setSizeImage] = useState(null);
+  const [sizeImagePreview, setSizeImagePreview] = useState(null);
 
   // Theme-based styling
   const themeClasses = {
@@ -101,29 +103,37 @@ const categories = categoriesResponse?.data?.categories ||
   };
 
   // Initialize form with subcategory data
-  useEffect(() => {
-    if (subcategory) {
-      setFormData({
-        name: subcategory.name || '',
-        description: subcategory.description || '',
-        categoryId: subcategory.categoryId || '',
-        isActive: subcategory.isActive ?? true
-      });
+useEffect(() => {
+  if (subcategory) {
+    setFormData({
+      name: subcategory.name || '',
+      description: subcategory.description || '',
+      categoryId: subcategory.categoryId || '',
+      isActive: subcategory.isActive ?? true
+    });
 
-      if (subcategory.image) {
-        setImagePreview(subcategory.image);
-      }
+    if (subcategory.image) {
+      setImagePreview(subcategory.image);
     }
-  }, [subcategory]);
+    
+    // Add sizeImage initialization
+    if (subcategory.sizeImage) {
+      setSizeImagePreview(subcategory.sizeImage);
+    }
+  }
+}, [subcategory]);
 
   // Clean up image preview URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (imagePreview && imagePreview.startsWith('blob:')) {
-        URL.revokeObjectURL(imagePreview);
-      }
-    };
-  }, []);
+useEffect(() => {
+  return () => {
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    if (sizeImagePreview && sizeImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(sizeImagePreview);
+    }
+  };
+}, []);
 
   // Handle input changes
   const handleInputChange = (e) => {
@@ -160,6 +170,32 @@ const categories = categoriesResponse?.data?.categories ||
     }
   };
 
+  // Add this function alongside handleImageUpload
+const handleSizeImageUpload = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    setSizeImage(file);
+    
+    // Create preview URL and clean up previous one
+    if (sizeImagePreview && sizeImagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(sizeImagePreview);
+    }
+    setSizeImagePreview(URL.createObjectURL(file));
+  }
+};
+
   // Remove image
   const removeImage = () => {
     setImage(null);
@@ -168,6 +204,15 @@ const categories = categoriesResponse?.data?.categories ||
     }
     setImagePreview(null);
   };
+
+  // Add this alongside removeImage
+const removeSizeImage = () => {
+  setSizeImage(null);
+  if (sizeImagePreview && sizeImagePreview.startsWith('blob:')) {
+    URL.revokeObjectURL(sizeImagePreview);
+  }
+  setSizeImagePreview(null);
+};
 
   // Form validation
   const validateForm = () => {
@@ -187,48 +232,53 @@ const categories = categoriesResponse?.data?.categories ||
   };
 
   // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!validateForm()) {
-      return;
+  if (!validateForm()) {
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // Create FormData for file upload
+    const formDataToSend = new FormData();
+    
+    // Append form fields
+    formDataToSend.append('name', formData.name);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('categoryId', formData.categoryId);
+    formDataToSend.append('isActive', formData.isActive.toString());
+    
+    // Append images if new ones were selected
+    if (image) {
+      formDataToSend.append('image', image);
+    }
+    
+    // Add sizeImage
+    if (sizeImage) {
+      formDataToSend.append('sizeImage', sizeImage);
     }
 
-    setLoading(true);
+    // Call the update mutation
+    const result = await updateSubcategory({
+      subcategoryId,
+      updateData: formDataToSend // Send as FormData for file upload
+    }).unwrap();
 
-    try {
-      // Create FormData for file upload
-      const formDataToSend = new FormData();
-      
-      // Append form fields
-      formDataToSend.append('name', formData.name);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('categoryId', formData.categoryId);
-      formDataToSend.append('isActive', formData.isActive.toString());
-      
-      // Append image if a new one was selected
-      if (image) {
-        formDataToSend.append('image', image);
-      }
-
-      // Call the update mutation
-      const result = await updateSubcategory({
-        subcategoryId,
-        updateData: formDataToSend // Send as FormData for file upload
-      }).unwrap();
-
-      toast.success('Subcategory updated successfully!');
-      
-      // Navigate back to subcategories list
-      navigate('/dashboard/subcategories');
-    } catch (error) {
-      console.error('Update subcategory error:', error);
-      const errorMessage = error?.data?.message || error?.message || 'Failed to update subcategory';
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+    toast.success('Subcategory updated successfully!');
+    
+    // Navigate back to subcategories list
+    navigate('/dashboard/subcategories');
+  } catch (error) {
+    console.error('Update subcategory error:', error);
+    const errorMessage = error?.data?.message || error?.message || 'Failed to update subcategory';
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (subcategoryLoading) {
     return (
@@ -397,13 +447,13 @@ const categories = categoriesResponse?.data?.categories ||
                       className="text-xl font-semibold font-instrument mb-6 flex items-center"
                     >
                       <span className="bg-green-100 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">2</span>
-                      Sizechart Image
+                      Subcategory Image
                     </motion.h2>
 
                     <motion.div variants={itemVariants} className="space-y-4">
                       <div>
                         <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
-                          Sizechart Image
+                          Subcategory Image
                         </label>
                         <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
                           {image ? 'New image selected' : 'Current size chart image'}
@@ -443,6 +493,72 @@ const categories = categoriesResponse?.data?.categories ||
                             <button
                               type="button"
                               onClick={removeImage}
+                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </motion.section>
+
+                  {/* Size Image Upload */}
+                  <motion.section
+                    variants={containerVariants}
+                    className={`border rounded-xl p-6 ${currentTheme.bg.card} ${currentTheme.border} ${currentTheme.shadow}`}
+                  >
+                    <motion.h2 
+                      variants={itemVariants}
+                      className="text-xl font-semibold font-instrument mb-6 flex items-center"
+                    >
+                      <span className="bg-purple-100 text-purple-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">3</span>
+                      Size Chart Image
+                    </motion.h2>
+
+                    <motion.div variants={itemVariants} className="space-y-4">
+                      <div>
+                        <label className={`block text-sm font-medium font-instrument ${currentTheme.text.secondary} mb-2`}>
+                          Size Chart Image
+                        </label>
+                        <p className={`text-sm ${currentTheme.text.muted} mb-4`}>
+                          {sizeImage ? 'New size chart image selected' : 'Current size chart image'}
+                        </p>
+                        
+                        {!sizeImagePreview ? (
+                          <div className={`border-2 border-dashed rounded-lg p-8 text-center ${currentTheme.border} hover:border-purple-500 transition-colors`}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSizeImageUpload}
+                              className="hidden"
+                              id="sizechart-image"
+                            />
+                            <label
+                              htmlFor="sizechart-image"
+                              className="cursor-pointer flex flex-col items-center"
+                            >
+                              <Upload className="w-12 h-12 text-gray-400 mb-4" />
+                              <p className={`font-medium ${currentTheme.text.primary} mb-2`}>
+                                Click to upload size chart image
+                              </p>
+                              <p className={`text-sm ${currentTheme.text.muted}`}>
+                                PNG, JPG, JPEG up to 5MB
+                              </p>
+                            </label>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <div className={`border rounded-lg p-4 ${currentTheme.border}`}>
+                              <img
+                                src={sizeImagePreview}
+                                alt="Size chart preview"
+                                className="w-48 h-48 object-cover rounded-lg mx-auto"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={removeSizeImage}
                               className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                             >
                               <X size={16} />

@@ -10,13 +10,15 @@ const HeroSlider = ({ banners, isLoading }) => {
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768)
+      setIsMobile(window.innerWidth < 768)
     }
     
     checkMobile()
     window.addEventListener('resize', checkMobile)
     
-    return () => window.removeEventListener('resize', checkMobile)
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+    }
   }, [])
 
   // Auto-slide effect
@@ -31,29 +33,32 @@ const HeroSlider = ({ banners, isLoading }) => {
   }, [banners.length])
 
   if (isLoading || banners.length === 0) {
-    return null
+    return (
+      <div className="relative min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading banner...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isMobile) {
+    return (
+      <HeroSliderMobile 
+        banners={banners} 
+        current={current}
+        setCurrent={setCurrent}
+      />
+    )
   }
 
   return (
-    <>
-      {/* Desktop Version */}
-      <div className="hidden md:block">
-        <HeroSliderDesktop 
-          banners={banners} 
-          current={current}
-          setCurrent={setCurrent}
-        />
-      </div>
-
-      {/* Mobile Version */}
-      <div className="block md:hidden">
-        <HeroSliderMobile 
-          banners={banners} 
-          current={current}
-          setCurrent={setCurrent}
-        />
-      </div>
-    </>
+    <HeroSliderDesktop 
+      banners={banners} 
+      current={current}
+      setCurrent={setCurrent}
+    />
   )
 }
 

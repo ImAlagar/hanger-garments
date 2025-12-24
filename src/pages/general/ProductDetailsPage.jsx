@@ -23,6 +23,7 @@ import RatingDisplay from './RatingDisplay';
 import { useGetProductRatingsQuery } from '../../redux/services/ratingService';
 import calculateRatingStats from '../../utils/calculateRatingStats';
 import placeholderimage from "../../assets/images/placeholder.jpg"
+import RelatedProductsSkeleton from './RelatedProductsSkeleton';
 
 
 const ProductDetailsPage = () => {
@@ -982,7 +983,7 @@ const handleBackToProductImages = () => {
                 <div className="p-4 sm:p-6 overflow-auto max-h-[calc(90vh-80px)]">
                   <div className="relative">
                     <img
-                      src={product.subcategory.image}
+                      src={product.subcategory.sizeImage}
                       alt={`${product.name} Size Chart`}
                       className="w-full h-auto object-contain rounded-lg"
                       loading="lazy"
@@ -1496,13 +1497,14 @@ const handleBackToProductImages = () => {
 
 
         {/* Related Products */}
-      <Suspense fallback={<div className="h-40 bg-gray-100 dark:bg-gray-800 animate-pulse rounded"></div>}>
-        <RelatedProducts 
-          currentProduct={product}
-          category={product.category?.name || product.category}
-          relatedProducts={relatedProductsData?.data || []}
-        />
-      </Suspense>
+        <Suspense fallback={<RelatedProductsSkeleton />}>
+          <RelatedProducts 
+            currentProduct={product}
+            category={product.category?.name || product.category}
+          />
+        </Suspense>
+
+
 
         {/* Cart Sidebar */}
         <CartSidebar 

@@ -28,7 +28,7 @@ const cleanProductId = (productId) => {
       // Find the actual case from the original string
       const actualSuffix = productId.substring(productId.length - suffix.length);
       const cleanId = productId.substring(0, productId.length - actualSuffix.length);
-      console.log(`Cleaned product ID: ${productId} -> ${cleanId} (removed: ${actualSuffix})`);
+      
       return cleanId;
     }
   }
@@ -43,7 +43,7 @@ const cleanProductId = (productId) => {
     if (lowerId.includes(pattern)) {
       const startIndex = lowerId.indexOf(pattern);
       const cleanId = productId.substring(0, startIndex);
-      console.log(`Cleaned product ID with space: ${productId} -> ${cleanId}`);
+      
       return cleanId;
     }
   }
@@ -55,12 +55,12 @@ const cleanProductId = (productId) => {
     // Check if last part could be a color (contains only letters, no numbers)
     if (/^[A-Za-z\s]+$/.test(lastPart)) {
       const cleanId = parts.slice(0, -1).join('-');
-      console.log(`Split by hyphen: ${productId} -> ${cleanId} (last part: ${lastPart})`);
+      
       return cleanId;
     }
   }
   
-  console.log(`No cleaning needed: ${productId}`);
+  
   return productId;
 };
 

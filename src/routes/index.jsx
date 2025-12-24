@@ -89,8 +89,6 @@ import EditQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/EditQua
 import ViewQuantityPrice from "../pages/Dashboard/Admin/quantity-pricing/ViewQuantityPrice";
 import CustomizationPage from "../pages/general/CustomizationPage";
 
-
-
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -100,143 +98,143 @@ export const router = createBrowserRouter([
       // Public Routes
       {
         index: true,
-        element: <Home />
+        element: <Home />,
       },
       {
         path: "/about-us",
-        element: <About />
+        element: <About />,
       },
       {
         path: "/shop",
-        element: <Shop />
+        element: <Shop />,
       },
       {
-      path: "/shop/:category",
-      element: <Shop />
-    },
+        path: "/shop/:category",
+        element: <Shop />,
+      },
       {
         path: "/contact",
-        element: <Contact />
+        element: <Contact />,
       },
 
       {
         path: "/wishlist",
-        element: <UserWishlist />
+        element: <UserWishlist />,
       },
       {
         path: "/cart",
-        element: <Cart />
+        element: <Cart />,
       },
       {
         path: "/collections/:productSlug",
-        element: <ProductDetailsPage />
+        element: <ProductDetailsPage />,
       },
       {
         path: "/customize/:productSlug",
         element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
+          <ProtectedRoute allowedRoles={["CUSTOMER", "WHOLESALER"]}>
             <CustomizationPage />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "/privacy-policy",
-        element: <PrivacyPolicy />
+        element: <PrivacyPolicy />,
       },
       {
         path: "/terms",
-        element: <TermsAndPolicy />
+        element: <TermsAndPolicy />,
       },
       {
         path: "/shipping",
-        element: <ShippingPolicy />
+        element: <ShippingPolicy />,
       },
       {
         path: "/cancellation",
-        element: <ReturnsAndRefunds />
+        element: <ReturnsAndRefunds />,
       },
-        {
-      path: "/checkout",
-      element: (
-        <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
-          <Checkout />
-        </ProtectedRoute>
-      )
-    },
+      {
+        path: "/checkout",
+        element: (
+          <ProtectedRoute allowedRoles={["CUSTOMER", "WHOLESALER"]}>
+            <Checkout />
+          </ProtectedRoute>
+        ),
+      },
       // Authentication Routes
       {
         path: "/login",
-        element: <UserLogin />
+        element: <UserLogin />,
       },
       {
         path: "/register",
-        element: <UserRegister />
+        element: <UserRegister />,
       },
       {
         path: "/forgot-password",
-        element: <ForgotPassword />
+        element: <ForgotPassword />,
       },
       {
         path: "/wholesaler/forgot-password",
-        element: <WholesalerForgotPassword />
+        element: <WholesalerForgotPassword />,
       },
       {
         path: "/reset-password",
-        element: <ResetPassword />
+        element: <ResetPassword />,
       },
 
       {
         path: "/wholesaler/forgot-password",
-        element: <WholesalerForgotPassword />
+        element: <WholesalerForgotPassword />,
       },
       {
         path: "/reset-password",
-        element: <ResetPassword />
+        element: <ResetPassword />,
       },
 
-            {
+      {
         path: "/admin/forgot-password",
-        element: <AdminForgotPassword />
+        element: <AdminForgotPassword />,
       },
       {
         path: "/admin/reset-password",
-        element: <AdminResetPassword />
+        element: <AdminResetPassword />,
       },
       {
         path: "/wholesaler/login",
-        element: <WholesalerLogin />
+        element: <WholesalerLogin />,
       },
       {
         path: "/wholesaler/register",
-        element: <WholesalerRegister />
+        element: <WholesalerRegister />,
       },
       {
         path: "/admin/login",
-        element: <AdminLogin />
+        element: <AdminLogin />,
       },
       {
         path: "/verify-otp",
-        element: <OTPVerification />
+        element: <OTPVerification />,
       },
 
-        {
+      {
         path: "user/orders",
         element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
+          <ProtectedRoute allowedRoles={["CUSTOMER"]}>
             <UserOrders />
           </ProtectedRoute>
-        )
+        ),
       },
-    ]
+    ],
   },
   {
-        path: "dashboard/wholesaler",
-        element: (
-          <ProtectedRoute allowedRoles={['WHOLESALER']}>
-            <WholesalerDashboard />
-          </ProtectedRoute>
-        )
-    },
+    path: "dashboard/wholesaler",
+    element: (
+      <ProtectedRoute allowedRoles={["WHOLESALER"]}>
+        <WholesalerDashboard />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: "/dashboard",
     element: <DashboardLayout />, // Remove ProtectedRoute wrapper
@@ -244,366 +242,366 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <Dashboard />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "analytics",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <Analytics />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "quantity-pricing",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminQuantityPricing />
           </ProtectedRoute>
-        )
+        ),
       },
 
       {
         path: "quantity-pricing/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddQuantityPrice />
           </ProtectedRoute>
-        )
+        ),
       },
 
       {
         path: "quantity-pricing/edit/:subcategoryId/:priceId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditQuantityPrice />
           </ProtectedRoute>
-        )
+        ),
       },
-            {
+      {
         path: "quantity-pricing/view/:subcategoryId/:priceId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
-            <ViewQuantityPrice  />
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <ViewQuantityPrice />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminProducts />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddProduct />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/edit/:productId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditProduct />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/view/:productId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewProduct />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "categories",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminCategories />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "categories/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "categories/edit/:categoryId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "categories/view/:categoryId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "subcategories",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminSubCategories />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "subcategories/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddSubCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "subcategories/edit/:subcategoryId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditSubCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "subcategories/view/:subcategoryId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewSubCategory />
           </ProtectedRoute>
-        )
+        ),
       },
 
-            {
+      {
         path: "products/customization/:productId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminCustomization />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/customization/add/:productId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <CustomizationForm />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/customization/edit/:customizationId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <CustomizationForm />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "products/customization/view/:subcategoryId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewSubCategory />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminUsers />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddUser />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/edit/:userId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditUser />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/view/:userId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewUser />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/create/customer",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddCustomer />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/create/admin",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddAdmin />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "users/create/wholesaler",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddWholesaler />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "sliders",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminSliders />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "sliders/add",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AddSlider />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "sliders/edit/:sliderId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <EditSlider />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "sliders/view/:sliderId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewSlider />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "orders",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminOrders />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "orders/view/:orderId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewOrder />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "wholesalers",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminWholesalers />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "contacts",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminContacts />
           </ProtectedRoute>
-        )
+        ),
       },
-            {
+      {
         path: "contacts/view/:contactId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewContact />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "ratings",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminRatings />
           </ProtectedRoute>
-        )
+        ),
       },
-            {
+      {
         path: "ratings/view/:ratingId",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <ViewRating />
           </ProtectedRoute>
-        )
+        ),
       },
-  {
-    path: "coupons",
-    element: (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
-        <AdminCoupons />
-      </ProtectedRoute>
-    )
-  },
+      {
+        path: "coupons",
+        element: (
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminCoupons />
+          </ProtectedRoute>
+        ),
+      },
 
-{
-  path: "coupons/add",
-  element: (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
-      <AddCoupon />
-    </ProtectedRoute>
-  )
-},
-{
-  path: "coupons/edit/:couponId",
-  element: (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
-      <EditCoupon />
-    </ProtectedRoute>
-  )
-},
-{
-  path: "coupons/view/:couponId",
-  element: (
-    <ProtectedRoute allowedRoles={['ADMIN']}>
-      <ViewCoupon />
-    </ProtectedRoute>
-  )
-},
+      {
+        path: "coupons/add",
+        element: (
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AddCoupon />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "coupons/edit/:couponId",
+        element: (
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <EditCoupon />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "coupons/view/:couponId",
+        element: (
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <ViewCoupon />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "wholesaler-applications",
         element: (
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
             <WholesalerApplications />
           </ProtectedRoute>
-        )
+        ),
       },
 
       // Wholesaler Routes
@@ -611,54 +609,53 @@ export const router = createBrowserRouter([
       {
         path: "wholesaler/products",
         element: (
-          <ProtectedRoute allowedRoles={['WHOLESALER']}>
+          <ProtectedRoute allowedRoles={["WHOLESALER"]}>
             <WholesalerProducts />
           </ProtectedRoute>
-        )
+        ),
       },
       {
         path: "wholesaler/orders",
         element: (
-          <ProtectedRoute allowedRoles={['WHOLESALER']}>
+          <ProtectedRoute allowedRoles={["WHOLESALER"]}>
             <WholesalerOrders />
           </ProtectedRoute>
-        )
+        ),
       },
 
       // User Routes
-
-    ]
+    ],
   },
-    {
-        path: "user",
-        element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <UserDashboard />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: "user/profile",
-        element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <UserProfile />
-          </ProtectedRoute>
-        )
-      },
-      {
-        path: "user/wishlist",
-        element: (
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <UserWishlist />
-          </ProtectedRoute>
-        )
-      },
-    {
-      path: "/payment-success",
-      element: (
-        <ProtectedRoute allowedRoles={['CUSTOMER', 'WHOLESALER']}>
-          <OrderSuccess />
-        </ProtectedRoute>
-      )
-    }
+  {
+    path: "user",
+    element: (
+      <ProtectedRoute allowedRoles={["CUSTOMER"]}>
+        <UserDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "user/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["CUSTOMER"]}>
+        <UserProfile />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "user/wishlist",
+    element: (
+      <ProtectedRoute allowedRoles={["CUSTOMER"]}>
+        <UserWishlist />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payment-success",
+    element: (
+      <ProtectedRoute allowedRoles={["CUSTOMER", "WHOLESALER"]}>
+        <OrderSuccess />
+      </ProtectedRoute>
+    ),
+  },
 ]);

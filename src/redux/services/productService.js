@@ -318,7 +318,7 @@ export const {
   useToggleBestSellerMutation,
   useToggleFeaturedMutation,
   useToggleNewArrivalMutation,
-  useSearchProductsQuery,
+  useSearchProductsQuery, 
   useGetFeaturedProductsQuery,
   useGetNewArrivalsQuery,
   useGetBestSellersQuery,
