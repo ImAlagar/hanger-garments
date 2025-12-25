@@ -1,12 +1,11 @@
 import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { motionVariants } from '../../constants/headerConstants';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { motionVariants } from '../../constants/headerConstants';
 
-const CategoryCollections = ({ 
-  categories, 
-  handleSubcategoryClick 
-}) => {
+const CategoryCollections = ({ categories, handleSubcategoryClick }) => {
+  const scrollRef = useRef({});
+
   const formatCategoryName = (name) => {
     if (name.toLowerCase() === 'men') return "Men's";
     if (name.toLowerCase() === 'women') return "Women's";
@@ -14,15 +13,15 @@ const CategoryCollections = ({
     return name;
   };
 
-  const scrollRef = useRef({});
-
   const scroll = (categoryId, direction) => {
     const container = scrollRef.current[categoryId];
     if (container) {
-      const scrollAmount = container.offsetWidth; // scroll by one container width
       container.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
+        left:
+          direction === 'left'
+            ? -container.offsetWidth
+            : container.offsetWidth,
+        behavior: 'smooth',
       });
     }
   };
@@ -32,70 +31,92 @@ const CategoryCollections = ({
       {categories.map((category) => (
         <motion.section
           key={category.id}
-          className="mb-16 font-italiana tracking-widest"
+          className="mb-20 font-italiana tracking-widest"
           variants={motionVariants.container}
           initial="hidden"
           animate="visible"
         >
-          {/* Category Header */}
-          <div className="flex items-center justify-center mb-8">
+          {/* Category Title */}
+          <div className="flex justify-center mb-10">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
               {formatCategoryName(category.name)} Collection
             </h2>
           </div>
 
-          {/* Subcategories Horizontal Scroller */}
-          {category.subcategories && category.subcategories.length > 0 ? (
+          {category.subcategories?.length > 0 ? (
             <div className="relative">
               {/* Left Arrow */}
               <button
                 onClick={() => scroll(category.id, 'left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
               >
-                <ArrowLeft className="h-6 w-6 text-gray-700" />
+                <ArrowLeft className="w-6 h-6 text-gray-700" />
               </button>
 
+              {/* Scroll Container */}
               <div
-                className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4"
                 ref={(el) => (scrollRef.current[category.id] = el)}
+                className="flex gap-4 overflow-x-auto scrollbar-hide px-6 md:px-12"
               >
                 {category.subcategories.map((subcategory) => (
                   <motion.div
                     key={subcategory.id}
-                    className="flex-shrink-0 w-1/2 sm:w-1/4 lg:w-1/4 xl:w-1/5  rounded-md"
+                    className="
+                      flex-shrink-0
+                      w-[70%]
+                      sm:w-[45%]
+                      md:w-[30%]
+                      lg:w-[22%]
+                      xl:w-[20%]
+                    "
                     whileHover={{ scale: 1.03 }}
                     transition={{ duration: 0.2 }}
                   >
                     <button
-                      onClick={() => handleSubcategoryClick(subcategory.name, category.name)}
-                      className="group w-full text-left"
+                      onClick={() =>
+                        handleSubcategoryClick(
+                          subcategory.name,
+                          category.name
+                        )
+                      }
+                      className="w-full h-full group"
                     >
-                      <div className=" overflow-hidden mb-2  relative h-96 md:h-96">
-                        {subcategory.image ? (
-                          <img
-                            src={subcategory.image}
-                            alt={subcategory.name}
-                            className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/224x192/000000/FFFFFF?text=No+Image';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                            <span className="text-gray-400">No Image</span>
-                          </div>
-                        )}
+                      <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+                        {/* Image */}
+                        <div className="relative aspect-[3/4] overflow-hidden">
+                          {subcategory.image ? (
+                            <img
+                              src={subcategory.image}
+                              alt={subcategory.name}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                e.target.src =
+                                  'https://via.placeholder.com/300x400/000000/FFFFFF?text=No+Image';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                              <span className="text-gray-400 text-sm">
+                                No Image
+                              </span>
+                            </div>
+                          )}
 
-                        {subcategory._count?.products > 0 && (
-                          <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium">
-                            {subcategory._count.products} products
-                          </div>
-                        )}
+                          {/* Product Count */}
+                          {subcategory._count?.products > 0 && (
+                            <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs font-medium">
+                              {subcategory._count.products}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Name */}
+                        <div className="px-3 py-3">
+                          <h3 className="text-center text-nowrap text-sm sm:text-base font-semibold text-gray-900 leading-snug line-clamp-2 group-hover:text-black">
+                            {subcategory.name}
+                          </h3>
+                        </div>
                       </div>
-
-                      <h3 className="font-semibold text-center text-gray-900 truncate group-hover:text-black">
-                        {subcategory.name}
-                      </h3>
                     </button>
                   </motion.div>
                 ))}
@@ -104,14 +125,15 @@ const CategoryCollections = ({
               {/* Right Arrow */}
               <button
                 onClick={() => scroll(category.id, 'right')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 bg-white rounded-full shadow hover:bg-gray-100"
               >
-                <ArrowRight className="h-6 w-6 text-gray-700" />
+                <ArrowRight className="w-6 h-6 text-gray-700" />
               </button>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              No subcategories available for {formatCategoryName(category.name)}
+            <div className="text-center py-10 text-gray-500">
+              No subcategories available for{' '}
+              {formatCategoryName(category.name)}
             </div>
           )}
         </motion.section>
