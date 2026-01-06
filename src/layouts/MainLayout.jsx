@@ -5,8 +5,9 @@ import Footer from '../components/layout/Footer/Footer';
 import ScrollToTopButton from '../components/Common/ScrollToTopButton';
 import ScrollToTop from '../components/Common/ScrollToTop';
 import { useDispatch, useSelector } from 'react-redux';
-import { authCheckComplete } from '../redux/slices/authSlice';
+import { authCheckComplete, logout } from '../redux/slices/authSlice';
 import { useEffect } from 'react';
+import apiClient from '../config/api';
 
 const MainLayout = () => {
   const location = useLocation();
