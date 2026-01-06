@@ -11,11 +11,20 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
+
+const baseQueryWithAutoLogout = async (args, api, extraOptions) => {
+  const result = await baseQuery(args, api, extraOptions);
+
+  if (result.error?.status === 401) {
+    api.dispatch(logout());
+    window.location.href = '/login';
+  }
+
+  return result;
+};
+
 export const apiSlice = createApi({
-  baseQuery,
-  tagTypes: [
-    'Auth', 'User', 'Category', 'Product', 'Order', 
-    'Coupon', 'Rating', 'Contact', 'Slider'
-  ],
+  baseQuery: baseQueryWithAutoLogout,
+  tagTypes: ['Auth', 'User', 'Product', 'Order'],
   endpoints: () => ({}),
 });

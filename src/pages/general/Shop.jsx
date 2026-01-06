@@ -593,84 +593,94 @@ const LazyProductGrid = ({ products, onCartUpdate }) => {
 };
 
 // Pagination Component
-const Pagination = ({ 
-  currentPage, 
-  totalPages, 
-  goToPage, 
-  loadMoreProducts, 
-  hasMore, 
-  paginatedProducts, 
-  totalItems, 
-  themeClasses 
+const Pagination = ({
+  currentPage,
+  totalPages,
+  goToPage,
+  loadMoreProducts,
+  hasMore,
+  paginatedProducts,
+  totalItems,
+  themeClasses,
+  PRODUCTS_PER_PAGE,
 }) => {
   const pageNumbers = useMemo(() => {
     const pages = [];
     const maxVisiblePages = 5;
-    
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
+
+    let startPage = Math.max(
+      1,
+      currentPage - Math.floor(maxVisiblePages / 2)
+    );
+    let endPage = Math.min(
+      totalPages,
+      startPage + maxVisiblePages - 1
+    );
+
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
-    
+
     return pages;
   }, [currentPage, totalPages]);
 
   return (
-    <div className="mt-12 flex flex-col items-center gap-6">
-      {/* Load More Button (for infinite scroll style) */}
+    <div className="mt-10 w-full flex flex-col items-center gap-5 overflow-x-hidden">
+      {/* LOAD MORE (FULL WIDTH ON MOBILE) */}
       {hasMore && (
         <button
           onClick={loadMoreProducts}
-          className="px-8 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium"
+          className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors font-medium text-center"
         >
-          Load More Products ({totalItems - (currentPage * PRODUCTS_PER_PAGE)} remaining)
+          Load More Products (
+          {totalItems - currentPage * PRODUCTS_PER_PAGE} remaining)
         </button>
       )}
 
-      {/* Traditional Pagination */}
+      {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex items-center gap-2">
-          {/* Previous Button */}
+        <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* PREVIOUS */}
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg border ${
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg border text-sm ${
               currentPage === 1
-                ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                ? "border-gray-300 text-gray-400 cursor-not-allowed"
                 : `${themeClasses.borderColor} ${themeClasses.hoverBg} transition-colors`
             }`}
           >
             Previous
           </button>
 
-          {/* Page Numbers */}
-          {pageNumbers.map(page => (
-            <button
-              key={page}
-              onClick={() => goToPage(page)}
-              className={`px-4 py-2 rounded-lg border ${
-                currentPage === page
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : `${themeClasses.borderColor} ${themeClasses.hoverBg} transition-colors`
-              }`}
-            >
-              {page}
-            </button>
-          ))}
+          {/* PAGE NUMBERS (WRAPS ON MOBILE) */}
+          <div className="flex flex-wrap justify-center gap-2 max-w-full">
+            {pageNumbers.map((page) => (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`min-w-[40px] px-3 py-2 rounded-lg border text-sm ${
+                  currentPage === page
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : `${themeClasses.borderColor} ${themeClasses.hoverBg} transition-colors`
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
 
-          {/* Next Button */}
+          {/* NEXT */}
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg border ${
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg border text-sm ${
               currentPage === totalPages
-                ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                ? "border-gray-300 text-gray-400 cursor-not-allowed"
                 : `${themeClasses.borderColor} ${themeClasses.hoverBg} transition-colors`
             }`}
           >
@@ -679,13 +689,17 @@ const Pagination = ({
         </div>
       )}
 
-      {/* Page Info */}
-      <div className={`text-sm ${themeClasses.subText}`}>
-        Page {currentPage} of {totalPages} • Showing {paginatedProducts.length} of {totalItems} products
+      {/* PAGE INFO */}
+      <div
+        className={`text-xs sm:text-sm text-center ${themeClasses.subText}`}
+      >
+        Page {currentPage} of {totalPages} • Showing{" "}
+        {paginatedProducts.length} of {totalItems} products
       </div>
     </div>
   );
 };
+
 
 // Empty State Component
 const EmptyState = ({ category, categoryDisplayName, clearAllFilters }) => (

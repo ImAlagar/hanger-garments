@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../redux/hooks';
 import { authCheckComplete } from '../redux/slices/authSlice';
 import { ToastContainer, toast } from 'react-toastify';
@@ -10,29 +10,30 @@ import AdminHeader from '../components/admin/auth/AdminHeader';
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const dispatch = useAppDispatch();
-  
+  const navigate = useNavigate();
+
   // Get all auth state from Redux
   const { loading, initialCheckDone, token, user } = useAppSelector((state) => state.auth);
 
   // Handle initial auth check with toast notifications
-  useEffect(() => {
-    // If we have a token but initial check hasn't been done yet
-    if (token && !initialCheckDone) {
-      // Mark the check as complete after a short delay
-      const timer = setTimeout(() => {
-        dispatch(authCheckComplete());
-        toast.success(`Welcome back, ${user?.name || 'Admin'}!`, {
-          position: "top-right",
-          autoClose: 3000,
-        });
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    } else if (!token && !initialCheckDone) {
-      // No token, mark check as complete immediately
+useEffect(() => {
+  if (!token || initialCheckDone) {
+    dispatch(authCheckComplete());
+    return;
+  }
+
+  apiClient
+    .get('/admin/auth/me') // admin protected API
+    .then(() => {
       dispatch(authCheckComplete());
-    }
-  }, [token, initialCheckDone, dispatch, user]);
+      toast.success(`Welcome back, ${user?.name || 'Admin'}!`);
+    })
+    .catch(() => {
+      dispatch(logout());
+      navigate('/admin/login');
+    });
+}, [token, initialCheckDone, dispatch, navigate, user]);
+
 
   // Show loading while checking auth
   if (loading || !initialCheckDone) {
