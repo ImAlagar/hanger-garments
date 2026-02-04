@@ -638,7 +638,7 @@ const getOrderItemsData = () => {
           razorpayOrderId: razorpayOrder.id,
           amount: razorpayOrder.amount,
           currency: razorpayOrder.currency,
-          name: "Tiruppur Garments",
+          name: "Hanger Garments",
           description: `Order Payment - ${tempOrderData.orderNumber}`,
           prefill: {
             name: orderData.name,

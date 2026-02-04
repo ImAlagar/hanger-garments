@@ -8,7 +8,7 @@ const fallbackBanners = [
     id: 1,
     bg: "/api/placeholder/1200/800",
     image: "/api/placeholder/600/400",
-    subtitle: "Tiruppur Garments",
+    subtitle: "Hanger Garments",
     title: "Fashion Style",
     description: "Inspired by classic silhouettes and refined detailing, each piece exudes sophistication and grace.",
     smallText: "Discover premium quality and timeless elegance with our latest collection.",

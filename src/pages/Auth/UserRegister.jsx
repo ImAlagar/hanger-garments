@@ -14,8 +14,8 @@ import { useTheme } from "../../context/ThemeContext";
 import { useDispatch, useSelector } from "react-redux";
 import { useRegisterMutation } from "../../redux/services/authService";
 import TiruppurImage from "../../assets/categories/tshirt.webp";
-import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
-import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
+import logowhite from "../../assets/images/logowhite.png";
+import logo from "../../assets/images/logo.png";
 
 const UserRegister = () => {
   const { theme } = useTheme();
@@ -187,7 +187,7 @@ const UserRegister = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>
@@ -246,7 +246,7 @@ const UserRegister = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

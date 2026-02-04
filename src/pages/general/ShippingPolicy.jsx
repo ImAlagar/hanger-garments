@@ -11,7 +11,7 @@ const ShippingPolicy = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Shipping Areas</h2>
-              <p>Tiruppur Garments currently ships to all major cities and towns across India. We are working to expand our shipping network to more locations.</p>
+              <p>Hanger Garments currently ships to all major cities and towns across India. We are working to expand our shipping network to more locations.</p>
             </section>
 
             <section>

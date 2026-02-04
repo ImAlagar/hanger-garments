@@ -293,7 +293,7 @@ export default function Contact() {
                   className={`p-8 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-300 ${card} cursor-pointer group relative overflow-hidden`}
                   onClick={() => {
                     const phoneNumber = "919677411007";
-                    const message = "Hello Tiruppur Garments! I would like to get in touch with you.";
+                    const message = "Hello Hanger Garments! I would like to get in touch with you.";
                     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
                     window.open(whatsappUrl, "_blank");
                   }}

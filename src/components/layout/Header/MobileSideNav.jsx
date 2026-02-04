@@ -34,8 +34,8 @@ import { useGetAllCategoriesQuery } from '../../../redux/services/categoryServic
 import { useGetAllSubcategoriesQuery } from '../../../redux/services/subcategoryService';
 
 // Import logos
-import logowhite from "../../../assets/images/TiruppurGarmentsLogo1(1).png";
-import logoblack from "../../../assets/images/TiruppurGarmentsLogoblack1.png";
+import logowhite from "../../../assets/images/logowhite.png";
+import logoblack from "../../../assets/images/logo.png";
 
 // Helper functions (same as DesktopNav)
 // Helper function to safely extract and validate categories
@@ -920,7 +920,7 @@ const MobileSideNav = ({
                 <p className={`text-center text-xs ${
                   theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
                 }`}>
-                  © 2025 Tiruppur Garments. All rights reserved.
+                  © 2025 Hanger Garments. All rights reserved.
                 </p>
               </div>
             </div>

@@ -15,8 +15,8 @@ import { useDispatch } from "react-redux";
 import { useLoginMutation, useForgotPasswordMutation } from "../../redux/services/authService";
 import { setCredentials } from "../../redux/slices/authSlice";
 import TiruppurImage from "../../assets/categories/tshirt.webp";
-import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
-import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
+import logowhite from "../../assets/images/logowhite.png";
+import logo from "../../assets/images/logo.png";
 
 const UserLogin = () => {
   const { theme } = useTheme();
@@ -199,7 +199,7 @@ const UserLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-cover"
             />
           </motion.div>
@@ -258,7 +258,7 @@ const UserLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

@@ -17,8 +17,8 @@ import { setCredentials, authFailure } from "../../redux/slices/authSlice";
 import { useAppSelector } from "../../redux/hooks";
 import TiruppurImage from "../../assets/categories/tshirt.webp";
 import { FaSpinner } from "react-icons/fa";
-import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
-import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
+import logowhite from "../../assets/images/logowhite.png";
+import logo from "../../assets/images/logo.png";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -318,7 +318,7 @@ const AdminLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

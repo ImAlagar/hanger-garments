@@ -189,7 +189,7 @@ export default function Footer() {
               </motion.div>
 
               <div>
-                <h3 className={`text-xl font-bold ${headingColor}`}>TIRUPPUR GARMENTS</h3>
+                <h3 className={`text-xl font-bold ${headingColor}`}>Hanger Garments</h3>
                 <p className={`text-xs ${textColor}`}>Premium Fashion</p>
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function Footer() {
       <div className={`border-t ${borderColor}`}>
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y=0">
           <div className={`text-sm ${textColor}`}>
-            © {new Date().getFullYear()} Tiruppur Garments. All rights reserved.
+            © {new Date().getFullYear()} Hanger Garments. All rights reserved.
           </div>
 
           <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-sm">

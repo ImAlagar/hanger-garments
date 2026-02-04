@@ -16,8 +16,8 @@ import {
 } from "../../redux/services/authService";
 import { setCredentials } from "../../redux/slices/authSlice";
 import TiruppurImage from "../../assets/categories/tshirt.webp";
-import logowhite from "../../assets/images/TiruppurGarmentsLogo1(1).png";
-import logo from "../../assets/images/TiruppurGarmentsLogoblack1.png";
+import logowhite from "../../assets/images/logowhite.png";
+import logo from "../../assets/images/logo.png";
 
 const WholesalerLogin = () => {
   const { theme } = useTheme();
@@ -234,7 +234,7 @@ const WholesalerLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>
@@ -293,7 +293,7 @@ const WholesalerLogin = () => {
           >
             <img 
               src={currentLogo} 
-              alt="Tiruppur Garments Logo" 
+              alt="Hanger Garments Logo" 
               className="h-20 w-auto object-contain"
             />
           </motion.div>

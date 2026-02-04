@@ -11,7 +11,7 @@ const ReturnsAndRefunds = () => {
           <div className="space-y-6 text-gray-700">
             <section>
               <h2 className="text-xl font-semibold font-bai-jamjuree text-gray-900 mb-4">1. Return Policy</h2>
-              <p>We want you to be completely satisfied with your purchase from Tiruppur Garments. If you're not happy with your order, we accept returns within 30 days of delivery.</p>
+              <p>We want you to be completely satisfied with your purchase from Hanger Garments. If you're not happy with your order, we accept returns within 30 days of delivery.</p>
             </section>
 
             <section>
